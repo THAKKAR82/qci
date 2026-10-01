@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qci"
+version = "0.0.1"
+description = "Vendor-neutral reliability and execution intelligence for quantum workloads (V1: Quantum CI)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.12,<3",
+    "typer>=0.20",
+    "sqlalchemy>=2.0,<3",
+    "qiskit>=2.5,<3",
+    "qiskit-ibm-runtime>=0.50",
+    "qiskit-aer>=0.17",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4",
+    "ruff>=0.12",
+    "mypy>=1.17",
+]
+
+[project.scripts]
+qci = "qci.cli.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qci"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["qiskit.*", "qiskit_ibm_runtime.*", "qiskit_aer.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
