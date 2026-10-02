@@ -1,4 +1,4 @@
-"""QCI command-line interface (M0: run, runs, show)."""
+"""QCI command-line interface: run, runs, show, compare."""
 
 import os
 from pathlib import Path
@@ -221,6 +221,37 @@ def render_run(r: Run) -> str:
                 f"  {m.name} = {m.value}{unit}  [{m.kind.value}; {m.method} v{m.method_version}]"
             )
     return "\n".join(lines)
+
+
+@app.command()
+def compare(
+    baseline: Annotated[str, typer.Argument(help="Baseline run ID (the reference).")],
+    candidate: Annotated[str, typer.Argument(help="Candidate run ID (compared against baseline).")],
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Print the full comparison as JSON.")
+    ] = False,
+) -> None:
+    """Report what changed from BASELINE to CANDIDATE. Deltas are candidate minus baseline.
+
+    Makes no better/worse, regression or causal claims.
+    """
+    # Qiskit-free: the calibration reader parses stored JSON only.
+    from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
+    from qci.adapters.qiskit_ibm.calibration import IbmPropertiesCalibrationReader
+    from qci.cli.render_compare import render_comparison
+    from qci.services.compare_service import CompareService
+
+    repository = _repository()
+    try:
+        result = CompareService(
+            repository, {PROVIDER_ID: IbmPropertiesCalibrationReader()}
+        ).compare(baseline, candidate)
+    except RunNotFoundError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        repository.close()
+    typer.echo(result.model_dump_json(indent=2) if as_json else render_comparison(result))
 
 
 @app.command()

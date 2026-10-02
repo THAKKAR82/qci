@@ -186,3 +186,115 @@ def repo(tmp_path: Path) -> Iterator[SqliteRunRepository]:
     repository = SqliteRunRepository(tmp_path / "qci.db")
     yield repository
     repository.close()
+
+
+# --- physical-footprint fixtures for compare tests (still Qiskit-free) ------------------
+
+GATE_DEFS = """gate ecr _gate_q_0, _gate_q_1 {
+  s _gate_q_0;
+  sx _gate_q_1;
+  cx _gate_q_0, _gate_q_1;
+  x _gate_q_0;
+}
+"""
+
+LOGICAL_BELL_QASM = """OPENQASM 3.0;
+include "stdgates.inc";
+bit[2] c;
+qubit[2] q;
+h q[0];
+cx q[0], q[1];
+c[0] = measure q[0];
+c[1] = measure q[1];
+"""
+
+
+def physical_bell_qasm(control: int, target: int) -> str:
+    """Transpiled-style Bell circuit on physical qubits, as Qiskit's exporter writes it."""
+    return (
+        'OPENQASM 3.0;\ninclude "stdgates.inc";\n'
+        + GATE_DEFS
+        + f"bit[2] c;\nrz(pi/2) ${control};\nsx ${control};\necr ${control}, ${target};\n"
+        + f"x ${control};\nc[0] = measure ${control};\nc[1] = measure ${target};\n"
+    )
+
+
+def ibm_properties(
+    num_qubits: int = 4, *, t1: dict[int, float] | None = None, ecr_error: float = 0.005
+) -> dict[str, Any]:
+    """Synthetic IBM BackendProperties payload in M0's stored (tagged JSON) form."""
+    date = {"$datetime": "2025-02-26T02:00:00-05:00"}
+    t1 = t1 or {}
+    qubits = [
+        [
+            {"name": "T1", "value": t1.get(q, 100.0), "unit": "us", "date": date},
+            {"name": "readout_error", "value": 0.01, "unit": "", "date": date},
+        ]
+        for q in range(num_qubits)
+    ]
+    gates: list[dict[str, Any]] = []
+    for q in range(num_qubits):
+        for name in ("rz", "sx", "x"):
+            gates.append(
+                {
+                    "gate": name,
+                    "qubits": [q],
+                    "parameters": [
+                        {"name": "gate_error", "value": 0.0002, "unit": "", "date": date}
+                    ],
+                }
+            )
+    for a in range(num_qubits - 1):
+        for control, target in ((a + 1, a), (a, a + 1)):
+            gates.append(
+                {
+                    "gate": "ecr",
+                    "qubits": [control, target],
+                    "parameters": [
+                        {"name": "gate_error", "value": ecr_error, "unit": "", "date": date}
+                    ],
+                }
+            )
+    general = [{"name": "jq_12", "value": 0.002, "unit": "GHz", "date": date}]
+    return {"backend_name": "synthetic", "qubits": qubits, "gates": gates, "general": general}
+
+
+def physical_run(
+    run_id: str,
+    *,
+    qasm3: str | None,
+    layout: tuple[list[int], list[int]] | None = ([1, 0], [1, 0]),
+    properties: dict[str, Any] | None = None,
+    counts: dict[str, dict[str, int]] | None = None,
+    logical_qasm3: str | None = LOGICAL_BELL_QASM,
+    provider: str = "qiskit_ibm",
+) -> Run:
+    from qci.domain.circuit import Layout
+
+    base = make_run(run_id)
+    assert base.compilation is not None and base.backend is not None
+    assert base.backend_snapshot is not None and base.result is not None
+    output = base.compilation.output.model_copy(update={"qasm3": qasm3})
+    compilation = base.compilation.model_copy(
+        update={
+            "output": output,
+            "layout": Layout(initial=layout[0], final=layout[1]) if layout else None,
+        }
+    )
+    snapshot = base.backend_snapshot.model_copy(
+        update={
+            "provider_raw": {"properties": properties or ibm_properties(), "configuration": None}
+        }
+    )
+    counts = counts or {"c": {"00": 52, "11": 48}}
+    result = base.result.model_copy(
+        update={"counts": counts, "total_shots": sum(next(iter(counts.values())).values())}
+    )
+    return make_run(
+        run_id,
+        compilation=compilation,
+        backend_snapshot=snapshot,
+        backend=base.backend.model_copy(update={"provider": provider}),
+        result=result,
+        logical_circuit=base.logical_circuit.model_copy(update={"qasm3": logical_qasm3}),
+    )

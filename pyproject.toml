@@ -15,6 +15,9 @@ dependencies = [
     "qiskit>=2.5,<3",
     "qiskit-ibm-runtime>=0.50",
     "qiskit-aer>=0.17",
+    # OpenQASM 3 reference parser (vendor-neutral). Its AST API is an external compatibility
+    # boundary isolated in qci/compare/footprint.py; see docs/adr/0004.
+    "openqasm3[parser]>=1.0.1,<2",
 ]
 
 [project.optional-dependencies]

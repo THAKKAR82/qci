@@ -86,6 +86,31 @@ contains the workload file, not from the current working directory.
 - **Circuit summaries.** Summaries cover top-level instructions only. Control-flow bodies are
   not descended into in M0.
 
+## M1 compare flow
+
+```
+qci compare BASELINE CANDIDATE [--json]
+  CompareService (read-only)
+    repository.get(baseline), repository.get(candidate)          # unmodified schema-v1 records
+    compare/sections.py   explicit semantic comparisons per section
+    compare/footprint.py  physical footprint from stored transpiled OpenQASM 3   (ADR 0004)
+    compare/hardware.py   footprint comparison + footprint-scoped calibration comparison
+                          └─ CalibrationReader port, chosen by backend.provider
+                             (adapters/qiskit_ibm/calibration.py: pure dict parsing, no Qiskit)
+    compare/distribution.py  comparability gate, TVD, Hellinger distance
+  → Comparison (deterministic comparison_id, policy qci.compare.v1, never persisted)
+```
+
+- **Provider neutrality.** The `compare` package, `domain/comparison.py` and
+  `services/compare_service.py` import no provider SDK, and `tests/test_architecture.py`
+  enforces it. `openqasm3` is the vendor-neutral OpenQASM reference parser, used only inside
+  `compare/footprint.py`.
+- **Lazy adapter import.** `qci.adapters.qiskit_ibm` imports `QiskitIbmAdapter` lazily, so
+  `qci compare` never imports Qiskit.
+- **New port.** `CalibrationReader.select(snapshot, qubits, operations)` returns calibration
+  for exactly the requested physical resources. Missing data is returned as unavailable, never
+  as zero.
+
 ## Storage (M0)
 
 - SQLite through SQLAlchemy 2 Core, at `./.qci/qci.db` or `$QCI_HOME/qci.db`.
@@ -105,7 +130,7 @@ only for things the CLI needs to filter or sort on.
 | More providers or simulators | A new `adapters/<provider>/` implementing the same ports |
 | Other compilers | Another `Compiler` implementation. `CompilationRecord` records the compiler name and version. |
 | Blob archival (M0.5) | A new `BlobStore` port and `ContentRef` model, plus a schema version bump |
-| Compare (M1) | `CompareService` over two stored Runs, which needs no adapter |
+| Compare (M1, built) | `CompareService` over two stored Runs plus a provider `CalibrationReader` |
 | Hosted storage | Another `RunRepository` implementation |
 | Probes, prediction, routing | New services consuming stored runs and snapshots. These are deliberately not designed yet. |
 

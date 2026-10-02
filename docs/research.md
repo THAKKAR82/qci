@@ -67,6 +67,28 @@ These are hypotheses, not facts. QCI must not hard-code which variables matter.
   2025-02-26. Any feature built on fake snapshots learns about a frozen device, which reinforces
   the `static_fake` filtering rule.
 
+## The physical footprint (M1)
+
+M1 introduces the **workload-relevant physical footprint**: the physical qubits and native
+operations, with ordered qubit arguments, that the final transpiled circuit actually uses. It
+is the unit for scoping hardware evidence to a workload, which bears directly on H1 and H4.
+Facts established while building it:
+
+- **No native SWAP on this backend.** On `fake_sherbrooke`, routing swaps appear as `ecr` plus
+  single-qubit sequences. The footprint reports what is in the final circuit.
+- **Two-qubit direction matters.** IBM calibration exists for `ecr (104,103)` but not for
+  `(103,104)`. Undirected edges are not a valid scope for hardware evidence.
+- **Measurement calibration lives under qubits.** IBM reports readout under each qubit, with no
+  per-measure gate entry.
+- **Pairwise keys are ambiguous.** IBM `general` pairwise couplings such as `jq_6272` use a
+  key that does not unambiguously name two qubits, so they are excluded from scoping.
+- **Delays need explicit scheduling.** Workloads with a `delay` fail to transpile on this fake
+  backend unless a scheduling method is set, which M0 and M1 don't expose.
+- **Mapping changes defeat time-series comparison.** When the physical mapping changes, the
+  same logical workload runs on different physical resources. Per-resource time series are only
+  meaningful for resources that are physically identical across runs. How to compare workloads
+  whose footprints differ is an open research question, deferred to M1.x and later.
+
 ## Not now
 
 No ML models, no predictors and no routing. Dataset export tooling will be designed when

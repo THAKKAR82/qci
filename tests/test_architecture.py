@@ -42,8 +42,10 @@ def test_only_adapters_import_provider_sdks() -> None:
 
 def test_importing_neutral_layers_does_not_load_qiskit() -> None:
     code = (
-        "import sys; import qci.domain.run, qci.core.ports, qci.services.run_service, "
-        "qci.storage.sqlite, qci.cli.app; "
+        "import sys; import qci.domain.run, qci.domain.comparison, qci.core.ports, "
+        "qci.services.run_service, qci.services.compare_service, qci.compare.footprint, "
+        "qci.compare.hardware, qci.compare.distribution, qci.compare.sections, "
+        "qci.adapters.qiskit_ibm.calibration, qci.cli.app, qci.cli.render_compare; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in "
         f"{PROVIDER_SDKS!r}))"
     )

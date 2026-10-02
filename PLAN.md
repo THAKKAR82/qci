@@ -1,14 +1,14 @@
 # PLAN
 
-**Current milestone: M0, the minimal instrumented run.**
-**Status:** M0 is implemented and all nine acceptance criteria are verified. It is awaiting
-review before commit. M0.5 has not started.
+**Current milestone: M1, compare two runs.**
+**Status:** M0 is complete and committed. M1 is implemented and verified, and is awaiting
+review before commit. M0.5 now follows M1 and has not started.
 
-Milestones are strictly sequential. Do not build M0.5 or M1 functionality while M0 is open.
+Milestones are strictly sequential. Do not build M1.x or M0.5 functionality while M1 is open.
 
 ---
 
-## M0: Minimal instrumented run (CURRENT)
+## M0: Minimal instrumented run (DONE)
 
 **Goal:** prove the full data path end to end with deliberately boring technology.
 
@@ -110,7 +110,7 @@ examples/bell.py
 
 ---
 
-## M0.5: Archival and richer measurement (NEXT, not started)
+## M0.5: Archival and richer measurement (NEXT after M1, not started)
 
 - A content-addressed blob store under `.qci/objects/`.
 - Archival of raw QPY, QASM and provider payloads. Inline `provider_raw` moves to blob
@@ -121,12 +121,59 @@ examples/bell.py
 - Golden fixtures, serialization round-trip tests, and a provider contract suite run against
   both the Qiskit adapter and an in-memory adapter.
 
-## M1: Compare two runs (LATER, not started)
+## M1: Compare two runs (CURRENT, implemented)
 
-- `qci compare RUN_A RUN_B` produces a per-dimension diff covering source, environment, compile
-  config, transpiled structure, backend snapshot, execution config and metrics.
-- Statistical tests on counts, labeled `statistical` with method and uncertainty.
-- No attribution claims. M1 reports differences and their statistical significance only.
+M1 answers "what changed between two immutable runs?" It does not answer whether anything
+improved or regressed, or why it changed.
+
+### Scope
+
+1. **Directional command.** `qci compare BASELINE_RUN_ID CANDIDATE_RUN_ID [--json]`. Numeric
+   deltas are always candidate minus baseline.
+2. **Explicit semantic sections.** Source, environment, logical circuit, compilation,
+   execution and backend identity are each compared over normalized fields. There is no
+   generic JSON diff.
+3. **Physical footprint per run.** It is derived from the stored transpiled OpenQASM 3. It
+   holds the physical qubits, the measured qubits, the exact operations as name plus ordered
+   physical qubits, and the initial and final layouts. See ADR 0004.
+4. **Footprint comparison.** It lists common, baseline-only and candidate-only qubits and
+   operations, and operation count changes.
+5. **Hardware comparison.** The global snapshot change flag covers the whole raw payload.
+   Calibration deltas are computed only for physical resources identical on both sides.
+   `relevant_hardware_changed` is null whenever the footprints differ. "Relevant" means
+   calibration of physical resources the workload actually used. It does not mean the
+   parameter is known to affect performance, nor that a change caused a result change.
+6. **Distribution comparison.** A `changed` status means the observed empirical distributions
+   differ, not that the underlying distribution changed or that the difference is significant.
+   TVD and Hellinger distance are computed as `calculated` point
+   estimates, behind a conservative comparability gate.
+7. **Policy and identity.** `ComparisonPolicy` is versioned as `qci.compare.v1`. The
+   comparison ID is deterministic, and the output contains no generation timestamp.
+8. **Read-only and unpersisted.** Comparisons are never written to the store.
+
+### M1 acceptance criteria
+
+- [x] 1. `qci compare A B` and `--json` work on existing M0 records without migration or mutation.
+- [x] 2. Every user-facing name uses baseline and candidate. Deltas are candidate minus baseline.
+- [x] 3. Same-seed Bell runs compare as `unchanged`, with TVD 0.
+- [x] 4. Seed 7 versus seed 8 shows seed changes and an observed empirical distribution change
+      with labeled TVD and Hellinger distance.
+- [x] 5. A successful run compared with a failed run gives `partially_comparable` with
+      unavailable sections and no crash.
+- [x] 6. A calibration change on an unused qubit gives `global_snapshot_changed=true` and
+      `relevant_hardware_changed=false`.
+- [x] 7. A changed physical mapping gives `relevant_hardware_changed=null`. Only identical
+      shared resources are compared, and different qubits are never compared as a temporal
+      delta.
+- [x] 8. Two `compare --json` invocations produce byte-identical output.
+- [x] 9. The compare, core and domain code import no Qiskit, and a test enforces this.
+- [x] 10. ruff, ruff format, `mypy --strict src tests` and offline pytest all pass.
+
+### M1.x (deferred, not started)
+
+Bootstrap TVD confidence intervals, chi-square and Monte Carlo tests, calibration coverage
+summaries, FDR and multiple-register handling, role-aware highlighting of shared resources, and
+run-time footprint capture.
 
 ## Beyond M1 (direction only, unplanned)
 
@@ -153,4 +200,8 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D9 | Package manager? | pip and venv for now. uv may be adopted later. |
 | D10 | How should backend snapshots be modeled over time, as history versus a point capture? | M0 stores a point capture per run. History modeling is open. |
 | D11 | Should a workload that fails to load be recorded as a run? | M0 records nothing and exits with code 2. Open. |
-| D12 | Transpiled summaries report all 127 device qubits. Should QCI also record the active qubit set? | Not in M0. The layout and two-qubit edges already identify the physical qubits used. Open. |
+| D12 | Transpiled summaries report all 127 device qubits. Should QCI also record the active qubit set? | **Resolved by M1.** The compare-time physical footprint lists exactly the referenced physical qubits. |
+| D13 | Should the footprint be captured at run time from the native circuit? | Not in M1, which derives it from stored QASM3 per ADR 0004. Revisit with QPY in M0.5. |
+| D14 | How should IBM `general` pairwise calibration (`jq_6272`, `zz_6272`) map to qubit pairs? | The key encoding is ambiguous, so the data is excluded from footprint scoping and reported as excluded. Open. |
+| D15 | Should delay operations count as relevant hardware with unavailable calibration? | Yes in M1, conservatively. Delay has no provider calibration, so a footprint containing delays makes `relevant_hardware_changed` null. Open. |
+| D16 | Should a numerical tolerance apply to calibration value equality? | No. M1 uses exact equality and reports raw deltas. Open. |

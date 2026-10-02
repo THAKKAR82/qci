@@ -14,6 +14,7 @@ python3.13 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/qci run examples/bell.py --backend fake_sherbrooke --seed 7
 .venv/bin/qci runs
 .venv/bin/qci show <RUN_ID> [--json]
+.venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json]
 ```
 
 The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`.
@@ -35,6 +36,16 @@ The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`.
 6. **No network or credentials in tests.** Use IBM fake backends and seeded local simulation.
 7. **Milestone discipline.** Only build what the current milestone in `PLAN.md` lists.
    No ML, routing, attribution, web UI, auth, billing, or cloud infrastructure yet.
+8. **Compare reports differences only.** Comparisons are directional, baseline to candidate,
+   and deltas are candidate minus baseline. Never use better, worse, regression, improvement,
+   PASS or FAIL. Never compare calibration of different physical resources as a change of one
+   resource. Missing calibration is null, never zero. Comparisons are never persisted.
+   A `changed` result distribution means the observed empirical distributions differ, never
+   that the underlying distribution changed or that the difference is significant. "Relevant
+   hardware" means calibration of physical resources the workload used, never that a parameter
+   is known to affect performance or caused a result change.
+9. **Semantic comparison, not JSON diffing.** Each section is compared explicitly over
+   normalized fields. Raw provider payloads are evidence inputs, never recursively diffed.
 
 ## Conventions
 
@@ -42,6 +53,9 @@ The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`.
 - Pydantic v2 domain models: `frozen=True`, `extra="forbid"`.
 - Ports are `typing.Protocol`s in `qci/core/ports.py`; native SDK objects cross the service
   layer only as opaque `object` handles owned by the adapter.
+- `openqasm3` is the vendor-neutral OpenQASM parser, not a provider SDK. It may be used outside
+  adapters, but its AST handling must stay inside `qci/compare/footprint.py` (ADR 0004).
+- Changing comparison rules means bumping `ComparisonPolicy.version` (`qci.compare.v1`).
 - Circuit/workload identity is **provisional** (see `docs/data-model.md`). Do not introduce a
   "canonical circuit ID" without an ADR.
 - Record non-obvious architectural decisions as ADRs in `docs/adr/`.

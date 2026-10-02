@@ -150,9 +150,107 @@ explicit migration.
 |---|---|
 | `ContentRef` and blob store | M0.5 |
 | Ideal distribution, Hellinger fidelity, TVD metrics | M0.5 |
-| `Comparison` and per-dimension `Difference` | M1 |
+| `Comparison` (see below) | M1, built |
 | `Regression` and baselines | after M1 |
 | `Attribution` and `Evidence` (method, version, confidence, uncertainty) | later |
 | Experiment grouping and repeated executions | later |
 | Organizations, projects and users | when hosted or multi-user becomes real |
 | Cost, validation and routing decisions | later |
+
+## M1 Comparison (computed, never persisted)
+
+Comparisons are directional: **baseline → candidate**. Every `delta` is candidate minus
+baseline. All models live in `qci/domain/comparison.py`.
+
+```
+Comparison
+├── schema_version: 1
+├── comparison_id      hash_json({baseline_run_id, candidate_run_id, engine_version, policy_hash})
+├── engine_version     "qci.compare.engine.1"
+├── policy: ComparisonPolicy (version "qci.compare.v1", gate rules), policy_hash
+├── baseline_run_id, candidate_run_id
+├── status             overall ComparisonStatus
+├── source / environment / logical_circuit / compilation / execution / backend
+│                      explicit per-section models built from typed helpers:
+│                      ValueComparison (exact, optional numeric delta), SetComparison,
+│                      MappingComparison, CounterComparison
+├── baseline_footprint, candidate_footprint: PhysicalFootprint
+├── footprint: FootprintComparison
+├── hardware: HardwareComparison
+├── baseline_counts, candidate_counts    raw results, always shown when present
+├── distribution: DistributionComparison (TVD, Hellinger distance as calculated Metrics)
+└── limitations        fixed text: no regression, improvement or causal claims
+```
+
+The output contains no generation timestamp, so the same two runs always produce byte-identical
+JSON.
+
+### Status vocabulary
+
+| Status | Meaning |
+|---|---|
+| `unchanged` | Compared, and no difference found |
+| `changed` | Compared, and a difference found. This is an observation, not a judgment. For result distributions it means the observed empirical distributions differ, not that the underlying probability distribution changed or that the difference is statistically significant. |
+| `partially_comparable` | Some evidence compared, some not, for example when footprints differ |
+| `not_comparable` | Both sides exist, but comparing them would be invalid, for example a dynamic circuit or a changed logical circuit |
+| `unavailable` | Required evidence is missing on at least one side |
+
+The words better, worse, regression and improvement are never used.
+
+### PhysicalFootprint semantics
+
+The footprint is extracted from the final transpiled OpenQASM 3, scanning top-level statements
+only. See ADR 0004.
+
+- `operations` lists each distinct (name, ordered physical qubits) with its count. Barriers are
+  excluded. Measure, reset and delay are included.
+- `qubits` is every physical qubit referenced by a non-barrier instruction. `measured_qubits` is
+  the subset that is measured.
+- `initial_layout[v]` is the physical qubit assigned to logical qubit v before routing.
+  `final_layout[v]` is the physical qubit holding v's state at the end. The initial mapping,
+  the executed operations and the final mapping are three distinct things.
+- `status` is `unsupported_dynamic` for control flow, which is never flattened. It is
+  `unavailable` when QASM3 is missing, unparseable or contains unsupported constructs.
+
+### Hardware comparison rules
+
+- `global_snapshot_changed` compares hashes of the whole raw provider payload, including unused
+  hardware.
+- Calibration is compared only for physical resources present on **both** sides: the same
+  qubit, or the same operation name on the same ordered qubits. A value on one physical qubit is
+  never compared with a value on a different qubit.
+- **Definition.** "Relevant hardware" means calibration data associated with physical
+  resources the workload actually used. It does not mean a parameter is known to affect
+  workload performance, and a relevant calibration change is not a claim that it caused an
+  observed result change.
+- `relevant_hardware_changed` takes one of three values:
+  - **true** if any shared, available parameter value differs.
+  - **false** if the footprints are identical and every relevant value is available and equal.
+  - **null** if the footprints differ, or if some relevant value is unavailable.
+- Calibration date changes are listed separately from value changes.
+- IBM `general` pairwise data uses ambiguous key encodings and is listed as excluded.
+
+### Distribution comparability gate
+
+TVD and Hellinger distance are computed only when all of these hold:
+- Both runs succeeded with results.
+- The logical OpenQASM 3 text is present and identical on both sides.
+- The provider is the same.
+- There is exactly one classical register, with the same name on both sides.
+- Bitstring widths are equal.
+- Neither circuit is dynamic.
+
+Otherwise the status is `not_comparable` with every failing reason listed, or `unavailable` if a
+result is missing, and the raw counts are still shown.
+
+The metrics are defined as follows:
+- `tvd = ½ Σ |p − q|`
+- `hellinger_distance = sqrt(½ Σ (√p − √q)²)`. This is not Qiskit's `hellinger_fidelity`.
+
+Both are empirical point estimates with no uncertainty. Uncertainty estimates are deferred to
+M1.x.
+
+A `changed` distribution status, meaning a nonzero TVD or Hellinger distance, says only that
+the **observed empirical** result distributions differ. It does not establish that the
+underlying probability distribution changed, nor that the difference is statistically
+significant. Seeded or repeated runs can differ by sampling noise alone.

@@ -7,7 +7,7 @@ Long term, QCI aims to be a vendor-neutral reliability and execution-intelligenc
 quantum computing. Today it is the first building block: an instrumented runner that captures
 an immutable, inspectable record of each execution.
 
-**Status:** pre-alpha, milestone M0. IBM/Qiskit fake backends only.
+**Status:** pre-alpha, milestone M1. IBM/Qiskit fake backends only.
 
 ## Quick start
 
@@ -19,7 +19,21 @@ python3.13 -m venv .venv
 .venv/bin/qci runs
 .venv/bin/qci show <RUN_ID>
 .venv/bin/qci show <RUN_ID> --json
+.venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json]
 ```
+
+`qci compare` reports what changed from a baseline run to a candidate run. It covers source,
+environment, circuits, compilation, execution, the physical qubits and operations the
+transpiled circuit used, the calibration of those exact resources, and the result
+distributions. It makes no better/worse, regression or causal claims.
+
+Two terms need care when reading a comparison:
+- **A changed result distribution** means the observed, sampled distributions differ. It does
+  not mean the underlying probability distribution changed, or that the difference is
+  statistically significant.
+- **Relevant hardware** means calibration data for the physical resources the workload actually
+  used. It does not mean those parameters are known to affect the result, or that a calibration
+  change caused a result change.
 
 No IBM account or network access is needed. `fake_sherbrooke` is a local simulator that uses
 a frozen IBM calibration snapshot as its noise model.

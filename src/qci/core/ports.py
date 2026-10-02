@@ -4,12 +4,14 @@ Native SDK objects (circuits, backends) cross these interfaces only as opaque ``
 handles. A handle must only be passed back to ports of the adapter that produced it.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from qci.domain.backend import Backend, BackendSnapshot
 from qci.domain.circuit import CircuitSummary, CompilationRecord, CompileConfig
+from qci.domain.comparison import FootprintCalibration
 from qci.domain.execution import ExecutionConfig, ExecutionResult
 from qci.domain.provenance import WorkloadSource
 from qci.domain.run import Run, RunListItem
@@ -107,3 +109,18 @@ class RunRepository(Protocol):
     def list_runs(self, limit: int | None = None) -> list[RunListItem]:
         """Newest first."""
         ...
+
+
+class CalibrationReader(Protocol):
+    """Selects provider calibration for specific physical resources from a stored snapshot.
+
+    Implementations interpret one provider's raw payload format. Missing data must be returned
+    as unavailable (value None), never as zero.
+    """
+
+    def select(
+        self,
+        snapshot: BackendSnapshot,
+        qubits: Sequence[int],
+        operations: Sequence[tuple[str, tuple[int, ...]]],
+    ) -> FootprintCalibration: ...

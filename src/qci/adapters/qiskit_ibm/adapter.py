@@ -14,6 +14,7 @@ from qiskit.providers import BackendV2
 from qiskit_ibm_runtime import fake_provider
 from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
+from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
 from qci.adapters.qiskit_ibm.jsonable import to_jsonable
 from qci.adapters.qiskit_ibm.summarize import summarize_circuit
 from qci.core.errors import UnknownBackendError, WorkloadLoadError
@@ -28,8 +29,6 @@ from qci.domain.backend import Backend, BackendSnapshot, SnapshotSource
 from qci.domain.circuit import CompilationRecord, CompileConfig, CompilerInfo, Layout
 from qci.domain.execution import ExecutionConfig, ExecutionResult
 from qci.domain.provenance import WorkloadSource
-
-PROVIDER_ID = "qiskit_ibm"
 
 # Qiskit core's backend sampler. The deprecated qiskit_ibm_runtime.SamplerV2 "local testing
 # mode" delegates to exactly this class for fake backends; calling it directly avoids the
