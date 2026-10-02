@@ -30,8 +30,8 @@ history untrustworthy and destroy provenance.
 
 - **Good:** an auditable and reproducible history that is safe for research datasets.
 - **Good:** the document model lets the Run schema evolve without frequent table migrations.
-- **Cost:** storage grows monotonically. Inline raw payloads are estimated at 100 to 300 KB per
-  run until M0.5.
+- **Cost:** storage grows monotonically. Inline raw payloads make a `fake_sherbrooke` run
+  about 560 KB until M0.5, as measured during M0.
 - **Cost:** mistakes cannot be fixed in place. Corrections require new records, and later
   perhaps an annotation mechanism, which is not designed yet.
 - **Open:** deletion for privacy or legal reasons in a future hosted product will need a

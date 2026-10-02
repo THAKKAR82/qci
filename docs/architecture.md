@@ -61,9 +61,30 @@ qci run PATH --backend NAME --seed S
 ```
 
 If any step from 3 onward raises, the service still persists a Run with `status=failed`. That
-run records the failing stage, the error type and message, and everything captured before the
-failure. If the workload itself cannot be loaded in step 2, M0 reports the error and persists
-nothing. Whether load failures should also become runs is an open question.
+run records the failing stage, the error type and a sanitized message, and everything captured
+before the failure. Sanitizing strips URL credentials and truncates to 2000 characters. The
+failing stage is one of `resolve_backend`, `snapshot`, `compile`, `execute` or `metrics`. The
+CLI prints the run ID and the error, then exits with code 1.
+
+If the workload itself cannot be loaded in step 2, M0 reports the error, persists nothing and
+exits with code 2. Whether load failures should also become runs is open as D11 in `PLAN.md`.
+
+Provenance is collected after the workload loads. Git state is read from the directory that
+contains the workload file, not from the current working directory.
+
+## Qiskit/IBM adapter notes (M0)
+
+- **Backend lookup.** Fake backends are looked up by their class's `backend_name`, so only the
+  requested backend is instantiated.
+- **Execution.** `qiskit.primitives.BackendSamplerV2` runs the circuit with `default_shots`
+  and `seed_simulator`. `qiskit_ibm_runtime.SamplerV2` is deprecated as of 0.50. Its local
+  testing mode wraps the same class, with identical counts, and it silently ignores
+  `seed_simulator=0`.
+- **Raw payloads.** `properties().to_dict()` and `configuration().to_dict()` contain `datetime`
+  and `complex` values. `to_jsonable` encodes them with explicit tags and raises on unknown
+  types.
+- **Circuit summaries.** Summaries cover top-level instructions only. Control-flow bodies are
+  not descended into in M0.
 
 ## Storage (M0)
 

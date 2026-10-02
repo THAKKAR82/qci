@@ -50,4 +50,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Import from src/ directly: on this macOS setup the editable-install .pth can be hidden
+# and skipped by Python 3.13 (see CLAUDE.md, Troubleshooting).
+pythonpath = ["src"]
 addopts = "-ra"

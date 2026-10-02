@@ -55,6 +55,17 @@ These are hypotheses, not facts. QCI must not hard-code which variables matter.
 - **Statistical design.** How many repetitions are needed before two runs can be distinguished?
   This directly shapes M1.
 - **Probe design.** What is the cheapest probe set that carries real predictive information?
+- **SDK-level reproducibility hazards.** These were found while building M0.
+  `qiskit_ibm_runtime.SamplerV2` local mode silently ignores `seed_simulator=0`. Qiskit's
+  default `optimization_level` is 2, and a different level produced a different layout and
+  different counts for the same seed. Recorded configuration must therefore always be explicit,
+  never "whatever the default was". How many other silent defaults affect results?
+- **Active-qubit representation.** A transpiled circuit spans the whole device. Which
+  representation of "qubits actually used" should research features use: layout, interaction
+  edges, or idle qubits as well, given that crosstalk may matter? See D12 in `PLAN.md`.
+- **Calibration staleness in fake data.** `fake_sherbrooke`'s calibration dates from
+  2025-02-26. Any feature built on fake snapshots learns about a frozen device, which reinforces
+  the `static_fake` filtering rule.
 
 ## Not now
 

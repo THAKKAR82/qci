@@ -45,3 +45,17 @@ The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`.
 - Circuit/workload identity is **provisional** (see `docs/data-model.md`). Do not introduce a
   "canonical circuit ID" without an ADR.
 - Record non-obvious architectural decisions as ADRs in `docs/adr/`.
+- Execute on fake backends with `qiskit.primitives.BackendSamplerV2`, not the deprecated
+  `qiskit_ibm_runtime.SamplerV2`. Never suppress a warning without understanding it.
+- Provider payloads go through `adapters/qiskit_ibm/jsonable.py:to_jsonable`. It uses
+  lossless tags for datetimes, complex numbers and non-finite floats, and it raises on unknown
+  types.
+
+## Troubleshooting
+
+- **`ModuleNotFoundError: No module named 'qci'` from `.venv/bin/qci`.** On this macOS setup,
+  something sets the `hidden` file flag on files inside `.venv`. Python 3.13 skips hidden
+  `.pth` files, so the editable install disappears. Tests are unaffected because pytest sets
+  `pythonpath = ["src"]`. For the CLI, run `PYTHONPATH=src .venv/bin/qci ...`, or clear the
+  flag with `chflags nohidden .venv/lib/python3.13/site-packages/_editable_impl_qci.pth`. The
+  flag can come back.

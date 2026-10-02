@@ -26,15 +26,17 @@ Run
 ├── qci_version: str
 ├── created_at: datetime
 ├── status: succeeded | failed
-├── error: RunError | None           stage, error_type, message
+├── error: RunError | None           stage (resolve_backend|snapshot|compile|execute|metrics),
+│                                    error_type (qualified), message (sanitized, truncated)
 ├── tags: dict[str, str]
 ├── workload: WorkloadSource
 │     source_path, source_sha256, entrypoint, name
 ├── provenance
 │     git: GitProvenance             commit, branch, dirty, remote (credentials stripped); all nullable
 │     environment: EnvironmentProvenance
-│                                    python_version, platform, packages{name: version}, config_hash
-├── logical_circuit: CircuitSummary | None
+│                                    python_version, python_implementation, platform,
+│                                    packages{name: version | None}, config_hash
+├── logical_circuit: CircuitSummary  (always present: load failures are not recorded)
 ├── compilation: CompilationRecord | None
 │     compiler{name, version}, config: CompileConfig, config_hash,
 │     output: CircuitSummary, layout (initial/final index layout, nullable), duration_ms
@@ -45,21 +47,43 @@ Run
 │     captured_at, calibrated_at (nullable), basis_gates, coupling_edges,
 │     provider_raw: {properties: JSON, configuration: JSON}   (verbatim)
 ├── execution: ExecutionRecord | None
-│     config: ExecutionConfig        shots, seed_simulator, primitive, optimization_level
-│     config_hash, started_at, finished_at, provider_job_id (nullable)
+│     config: ExecutionConfig        shots, seed_simulator           (what was requested)
+│     primitive, config_hash, started_at, finished_at, provider_job_id (what actually ran)
 ├── result: ExecutionResult | None
 │     counts: dict[creg_name, dict[bitstring, int]], total_shots, provider_metadata: JSON
 └── metrics: list[Metric]
       name, value, unit, kind: EvidenceKind, method, method_version, uncertainty (nullable)
 
 CircuitSummary
-  num_qubits, num_clbits, depth, op_counts (sorted), two_qubit_gate_count,
+  num_qubits, num_clbits, depth, size, op_counts (sorted), two_qubit_gate_count,
   two_qubit_edges (sorted list of qubit pairs), qasm3 (nullable), qasm3_error (nullable),
   exporter{name, version}
 ```
 
-Fields after `provenance` are nullable so that a failed run can keep everything captured
-before the failure.
+Fields after `logical_circuit` are nullable so that a failed run can keep everything captured
+before the failure. A succeeded run must have all of them, which the model validates.
+
+`CompileConfig` holds `optimization_level` and `seed_transpiler`. `ExecutionConfig` holds only
+what was requested. The primitive that actually ran is recorded on `ExecutionRecord`.
+
+For a transpiled circuit, `num_qubits` is the whole device, 127 for `fake_sherbrooke`. The
+qubits actually used are visible through `layout` and `two_qubit_edges`, which use physical
+indices. Logical-circuit edges use virtual indices.
+
+### Raw payload encoding
+
+Provider payloads are converted to JSON losslessly. Types JSON cannot represent are tagged:
+
+| Python value | Stored as |
+|---|---|
+| `datetime` | `{"$datetime": "<ISO-8601 with offset>"}` |
+| `complex` | `{"$complex": [real, imag]}` |
+| non-finite float | `{"$float": "nan" \| "inf" \| "-inf"}` |
+| tuple | list |
+
+Any other non-JSON type raises an error and is never stringified or dropped. A Bell run on
+`fake_sherbrooke` produces a record of about 560 KB, dominated by raw calibration data. This
+motivates the M0.5 move to deduplicated blobs.
 
 ### Backend snapshot semantics
 
