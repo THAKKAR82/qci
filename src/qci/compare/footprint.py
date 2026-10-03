@@ -72,7 +72,7 @@ def _walk(program: ast.Program) -> tuple[Counter[tuple[str, tuple[int, ...]]], s
     for statement in program.statements:
         kind = type(statement).__name__
         if isinstance(statement, _CONTROL_FLOW):
-            raise _DynamicError(f"control flow ({kind}) is not supported in compare v1")
+            raise _DynamicError(f"control flow ({kind}) is not supported by this comparison policy")
         if isinstance(statement, _IGNORED):
             continue
         if isinstance(statement, ast.Pragma):

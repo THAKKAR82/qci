@@ -4,7 +4,7 @@
 actually used. It does not mean a parameter is known to affect workload performance, nor that a
 calibration change caused an observed result change.
 
-Rules (policy qci.compare.v1):
+Rules (unchanged since policy qci.compare.v1):
 - The global snapshot flag covers the whole raw provider payload, including unused hardware.
 - Calibration is only ever compared for a physical resource that is identical on both sides
   (same qubit, or same operation name on the same ordered qubits). Different physical resources

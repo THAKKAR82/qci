@@ -186,3 +186,15 @@ def test_unavailable_distribution_has_no_sampling_floor() -> None:
     d = dist(run("A", GOOD), failed)
     assert d.status is ComparisonStatus.UNAVAILABLE
     assert d.sampling_floor is None
+
+
+def test_unsupported_reasons_name_the_policy_not_a_version() -> None:
+    registers = {"a": {"0": 50, "1": 50}, "b": {"0": 100}}
+    dynamic_qasm = "OPENQASM 3.0;\nbit[2] c;\nc[0] = measure $0;\nif (c[0]) {\n  x $1;\n}\n"
+    reasons = [
+        *dist(run("A", registers), run("B", registers)).reasons,
+        *dist(run("A", GOOD), physical_run("B", qasm3=dynamic_qasm, counts=GOOD)).reasons,
+    ]
+    assert "multiple classical registers are not supported by this comparison policy" in reasons
+    assert "dynamic circuits are not supported by this comparison policy" in reasons
+    assert not any("v1" in r for r in reasons)

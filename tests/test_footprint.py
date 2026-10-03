@@ -74,3 +74,9 @@ def test_missing_or_unparseable_qasm_is_unavailable() -> None:
     fp = extract_footprint("this is not qasm", None)
     assert fp.status is FootprintStatus.UNAVAILABLE
     assert fp.reason and fp.reason.startswith("OpenQASM 3 parse failed")
+
+
+def test_dynamic_reason_names_the_policy_not_a_version() -> None:
+    text = HEADER + "bit[1] c;\nc[0] = measure $0;\nif (c[0]) {\n  x $1;\n}\n"
+    reason = extract_footprint(text, None).reason
+    assert reason == "control flow (BranchingStatement) is not supported by this comparison policy"

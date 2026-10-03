@@ -94,7 +94,7 @@ def compare_distributions(
     if set(br.counts) != set(cr.counts):
         reasons.append(f"classical registers differ ({sorted(br.counts)} vs {sorted(cr.counts)})")
     elif len(br.counts) > policy.distribution_max_classical_registers:
-        reasons.append("multiple classical registers are not supported in compare v1")
+        reasons.append("multiple classical registers are not supported by this comparison policy")
     widths = {len(k) for counts in (*br.counts.values(), *cr.counts.values()) for k in counts}
     if len(widths) > 1:
         reasons.append(f"bitstring widths differ ({sorted(widths)})")
@@ -102,7 +102,7 @@ def compare_distributions(
         baseline_footprint.status,
         candidate_footprint.status,
     ):
-        reasons.append("dynamic circuits are not supported in compare v1")
+        reasons.append("dynamic circuits are not supported by this comparison policy")
 
     if reasons:
         return DistributionComparison(
