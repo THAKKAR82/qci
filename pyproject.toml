@@ -12,6 +12,8 @@ dependencies = [
     "pydantic>=2.12,<3",
     "typer>=0.20",
     "sqlalchemy>=2.0,<3",
+    # Seeded resampling for the TVD sampling floor (qci/compare/sampling.py).
+    "numpy>=2,<3",
     "qiskit>=2.5,<3",
     "qiskit-ibm-runtime>=0.50",
     "qiskit-aer>=0.17",
