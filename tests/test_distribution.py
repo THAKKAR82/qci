@@ -134,11 +134,47 @@ def test_comparable_distributions_carry_a_statistical_sampling_floor() -> None:
     values = (expected.null_p50, expected.null_p95, expected.null_p99, expected.p_value)
     assert [m.value for m in metrics] == list(values)
     for m in metrics:
-        assert m.kind is EvidenceKind.STATISTICAL and m.method and m.method_version == "1"
+        assert m.kind is EvidenceKind.STATISTICAL and m.method
+    assert [m.method_version for m in metrics] == ["1", "1", "1", "2"]
     assert f"numpy {expected.numpy_version}" in f.rng
     assert len(f.caveats) == 4
     # The TVD point estimate itself is unchanged.
     assert d.tvd is not None and d.tvd.kind is EvidenceKind.CALCULATED
+
+
+def test_p_value_uncertainty_is_its_monte_carlo_standard_error() -> None:
+    b, c = {"00": 480, "11": 520}, {"00": 520, "11": 480}
+    f = dist(run("A", {"c": b}), run("B", {"c": c})).sampling_floor
+    assert f is not None
+    p, n = f.p_value.value, f.resamples
+    assert 0 < p < 1
+    assert f.p_value.uncertainty == math.sqrt(p * (1 - p) / (n + 1))
+    assert "sqrt(p * (1 - p) / (resamples + 1))" in f.p_value.method
+    for quantile in (f.null_p50, f.null_p95, f.null_p99):
+        assert quantile.uncertainty is None
+
+
+def test_p_values_from_two_seeds_agree_within_four_standard_errors() -> None:
+    b, c = {"c": {"00": 480, "11": 520}}, {"c": {"00": 520, "11": 480}}
+    baseline, candidate = run("A", b), run("B", c)
+    p_values = []
+    for seed in (1, 2):
+        d = compare_distributions(
+            baseline,
+            candidate,
+            footprint_for_run(baseline),
+            footprint_for_run(candidate),
+            ComparisonPolicy(),
+            seed=seed,
+        )
+        assert d.sampling_floor is not None
+        p_values.append(d.sampling_floor.p_value)
+    first, second = p_values
+    assert first.uncertainty is not None and second.uncertainty is not None
+    assert first.value != second.value  # the seeds really give different resamples
+    # Standard error of the difference of two independent Monte Carlo estimates.
+    se_difference = math.hypot(first.uncertainty, second.uncertainty)
+    assert abs(first.value - second.value) <= 4 * se_difference
 
 
 def test_identical_distributions_still_carry_a_sampling_floor() -> None:

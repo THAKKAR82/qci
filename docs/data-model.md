@@ -255,14 +255,15 @@ When the gate passes, `sampling_floor` reports how large TVD is expected to be f
 alone, at the observed shot counts (`qci/compare/sampling.py`). H0 is that both runs sampled one
 shared distribution, estimated by the pooled plug-in estimate. Each of B resamples
 (`policy.distribution_null_resamples`, default 2000, minimum 100) draws each run at its own shot
-count. The null TVD quantiles p50, p95 and p99 and the Monte Carlo p-value
-`(1 + #{null_tvd >= observed_tvd - 1e-12}) / (B + 1)` are `statistical` Metrics. The seed is the
-leading 53 bits of the `comparison_id` digest, stored as a JSON integer, and `rng` records the
-installed numpy version. `sampling_floor` is null for `not_comparable` and `unavailable`
-distributions. It is evidence, not a verdict, and always carries four caveats: it makes no causal
-claim; the plug-in estimate cannot resample unobserved outcomes, so sparse floors are slightly
-underestimated; it assumes i.i.d. shots within a run; and no multiple-comparison correction is
-applied.
+count. The null TVD quantiles p50, p95 and p99 and the Monte Carlo p-value `(1 + #{null_tvd >=
+observed_tvd - 1e-12}) / (B + 1)` are `statistical` Metrics. The p-value is itself a Monte Carlo
+estimate: its `uncertainty` is the standard error `sqrt(p(1 − p) / (B + 1))` (p-value method
+version 2). The seed is the leading 53 bits of the `comparison_id` digest, stored as a JSON
+integer, and `rng` records the installed numpy version. `sampling_floor` is null for
+`not_comparable` and `unavailable` distributions. It is evidence, not a verdict, and always
+carries four caveats: it makes no causal claim; the plug-in estimate cannot resample unobserved
+outcomes, so sparse floors are slightly underestimated; it assumes i.i.d. shots within a run;
+and no multiple-comparison correction is applied.
 
 A `changed` distribution status, meaning a nonzero TVD or Hellinger distance, says only that
 the **observed empirical** result distributions differ. It does not establish that the

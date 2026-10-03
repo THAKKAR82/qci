@@ -7,6 +7,8 @@ passes, TVD also carries a sampling floor (``qci.compare.sampling``): evidence a
 is expected to be from sampling alone at the observed shot counts, never a verdict.
 """
 
+import math
+
 from qci.compare.divergence import hellinger_distance, total_variation_distance
 from qci.compare.sampling import tvd_sampling_floor
 from qci.domain.comparison import (
@@ -24,6 +26,8 @@ METHOD_VERSION = "1"
 _NO_UNCERTAINTY = "empirical point estimate; no sampling uncertainty or significance test"
 
 SAMPLING_FLOOR_METHOD_VERSION = "1"
+P_VALUE_METHOD_VERSION = "2"
+"""v2 adds the Monte Carlo standard error of the p-value as the metric's ``uncertainty``."""
 _H0 = (
     "H0: both runs sampled one shared distribution, estimated by the pooled plug-in estimate "
     "(merged counts over merged total)"
@@ -130,19 +134,31 @@ def compare_distributions(
     )
 
 
+def p_value_standard_error(p_value: float, resamples: int) -> float:
+    """Monte Carlo standard error of a resampling p-value: sqrt(p * (1 - p) / (B + 1))."""
+    return math.sqrt(p_value * (1 - p_value) / (resamples + 1))
+
+
 def _sampling_floor(
     baseline_counts: dict[str, int], candidate_counts: dict[str, int], resamples: int, seed: int
 ) -> SamplingFloor:
     r = tvd_sampling_floor(baseline_counts, candidate_counts, resamples=resamples, seed=seed)
     resampling = f"{_H0}; {resamples} paired multinomial resamples at each run's own shot count"
 
-    def metric(name: str, value: float, what: str) -> Metric:
+    def metric(
+        name: str,
+        value: float,
+        what: str,
+        version: str = SAMPLING_FLOOR_METHOD_VERSION,
+        uncertainty: float | None = None,
+    ) -> Metric:
         return Metric(
             name=name,
             value=value,
             kind=EvidenceKind.STATISTICAL,
             method=f"{what}; {resampling}",
-            method_version=SAMPLING_FLOOR_METHOD_VERSION,
+            method_version=version,
+            uncertainty=uncertainty,
         )
 
     quantile = 'null TVD {} quantile, numpy.quantile(method="linear")'
@@ -158,7 +174,10 @@ def _sampling_floor(
         p_value=metric(
             "tvd_monte_carlo_p_value",
             r.p_value,
-            "Monte Carlo p-value (1 + #{null_tvd >= observed_tvd - 1e-12}) / (resamples + 1)",
+            "Monte Carlo p-value (1 + #{null_tvd >= observed_tvd - 1e-12}) / (resamples + 1); "
+            "uncertainty is its Monte Carlo standard error sqrt(p * (1 - p) / (resamples + 1))",
+            version=P_VALUE_METHOD_VERSION,
+            uncertainty=p_value_standard_error(r.p_value, r.resamples),
         ),
         caveats=SAMPLING_FLOOR_CAVEATS,
     )

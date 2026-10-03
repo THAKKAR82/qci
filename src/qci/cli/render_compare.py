@@ -1,5 +1,7 @@
 """Human-readable rendering of a Comparison (baseline -> candidate)."""
 
+import math
+
 from qci.domain.comparison import (
     CircuitStructureComparison,
     Comparison,
@@ -64,12 +66,21 @@ def _structure_lines(s: CircuitStructureComparison) -> list[str]:
     return lines
 
 
+def _estimate_text(value: float, error: float | None) -> str:
+    """``value ± error``: the error rounded to its leading digit, the value to the same place."""
+    if not error:
+        return f"{value:.3g}" if error is None else f"{value:.3g} ± 0"
+    decimals = max(0, -math.floor(math.log10(error)))
+    return f"{value:.{decimals}f} ± {error:.{decimals}f}"
+
+
 def _sampling_floor_text(f: SamplingFloor) -> str:
-    label = f"{f.p_value.kind.value}; v{f.method_version}"
+    p = f.p_value
+    label = f"{p.kind.value}; v{p.method_version}"
     return (
         f" | sampling floor under H0 (B={f.resamples}): p50 {f.null_p50.value:.3g}, "
         f"p95 {f.null_p95.value:.3g}, p99 {f.null_p99.value:.3g} "
-        f"| Monte Carlo p = {f.p_value.value:.3g}  [{label}]"
+        f"| Monte Carlo p = {_estimate_text(p.value, p.uncertainty)}  [{label}]"
     )
 
 

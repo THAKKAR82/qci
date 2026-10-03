@@ -1,6 +1,7 @@
 """End-to-end `qci compare` on real runs against the local IBM fake backend."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -95,7 +96,7 @@ def test_sampling_floor_json_is_byte_identical_and_shown_beside_tvd(runner: CliR
     (tvd_line,) = [line for line in text.stdout.splitlines() if line.startswith("  tvd = ")]
     assert "| sampling floor under H0 (B=2000): p50 " in tvd_line
     assert ", p95 " in tvd_line and ", p99 " in tvd_line
-    assert "| Monte Carlo p = " in tvd_line
+    assert re.search(r"\| Monte Carlo p = \d\.\d+ ± \d\.\d+  \[statistical; v2\]$", tvd_line)
     (hellinger_line,) = [
         line for line in text.stdout.splitlines() if line.startswith("  hellinger_distance = ")
     ]
