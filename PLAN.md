@@ -25,7 +25,8 @@ qci show RUN_ID                                               # inspects it
 1. **Workload loading.** `examples/bell.py` defines `build() -> QuantumCircuit`, which is loaded
    from a file path with `importlib`. `--entrypoint` overrides the function name.
 2. **Execution.** The circuit runs on `fake_sherbrooke` through Qiskit `SamplerV2`. `--seed`
-   sets both `seed_transpiler` and `seed_simulator`. `--shots` defaults to 1000.
+   sets both `seed_transpiler` and `seed_simulator`. `--shots` defaults to 1000. Independent
+   per-stage seeds were added after M1. See "Experimental control: independent seeds".
 3. **Git provenance.** Commit, branch, dirty flag and remote with credentials stripped. Every
    field is null outside a git repository.
 4. **Environment provenance.** Python version, platform and the versions of qci, qiskit,
@@ -109,6 +110,19 @@ examples/bell.py
   A failed run exits with code 1, and a successful run exits with code 0.
 
 ---
+
+## Experimental control: independent seeds (after M1, implemented)
+
+This separates compilation variation from sampling variation. It is a CLI-only change, because
+the Run schema already stores `CompileConfig.seed_transpiler` and `ExecutionConfig.seed_simulator`
+separately.
+
+- **New flags.** `--seed-transpiler N` and `--seed-simulator N`.
+- **Shorthand kept.** `--seed N` still seeds both stages.
+- **Precedence per stage.** The specific flag wins, then `--seed`, then unseeded. A seed of 0
+  is a real seed.
+- **Compare.** `qci compare` reports a transpiler-seed change under compilation and a
+  simulator-seed change under execution.
 
 ## M0.5: Archival and richer measurement (NEXT after M1, not started)
 

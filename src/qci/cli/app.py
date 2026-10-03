@@ -1,6 +1,7 @@
 """QCI command-line interface: run, runs, show, compare."""
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
@@ -42,12 +43,40 @@ def _parse_tags(values: list[str]) -> dict[str, str]:
     return tags
 
 
+@dataclass(frozen=True)
+class EffectiveSeeds:
+    transpiler: int | None
+    simulator: int | None
+
+
+def resolve_seeds(
+    seed: int | None, seed_transpiler: int | None, seed_simulator: int | None
+) -> EffectiveSeeds:
+    """Resolve per-stage seeds: the specific flag wins, then ``--seed``, then None (unseeded)."""
+    return EffectiveSeeds(
+        transpiler=seed_transpiler if seed_transpiler is not None else seed,
+        simulator=seed_simulator if seed_simulator is not None else seed,
+    )
+
+
 @app.command()
 def run(
     workload: Annotated[Path, typer.Argument(help="Python file defining the workload.")],
     backend: Annotated[str, typer.Option(help="Backend name, e.g. fake_sherbrooke.")],
     seed: Annotated[
-        int | None, typer.Option(help="Seed for both transpiler and simulator.")
+        int | None,
+        typer.Option(
+            help="Shorthand seed for both transpiler and simulator. A specific "
+            "--seed-transpiler or --seed-simulator overrides it for that stage."
+        ),
+    ] = None,
+    seed_transpiler: Annotated[
+        int | None,
+        typer.Option(help="Transpiler seed. Overrides --seed for compilation only."),
+    ] = None,
+    seed_simulator: Annotated[
+        int | None,
+        typer.Option(help="Simulator (sampling) seed. Overrides --seed for execution only."),
     ] = None,
     shots: Annotated[int, typer.Option(min=1, help="Number of shots.")] = 1000,
     optimization_level: Annotated[
@@ -56,16 +85,23 @@ def run(
     entrypoint: Annotated[str, typer.Option(help="Function returning the circuit.")] = "build",
     tag: Annotated[list[str] | None, typer.Option(help="Tag as key=value; repeatable.")] = None,
 ) -> None:
-    """Execute a workload, capture an immutable Run, persist it and print its ID."""
+    """Execute a workload, capture an immutable Run, persist it and print its ID.
+
+    Seed precedence, per stage: the specific flag, then --seed, then unseeded. An unseeded
+    stage lets Qiskit choose its own randomness, so its output may differ between runs.
+    """
     # Imported here so that `qci runs` / `qci show` do not pay Qiskit's import cost.
     from qci.adapters.qiskit_ibm import QiskitIbmAdapter
 
+    seeds = resolve_seeds(seed, seed_transpiler, seed_simulator)
     request = RunRequest(
         workload_path=workload,
         backend_name=backend,
         entrypoint=entrypoint,
-        compile_config=CompileConfig(optimization_level=optimization_level, seed_transpiler=seed),
-        execution_config=ExecutionConfig(shots=shots, seed_simulator=seed),
+        compile_config=CompileConfig(
+            optimization_level=optimization_level, seed_transpiler=seeds.transpiler
+        ),
+        execution_config=ExecutionConfig(shots=shots, seed_simulator=seeds.simulator),
         tags=_parse_tags(tag or []),
     )
     repository = _repository()

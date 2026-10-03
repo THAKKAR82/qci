@@ -22,6 +22,22 @@ python3.13 -m venv .venv
 .venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json]
 ```
 
+### Seeds
+
+`--seed N` seeds both the transpiler and the simulator. To vary one source of randomness while
+holding the other fixed, use the stage-specific flags. A specific flag overrides `--seed` for its
+stage only:
+
+```bash
+qci run examples/bell.py --backend fake_sherbrooke --seed 7                       # transpiler 7, simulator 7
+qci run examples/bell.py --backend fake_sherbrooke --seed 7 --seed-simulator 8    # transpiler 7, simulator 8
+qci run examples/bell.py --backend fake_sherbrooke --seed 7 --seed-transpiler 9   # transpiler 9, simulator 7
+```
+
+A stage with no seed is unseeded, and Qiskit chooses its own randomness, so its output may
+differ between runs. The effective seeds are stored separately on the compilation and execution
+records. `qci compare` reports them under compilation and execution respectively.
+
 `qci compare` reports what changed from a baseline run to a candidate run. It covers source,
 environment, circuits, compilation, execution, the physical qubits and operations the
 transpiled circuit used, the calibration of those exact resources, and the result

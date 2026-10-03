@@ -50,7 +50,7 @@ universal intermediate representation for circuits.
 ## M0 data flow
 
 ```
-qci run PATH --backend NAME --seed S
+qci run PATH --backend NAME [--seed S] [--seed-transpiler T] [--seed-simulator U]
   1. provenance: collect git + environment             (never fails the run; nulls allowed)
   2. loader.load(PATH, entrypoint)                     → WorkloadSource + native circuit
   3. catalog.resolve(NAME); catalog.snapshot(handle)   → Backend + BackendSnapshot (raw kept)
