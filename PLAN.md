@@ -1,10 +1,12 @@
 # PLAN
 
-**Current milestone: M1, compare two runs.**
-**Status:** M0 is complete and committed. M1 is implemented and verified, and is awaiting
-review before commit. M0.5 now follows M1 and has not started.
+**Current milestone: M1.1, sampling floor for TVD.**
+**Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
+(`80cfe02`) and the GHZ-star workload (`48638a5`) are committed.
 
-Milestones are strictly sequential. Do not build M1.x or M0.5 functionality while M1 is open.
+Milestones are strictly sequential: M1.1, then M1.1v, M1.2 and M1.3 (with sub-steps M1.3a, b
+and c). Do not build a later milestone, or anything in the deferred backlog, while an earlier
+one is open. Each step follows the step workflow in `CLAUDE.md`.
 
 ---
 
@@ -109,6 +111,7 @@ examples/bell.py
 - **Load failures.** A workload that fails to load records no run. The CLI exits with code 2.
   A failed run exits with code 1, and a successful run exits with code 0.
 
+
 ---
 
 ## Experimental control: independent seeds (after M1, implemented)
@@ -124,18 +127,7 @@ separately.
 - **Compare.** `qci compare` reports a transpiler-seed change under compilation and a
   simulator-seed change under execution.
 
-## M0.5: Archival and richer measurement (NEXT after M1, not started)
-
-- A content-addressed blob store under `.qci/objects/`.
-- Archival of raw QPY, QASM and provider payloads. Inline `provider_raw` moves to blob
-  references, which requires a `schema_version` bump and an explicit upcast.
-- Fuller provenance: complete installed-package list, diff hash and source snapshot.
-- An ideal distribution by exact statevector for small circuits, plus Hellinger fidelity and
-  TVD, all labeled `calculated` with method versions.
-- Golden fixtures, serialization round-trip tests, and a provider contract suite run against
-  both the Qiskit adapter and an in-memory adapter.
-
-## M1: Compare two runs (CURRENT, implemented)
+## M1: Compare two runs (DONE)
 
 M1 answers "what changed between two immutable runs?" It does not answer whether anything
 improved or regressed, or why it changed.
@@ -183,11 +175,197 @@ improved or regressed, or why it changed.
 - [x] 9. The compare, core and domain code import no Qiskit, and a test enforces this.
 - [x] 10. ruff, ruff format, `mypy --strict src tests` and offline pytest all pass.
 
-### M1.x (deferred, not started)
+## Pivot rationale (2026-10)
 
-Bootstrap TVD confidence intervals, chi-square and Monte Carlo tests, calibration coverage
-summaries, FDR and multiple-register handling, role-aware highlighting of shared resources, and
-run-time footprint capture.
+- **Fake backends cannot drift.** Their calibration is static, so they are QCI's offline test
+  harness, not its first product environment.
+- **Sampling variation is computed, not rerun.** On a fake backend, repeated runs differ only
+  by multinomial sampling. Sampling variation is therefore computed from recorded counts.
+  Repeated real-hardware runs are needed only for temporal (run-to-run) variation.
+- **Full-distribution TVD is a weak primary metric.** It is dominated by rare error outcomes.
+  M2 will need workload-specific observables.
+- **First real-world evidence costs nothing.** It comes from read-only live calibration
+  snapshots, at zero QPU cost, before any paid hardware execution.
+
+## M1.1: Sampling floor for TVD (CURRENT)
+
+**Goal:** report how large TVD is expected to be from sampling alone, at the observed shot
+counts. It reports evidence. It does not decide whether a change is meaningful; that is M2.
+
+### Scope
+
+1. **Pure module `qci/compare/sampling.py`,** with no provider SDK imports.
+   - **H0:** both runs sampled one shared distribution. The pooled estimate is the merged
+     counts divided by the merged total. Outcomes are ordered lexicographically for
+     determinism.
+   - **Resampling:** for each of B resamples, draw multinomial(n_baseline, pooled) and
+     multinomial(n_candidate, pooled), normalize, and compute TVD with the existing
+     `total_variation_distance`.
+   - **Outputs:** null quantiles p50, p95 and p99 using `numpy.quantile(method="linear")`, and
+     the Monte Carlo p-value `(1 + #{null_tvd >= observed_tvd - 1e-12}) / (B + 1)`.
+   - **RNG:** `numpy.random.Generator(numpy.random.PCG64(seed))`. The seed is derived
+     deterministically from `comparison_id` by a documented function.
+2. **Domain model.** A `SamplingFloor` model stored at `DistributionComparison.sampling_floor`.
+   It is null whenever the existing comparability gate fails or the distribution comparison is
+   unavailable. Every number is a `Metric` with `EvidenceKind.STATISTICAL`, a method and a
+   method version. Fields: method, method_version, rng (including the installed numpy
+   version), seed, resamples, null quantile metrics, p_value metric and caveats.
+3. **Caveats, always emitted:**
+   - (a) It tests only whether the two observed samples are consistent with one shared
+     distribution at these shot counts. It makes no causal claim.
+   - (b) The pooled plug-in estimate cannot resample outcomes never observed, so the floor is
+     slightly underestimated for sparse distributions.
+   - (c) It assumes shots within each run are independent and identically distributed. Drift
+     within a job on real hardware violates this.
+   - (d) No multiple-comparison correction is applied.
+4. **Policy and engine version.** `ComparisonPolicy` version becomes `qci.compare.v2` and adds
+   `distribution_null_resamples: int = 2000`, with a minimum of 100. `ENGINE_VERSION` becomes
+   `qci.compare.engine.2`. Comparisons are not persisted, so no upcast is needed.
+5. **Vocabulary.** The status vocabulary is unchanged. Output must never say significant,
+   regression, improvement, better, worse, real change, PASS or FAIL. Update `LIMITATIONS` to
+   say that TVD now has a sampling floor and that Hellinger distance still has none.
+6. **CLI.** The text renderer shows the floor beside TVD.
+7. **Dependency.** numpy becomes an explicit dependency in `pyproject.toml`.
+
+**Out of scope:** a Hellinger floor, chi-square tests, thresholds or verdicts, and multiple
+registers.
+
+### M1.1 acceptance criteria
+
+- [ ] Unit tests: identical counts give p-value 1.0 and nonzero null quantiles; strongly
+      different large samples give p-value 1/(B+1); unequal shot counts are each resampled at
+      their own size; the same inputs give identical output.
+- [ ] False-positive calibration test: 200 seeded sample pairs drawn from one known
+      distribution, with B=500. The fraction with p < 0.05 lies in [0.01, 0.10].
+- [ ] Power test: a known shifted distribution at a stated shot count is detected (p < 0.05)
+      in at least 80% of 100 seeded trials.
+- [ ] `qci compare --json` is byte-identical across two invocations.
+- [ ] Not-comparable and unavailable comparisons have `sampling_floor` null.
+- [ ] All gates pass. The architecture test still passes.
+
+## M1.1v: Sampling-floor validation experiment
+
+**Goal:** test the M1.1 statistic against real draws from its own null, then re-score earlier
+results. It is an experiment, not a product feature.
+
+### Scope
+
+1. **Location.** A scripts-only directory `experiments/repeated_sampling/` that uses the
+   service API, not the CLI, and a separate store (`QCI_HOME=.qci-exp`, gitignored).
+2. **Pre-registration.** Predictions are written and committed BEFORE running, in
+   `docs/experiments/2026-10-repeated-sampling.md`, section "Pre-registered predictions".
+3. **Groups.**
+   - Group A: GHZ-star, `fake_sherbrooke`, optimization level 2, transpiler seed 7, simulator
+     seeds 1–10, 1000 shots.
+   - Group B: identical except transpiler seed 0.
+4. **Analyses.**
+   - All 45 within-group pairwise TVDs per group, against their sampling floors.
+   - All 100 between-group pairs.
+   - A re-score of the earlier compilation sweep (transpiler seeds 0–29, optimization levels
+     1–3, fixed simulator seed), regenerated deterministically.
+5. **Report.** It states results against the predictions and makes no claim about real
+   hardware.
+
+### M1.1v acceptance criteria
+
+- [ ] The predictions commit precedes the results commit.
+- [ ] The report includes raw tables plus the exact commands and seeds.
+- [ ] No `src/` changes.
+
+## M1.2: Compare-time observables
+
+**Goal:** workload-specific figures of merit with uncertainty, without a run schema change.
+
+### Scope
+
+1. **Observable spec** (domain, provider-neutral):
+   - name (identifier);
+   - kind `bitstring_set_probability`;
+   - bitstrings (unique, sorted);
+   - register (optional; defaults to the single register);
+   - bit_order `provider_counts_key`.
+
+   The bitstrings must match provider counts keys verbatim. For Qiskit, classical bit 0 is the
+   rightmost character. Document this.
+2. **Per side:** k, n, the estimate k/n (`CALCULATED`), and a Wilson 95% score interval with
+   z = 1.959963984540054 (`STATISTICAL`).
+3. **Difference** (candidate minus baseline): a point estimate plus a Newcombe hybrid score
+   interval built from the two Wilson intervals (`STATISTICAL`):
+   ```
+   lower = d - sqrt((p_c - l_c)^2 + (u_b - p_b)^2)
+   upper = d + sqrt((u_c - p_c)^2 + (p_b - l_b)^2)
+   ```
+   where d = p_c - p_b, and (l, u) are the Wilson bounds.
+4. **Gate and input rules.** Observables reuse the distribution comparability gate. If the gate
+   fails, each observable is `not_comparable` with the same reasons. Bitstrings of the wrong
+   width, or containing characters other than 0 and 1, are rejected at input. A bitstring never
+   observed counts as 0.
+5. **CLI:** `qci compare A B --observable NAME=BITS[,BITS...]`, repeatable.
+6. **Identity.** Requested observables are part of the comparison request. Their canonical hash
+   is included in the `comparison_id` derivation. `ENGINE_VERSION` becomes
+   `qci.compare.engine.3`.
+
+**Out of scope:** storing observables in the run record (needs schema v2; tracked as D18), and
+parity and expectation-value observables.
+
+### M1.2 acceptance criteria
+
+- [ ] Wilson checks: k=5, n=10 gives about [0.2366, 0.7634]; k=0, n=10 gives an upper bound
+      of about 0.2775. Both are verified independently in the test.
+- [ ] Seeded coverage test: the Wilson interval covers the true p in 93–97% of 2000 trials at
+      p=0.9, n=1000. The Newcombe interval covers the true difference in at least 93% of 2000
+      trials.
+- [ ] Different observable requests produce different `comparison_id`s. The same request
+      produces an identical ID.
+- [ ] Example in docs: `qci compare A B --observable ghz=00000,11111`.
+- [ ] All gates pass.
+
+## M1.3: Read-only live calibration snapshots
+
+**Goal:** real drift evidence for a fixed footprint at zero QPU cost. No hardware execution.
+
+Sub-steps, each reviewed separately:
+
+- **M1.3a: design and ADR 0005 only, no code.** Resolve:
+  - snapshot storage: an insert-only standalone snapshot table, deduplicated by content hash,
+    separate from runs;
+  - the command surface;
+  - credential handling: an IBM saved account, with tokens never stored, logged or put in
+    tests;
+  - whether historical calibration by datetime is supported by the INSTALLED
+    qiskit-ibm-runtime, verified by reading the installed package source, not from memory;
+  - how real-device calibration payloads differ from fakes.
+- **M1.3b: capture and storage,** with offline tests on sanitized recorded fixtures.
+- **M1.3c: footprint-scoped snapshot-to-snapshot comparison,** reusing the existing hardware
+  comparison logic. Existing compare outputs stay unchanged. Live capture is run manually by
+  the user.
+
+**Acceptance:** defined in ADR 0005 and approved before M1.3b starts.
+
+## Deferred backlog (unplanned order)
+
+None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned order:
+
+- M0.5: archival and richer measurement (details below).
+- Estimated success probability as a labeled `MODEL_PREDICTION`.
+- A Hellinger sampling floor.
+- Chi-square tests.
+- Multiple registers and FDR.
+- Run-recorded observables (schema v2; D18).
+- Probe runs as ordinary runs (research H3).
+- Live hardware execution.
+- The M2 meaningfulness policy.
+
+### M0.5: Archival and richer measurement (deferred, not started)
+
+- A content-addressed blob store under `.qci/objects/`.
+- Archival of raw QPY, QASM and provider payloads. Inline `provider_raw` moves to blob
+  references, which requires a `schema_version` bump and an explicit upcast.
+- Fuller provenance: complete installed-package list, diff hash and source snapshot.
+- An ideal distribution by exact statevector for small circuits, plus Hellinger fidelity and
+  TVD, all labeled `calculated` with method versions.
+- Golden fixtures, serialization round-trip tests, and a provider contract suite run against
+  both the Qiskit adapter and an in-memory adapter.
 
 ## Beyond M1 (direction only, unplanned)
 
@@ -219,3 +397,6 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D14 | How should IBM `general` pairwise calibration (`jq_6272`, `zz_6272`) map to qubit pairs? | The key encoding is ambiguous, so the data is excluded from footprint scoping and reported as excluded. Open. |
 | D15 | Should delay operations count as relevant hardware with unavailable calibration? | Yes in M1, conservatively. Delay has no provider calibration, so a footprint containing delays makes `relevant_hardware_changed` null. Open. |
 | D16 | Should a numerical tolerance apply to calibration value equality? | No. M1 uses exact equality and reports raw deltas. Open. |
+| D17 | Who is the initial customer: HPC centers operating QPUs, or teams running error-mitigated experiments? | Unresolved. This is a product decision with no code impact yet. |
+| D18 | Where are observables declared? | Compare-time now (M1.2). Workload-declared intent in the run record later, which requires schema v2. Open. |
+| D19 | How should standalone calibration snapshots be stored, and how is their history kept? | To be resolved by ADR 0005 in M1.3a. |

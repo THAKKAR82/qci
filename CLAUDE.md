@@ -1,7 +1,7 @@
 # CLAUDE.md — working agreement for QCI
 
 QCI is a vendor-neutral reliability and execution-intelligence layer for quantum computing.
-V1 is "Quantum CI": instrument quantum runs, persist immutable records, and (next) compare them.
+V1 is "Quantum CI": instrument quantum runs, persist immutable records, and compare them.
 Read `PLAN.md` for the current milestone and `docs/architecture.md` before changing structure.
 
 ## Commands
@@ -9,7 +9,7 @@ Read `PLAN.md` for the current milestone and `docs/architecture.md` before chang
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
-.venv/bin/mypy --strict src
+.venv/bin/mypy --strict src tests
 .venv/bin/pytest -q
 .venv/bin/qci run examples/bell.py --backend fake_sherbrooke --seed 7
 .venv/bin/qci runs
@@ -46,6 +46,32 @@ The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`.
    is known to affect performance or caused a result change.
 9. **Semantic comparison, not JSON diffing.** Each section is compared explicitly over
    normalized fields. Raw provider payloads are evidence inputs, never recursively diffed.
+
+## Step workflow
+
+Work is delivered in small, reviewed steps. For every step:
+
+1. Read CLAUDE.md and PLAN.md first. Implement only the step named in the prompt.
+2. Start from a clean tree on up-to-date `main`. Create the branch named in the prompt.
+3. Before writing code, print a short design: files to touch, models and functions to add, and
+   tests to add. If anything in PLAN.md is ambiguous, contradictory, or wrong given the actual
+   code, stop and ask instead of guessing.
+4. Write tests alongside code. Tests stay offline: no network and no credentials.
+5. Run all gates and paste their real output:
+   ```bash
+   .venv/bin/ruff check .
+   .venv/bin/ruff format --check .
+   .venv/bin/mypy --strict src tests
+   .venv/bin/pytest -q
+   ```
+6. Do not weaken, skip, xfail or delete an existing test to make a gate pass. If an existing
+   test must change because a spec changed, say which test and why.
+7. Commit on the branch with a conventional commit message. Never push, merge or rebase `main`.
+8. Stop and print a report with exactly these headings: Summary / Files changed / Design
+   decisions / Deviations from PLAN.md / Gate results / Manual verification commands / Open
+   questions.
+
+Never start the next step without explicit approval.
 
 ## Conventions
 

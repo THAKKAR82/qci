@@ -44,16 +44,25 @@ V1 is delivered in small slices, which `PLAN.md` tracks:
 
 | Milestone | Delivers |
 |---|---|
-| M0 | `run`, `runs` and `show`, with an immutable and inspectable run record |
-| M0.5 | Raw artifact archival, fuller provenance and ideal-distribution quality metrics |
-| M1 | `compare`, with statistically labeled differences between two runs |
-| Later | `test --baseline` and regression detection |
+| M0 (done) | `run`, `runs` and `show`, with an immutable and inspectable run record |
+| M1 (done) | `compare`, reporting what changed between two runs, with no judgments |
+| M1.1 | A sampling floor for TVD: how large TVD is expected to be from sampling alone |
+| M1.2 | Compare-time, workload-specific observables with uncertainty intervals |
+| M1.3 | Read-only live calibration snapshots, at zero QPU cost |
+| Deferred | M0.5 archival and richer measurement, `test --baseline` and regression detection |
 
 ## Who it is for, initially
 
 Developers and researchers who write Qiskit workloads and want to know whether a change to
-their code, the compiler settings or the target backend changed the outcome. The first
-environment is local fake backends, so it needs no paid hardware.
+their code, the compiler settings or the target backend changed the outcome.
+
+Local fake backends are QCI's offline test harness, not its product environment. Their
+calibration data is static, so they cannot exhibit drift. The first real-world evidence will
+come from read-only live calibration snapshots in M1.3, which cost no QPU time. Paid hardware
+execution comes later.
+
+The initial customer is an open product decision, tracked as D17 in `PLAN.md`. The candidates
+are HPC centers operating QPUs and teams running error-mitigated experiments.
 
 ## Product principles
 
