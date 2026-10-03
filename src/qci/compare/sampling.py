@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from qci.compare.distribution import total_variation_distance
+from qci.compare.divergence import total_variation_distance
 from qci.core.hashing import HASH_PREFIX
 from qci.domain.comparison import MIN_DISTRIBUTION_NULL_RESAMPLES
 

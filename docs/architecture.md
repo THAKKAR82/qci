@@ -99,7 +99,8 @@ qci compare BASELINE CANDIDATE [--json]
     compare/hardware.py   footprint comparison + footprint-scoped calibration comparison
                           └─ CalibrationReader port, chosen by backend.provider
                              (adapters/qiskit_ibm/calibration.py: pure dict parsing, no Qiskit)
-    compare/distribution.py  comparability gate, TVD, Hellinger distance
+    compare/distribution.py  comparability gate, TVD and Hellinger distance metrics
+    compare/divergence.py    pure TVD and Hellinger distance functions
     compare/sampling.py      TVD sampling floor, only after the gate passes: pooled-H0
                              multinomial resampling, seeded from the comparison_id
   → Comparison (deterministic comparison_id, policy qci.compare.v2, never persisted)

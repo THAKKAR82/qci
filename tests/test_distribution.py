@@ -5,11 +5,8 @@ import math
 import pytest
 
 from conftest import LOGICAL_BELL_QASM, make_run, physical_bell_qasm, physical_run
-from qci.compare.distribution import (
-    compare_distributions,
-    hellinger_distance,
-    total_variation_distance,
-)
+from qci.compare.distribution import compare_distributions
+from qci.compare.divergence import hellinger_distance, total_variation_distance
 from qci.compare.footprint import footprint_for_run
 from qci.compare.sampling import tvd_sampling_floor
 from qci.domain.comparison import ComparisonPolicy, ComparisonStatus, DistributionComparison

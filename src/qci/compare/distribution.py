@@ -7,8 +7,8 @@ passes, TVD also carries a sampling floor (``qci.compare.sampling``): evidence a
 is expected to be from sampling alone at the observed shot counts, never a verdict.
 """
 
-import math
-
+from qci.compare.divergence import hellinger_distance, total_variation_distance
+from qci.compare.sampling import tvd_sampling_floor
 from qci.domain.comparison import (
     ComparisonPolicy,
     ComparisonStatus,
@@ -42,21 +42,6 @@ SAMPLING_FLOOR_CAVEATS = [
 def _probabilities(counts: dict[str, int]) -> dict[str, float]:
     total = sum(counts.values())
     return {k: v / total for k, v in counts.items()}
-
-
-def total_variation_distance(p: dict[str, float], q: dict[str, float]) -> float:
-    """TVD = 1/2 * sum_x |p(x) - q(x)|."""
-    return 0.5 * sum(abs(p.get(k, 0.0) - q.get(k, 0.0)) for k in sorted(p.keys() | q.keys()))
-
-
-def hellinger_distance(p: dict[str, float], q: dict[str, float]) -> float:
-    """H = sqrt(1/2 * sum_x (sqrt p(x) - sqrt q(x))^2), in [0, 1]. Not Qiskit's
-    ``hellinger_fidelity``."""
-    total = sum(
-        (math.sqrt(p.get(k, 0.0)) - math.sqrt(q.get(k, 0.0))) ** 2
-        for k in sorted(p.keys() | q.keys())
-    )
-    return min(1.0, math.sqrt(0.5 * total))
 
 
 def compare_distributions(
@@ -148,9 +133,6 @@ def compare_distributions(
 def _sampling_floor(
     baseline_counts: dict[str, int], candidate_counts: dict[str, int], resamples: int, seed: int
 ) -> SamplingFloor:
-    # Deferred: qci.compare.sampling imports total_variation_distance from this module.
-    from qci.compare.sampling import tvd_sampling_floor
-
     r = tvd_sampling_floor(baseline_counts, candidate_counts, resamples=resamples, seed=seed)
     resampling = f"{_H0}; {resamples} paired multinomial resamples at each run's own shot count"
 
