@@ -1,6 +1,6 @@
 # PLAN
 
-**Current milestone: M1.1, sampling floor for TVD. Next sub-step: M1.1a.**
+**Current milestone: M1.1, sampling floor for TVD. Next sub-step: M1.1b.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed.
 
@@ -204,7 +204,8 @@ counts. It reports evidence. It does not decide whether a change is meaningful; 
    - **Outputs:** null quantiles p50, p95 and p99 using `numpy.quantile(method="linear")`, and
      the Monte Carlo p-value `(1 + #{null_tvd >= observed_tvd - 1e-12}) / (B + 1)`.
    - **RNG:** `numpy.random.Generator(numpy.random.PCG64(seed))`. The seed is derived
-     deterministically from `comparison_id` by a documented function.
+     deterministically from `comparison_id` by a documented function: the leading 53 bits
+     of its SHA-256 digest, so the seed is an exact JSON number for float64 readers.
 2. **Domain model.** A `SamplingFloor` model stored at `DistributionComparison.sampling_floor`.
    It is null whenever the existing comparability gate fails or the distribution comparison is
    unavailable. Every number is a `Metric` with `EvidenceKind.STATISTICAL`, a method and a
@@ -250,12 +251,12 @@ Each sub-step is reviewed and merged separately, in this order.
 
 ### M1.1 acceptance criteria
 
-- [ ] (M1.1a) Unit tests: identical counts give p-value 1.0 and nonzero null quantiles; strongly
+- [x] (M1.1a) Unit tests: identical counts give p-value 1.0 and nonzero null quantiles; strongly
       different large samples give p-value 1/(B+1); unequal shot counts are each resampled at
       their own size; the same inputs give identical output.
-- [ ] (M1.1a) False-positive calibration test: 200 seeded sample pairs drawn from one known
+- [x] (M1.1a) False-positive calibration test: 200 seeded sample pairs drawn from one known
       distribution, with B=500. The fraction with p < 0.05 lies in [0.01, 0.10].
-- [ ] (M1.1a) Power test: a known shifted distribution at a stated shot count is detected (p < 0.05)
+- [x] (M1.1a) Power test: a known shifted distribution at a stated shot count is detected (p < 0.05)
       in at least 80% of 100 seeded trials.
 - [ ] (M1.1b) `qci compare --json` is byte-identical across two invocations.
 - [ ] (M1.1b) Not-comparable and unavailable comparisons have `sampling_floor` null.

@@ -34,13 +34,20 @@ def sample_counts(
 # --- seed derivation ---------------------------------------------------------------------------
 
 
-def test_seed_is_leading_64_bits_of_the_comparison_digest() -> None:
+def test_seed_is_leading_53_bits_of_the_comparison_digest() -> None:
     cid = hash_json({"baseline_run_id": "A", "candidate_run_id": "B"})
     seed = seed_from_comparison_id(cid)
-    assert seed == int(cid.removeprefix("sha256:")[:16], 16)
-    assert 0 <= seed < 2**64
+    bits = bin(int(cid.removeprefix("sha256:"), 16))[2:].zfill(256)
+    assert seed == int(bits[:53], 2)
+    assert 0 <= seed < 2**53
+    assert float(seed) == seed  # exactly representable as a float64 / JSON number
     assert seed_from_comparison_id(cid) == seed
     assert seed_from_comparison_id(hash_json({"other": 1})) != seed
+
+
+def test_seed_reaches_the_top_of_its_range() -> None:
+    assert seed_from_comparison_id("sha256:" + "f" * 64) == 2**53 - 1
+    assert seed_from_comparison_id("sha256:" + "0" * 64) == 0
 
 
 @pytest.mark.parametrize(

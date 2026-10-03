@@ -20,7 +20,8 @@ MIN_RESAMPLES = 100
 QUANTILES = (0.5, 0.95, 0.99)
 # Absolute tolerance so that a null TVD equal to the observed TVD up to float rounding counts.
 P_VALUE_TOLERANCE = 1e-12
-_SEED_HEX_DIGITS = 16
+# 53 bits: every seed is an exactly representable JSON number, even for float64 readers.
+SEED_BITS = 53
 _COMPARISON_ID = re.compile(re.escape(HASH_PREFIX) + r"[0-9a-f]{64}")
 
 
@@ -45,8 +46,8 @@ def seed_from_comparison_id(comparison_id: str) -> int:
     """Derive the resampling seed from a ``comparison_id``.
 
     ``comparison_id`` is ``qci.core.hashing.hash_json`` output: ``"sha256:"`` followed by 64
-    lowercase hex digits. The seed is the first 16 hex digits after the prefix read as an
-    unsigned big-endian integer, i.e. the leading 64 bits of the digest, in ``[0, 2**64)``.
+    lowercase hex digits. The seed is the leading 53 bits of that 256-bit digest read as an
+    unsigned big-endian integer: ``int(hex_digest, 16) >> (256 - 53)``, in ``[0, 2**53)``.
     Pure and deterministic. Raises ``ValueError`` for any other format.
     """
     if not _COMPARISON_ID.fullmatch(comparison_id):
@@ -54,8 +55,8 @@ def seed_from_comparison_id(comparison_id: str) -> int:
             f"comparison_id must be {HASH_PREFIX!r} followed by 64 lowercase hex digits, "
             f"got {comparison_id!r}"
         )
-    digest = comparison_id.removeprefix(HASH_PREFIX)
-    return int(digest[:_SEED_HEX_DIGITS], 16)
+    digest = int(comparison_id.removeprefix(HASH_PREFIX), 16)
+    return digest >> (256 - SEED_BITS)
 
 
 def _shots(side: str, counts: Mapping[str, int]) -> int:
