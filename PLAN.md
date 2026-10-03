@@ -1,6 +1,6 @@
 # PLAN
 
-**Current milestone: M1.1, sampling floor for TVD. Next sub-step: M1.1b.**
+**Current milestone: M1.1, sampling floor for TVD. Next sub-step: M1.1v.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed.
 
@@ -258,9 +258,9 @@ Each sub-step is reviewed and merged separately, in this order.
       distribution, with B=500. The fraction with p < 0.05 lies in [0.01, 0.10].
 - [x] (M1.1a) Power test: a known shifted distribution at a stated shot count is detected (p < 0.05)
       in at least 80% of 100 seeded trials.
-- [ ] (M1.1b) `qci compare --json` is byte-identical across two invocations.
-- [ ] (M1.1b) Not-comparable and unavailable comparisons have `sampling_floor` null.
-- [ ] (M1.1a and M1.1b) All gates pass. The architecture test still passes.
+- [x] (M1.1b) `qci compare --json` is byte-identical across two invocations.
+- [x] (M1.1b) Not-comparable and unavailable comparisons have `sampling_floor` null.
+- [x] (M1.1a and M1.1b) All gates pass. The architecture test still passes.
 
 ## M1.1v: Sampling-floor validation experiment
 

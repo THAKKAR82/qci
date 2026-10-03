@@ -166,8 +166,9 @@ baseline. All models live in `qci/domain/comparison.py`.
 Comparison
 ├── schema_version: 1
 ├── comparison_id      hash_json({baseline_run_id, candidate_run_id, engine_version, policy_hash})
-├── engine_version     "qci.compare.engine.1"
-├── policy: ComparisonPolicy (version "qci.compare.v1", gate rules), policy_hash
+├── engine_version     "qci.compare.engine.2"
+├── policy: ComparisonPolicy (version "qci.compare.v2", gate rules,
+│                      distribution_null_resamples), policy_hash
 ├── baseline_run_id, candidate_run_id
 ├── status             overall ComparisonStatus
 ├── source / environment / logical_circuit / compilation / execution / backend
@@ -178,7 +179,8 @@ Comparison
 ├── footprint: FootprintComparison
 ├── hardware: HardwareComparison
 ├── baseline_counts, candidate_counts    raw results, always shown when present
-├── distribution: DistributionComparison (TVD, Hellinger distance as calculated Metrics)
+├── distribution: DistributionComparison (TVD, Hellinger distance as calculated Metrics;
+│                      sampling_floor: SamplingFloor | null for TVD)
 └── limitations        fixed text: no regression, improvement or causal claims
 ```
 
@@ -247,8 +249,20 @@ The metrics are defined as follows:
 - `tvd = ½ Σ |p − q|`
 - `hellinger_distance = sqrt(½ Σ (√p − √q)²)`. This is not Qiskit's `hellinger_fidelity`.
 
-Both are empirical point estimates with no uncertainty. Uncertainty estimates are deferred to
-M1.x.
+Both are empirical point estimates. Hellinger distance has no sampling floor.
+
+When the gate passes, `sampling_floor` reports how large TVD is expected to be from sampling
+alone, at the observed shot counts (`qci/compare/sampling.py`). H0 is that both runs sampled one
+shared distribution, estimated by the pooled plug-in estimate. Each of B resamples
+(`policy.distribution_null_resamples`, default 2000, minimum 100) draws each run at its own shot
+count. The null TVD quantiles p50, p95 and p99 and the Monte Carlo p-value
+`(1 + #{null_tvd >= observed_tvd - 1e-12}) / (B + 1)` are `statistical` Metrics. The seed is the
+leading 53 bits of the `comparison_id` digest, stored as a JSON integer, and `rng` records the
+installed numpy version. `sampling_floor` is null for `not_comparable` and `unavailable`
+distributions. It is evidence, not a verdict, and always carries four caveats: it makes no causal
+claim; the plug-in estimate cannot resample unobserved outcomes, so sparse floors are slightly
+underestimated; it assumes i.i.d. shots within a run; and no multiple-comparison correction is
+applied.
 
 A `changed` distribution status, meaning a nonzero TVD or Hellinger distance, says only that
 the **observed empirical** result distributions differ. It does not establish that the

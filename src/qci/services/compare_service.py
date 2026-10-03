@@ -6,9 +6,10 @@ or worse and never attributes cause.
 
 from collections.abc import Mapping
 
-from qci.compare.distribution import compare_distributions
+from qci.compare.distribution import SAMPLING_FLOOR_CAVEATS, compare_distributions
 from qci.compare.footprint import footprint_for_run
 from qci.compare.hardware import compare_footprints, compare_hardware
+from qci.compare.sampling import seed_from_comparison_id
 from qci.compare.sections import (
     compare_backend,
     compare_compilation,
@@ -21,15 +22,19 @@ from qci.core.hashing import hash_json
 from qci.core.ports import CalibrationReader, RunRepository
 from qci.domain.comparison import Comparison, ComparisonPolicy, ComparisonStatus
 
-ENGINE_VERSION = "qci.compare.engine.1"
+ENGINE_VERSION = "qci.compare.engine.2"
 
 LIMITATIONS = [
     "This comparison reports what differs between the baseline and candidate runs.",
     "It makes no regression, improvement, better/worse or pass/fail judgment.",
     "It makes no causal attribution: a difference listed in one section is not evidence that "
     "it caused a difference in another.",
-    "TVD and Hellinger distance are empirical point estimates without sampling uncertainty; "
-    "seeded or repeated runs can differ by sampling noise alone.",
+    "TVD and Hellinger distance are empirical point estimates; seeded or repeated runs can "
+    "differ by sampling noise alone.",
+    "TVD has a sampling floor when the distributions are comparable: null TVD quantiles and a "
+    "Monte Carlo p-value under H0 that both runs sampled one shared distribution, at the "
+    "observed shot counts. Hellinger distance still has no sampling floor.",
+    *(f"Sampling floor caveat: {caveat}" for caveat in SAMPLING_FLOOR_CAVEATS),
     "A changed result distribution means the observed empirical (sampled) distributions "
     "differ. It does not establish that the underlying probability distribution changed, nor "
     "that the difference is statistically significant.",
@@ -72,6 +77,7 @@ class CompareService:
         baseline = self._repository.get(baseline_run_id)
         candidate = self._repository.get(candidate_run_id)
         policy_hash = hash_json(self._policy)
+        cid = comparison_id(baseline.run_id, candidate.run_id, policy_hash)
 
         b_fp, c_fp = footprint_for_run(baseline), footprint_for_run(candidate)
         source = compare_source(baseline, candidate)
@@ -82,7 +88,9 @@ class CompareService:
         backend = compare_backend(baseline, candidate)
         footprint = compare_footprints(b_fp, c_fp)
         hardware = compare_hardware(baseline, candidate, b_fp, c_fp, self._readers.get)
-        distribution = compare_distributions(baseline, candidate, b_fp, c_fp, self._policy)
+        distribution = compare_distributions(
+            baseline, candidate, b_fp, c_fp, self._policy, seed=seed_from_comparison_id(cid)
+        )
 
         statuses = {
             source.status,
@@ -103,7 +111,7 @@ class CompareService:
             overall = ComparisonStatus.UNCHANGED
 
         return Comparison(
-            comparison_id=comparison_id(baseline.run_id, candidate.run_id, policy_hash),
+            comparison_id=cid,
             engine_version=ENGINE_VERSION,
             policy=self._policy,
             policy_hash=policy_hash,

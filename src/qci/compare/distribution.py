@@ -2,7 +2,9 @@
 
 Compares observed empirical (sampled) distributions only. A nonzero TVD or Hellinger distance
 means the observed distributions differ; it does not establish that the underlying probability
-distribution changed, nor that the difference is statistically significant.
+distribution changed, nor that the difference is statistically significant. When the gate
+passes, TVD also carries a sampling floor (``qci.compare.sampling``): evidence about how large TVD
+is expected to be from sampling alone at the observed shot counts, never a verdict.
 """
 
 import math
@@ -13,12 +15,28 @@ from qci.domain.comparison import (
     DistributionComparison,
     FootprintStatus,
     PhysicalFootprint,
+    SamplingFloor,
 )
 from qci.domain.metric import EvidenceKind, Metric
 from qci.domain.run import Run, RunStatus
 
 METHOD_VERSION = "1"
 _NO_UNCERTAINTY = "empirical point estimate; no sampling uncertainty or significance test"
+
+SAMPLING_FLOOR_METHOD_VERSION = "1"
+_H0 = (
+    "H0: both runs sampled one shared distribution, estimated by the pooled plug-in estimate "
+    "(merged counts over merged total)"
+)
+SAMPLING_FLOOR_CAVEATS = [
+    "It tests only whether the two observed samples are consistent with one shared "
+    "distribution at these shot counts. It makes no causal claim.",
+    "The pooled plug-in estimate cannot resample outcomes never observed, so the floor is "
+    "slightly underestimated for sparse distributions.",
+    "It assumes shots within each run are independent and identically distributed. Drift "
+    "within a job on real hardware violates this.",
+    "No multiple-comparison correction is applied.",
+]
 
 
 def _probabilities(counts: dict[str, int]) -> dict[str, float]:
@@ -47,7 +65,10 @@ def compare_distributions(
     baseline_footprint: PhysicalFootprint,
     candidate_footprint: PhysicalFootprint,
     policy: ComparisonPolicy,
+    *,
+    seed: int,
 ) -> DistributionComparison:
+    """Gate, then TVD, Hellinger distance and the TVD sampling floor (resampled with ``seed``)."""
     br, cr = baseline.result, candidate.result
     missing = []
     for side, run in (("baseline", baseline), ("candidate", candidate)):
@@ -118,4 +139,44 @@ def compare_distributions(
             method=f"Hellinger distance between normalized counts; {_NO_UNCERTAINTY}",
             method_version=METHOD_VERSION,
         ),
+        sampling_floor=_sampling_floor(
+            br.counts[register], cr.counts[register], policy.distribution_null_resamples, seed
+        ),
+    )
+
+
+def _sampling_floor(
+    baseline_counts: dict[str, int], candidate_counts: dict[str, int], resamples: int, seed: int
+) -> SamplingFloor:
+    # Deferred: qci.compare.sampling imports total_variation_distance from this module.
+    from qci.compare.sampling import tvd_sampling_floor
+
+    r = tvd_sampling_floor(baseline_counts, candidate_counts, resamples=resamples, seed=seed)
+    resampling = f"{_H0}; {resamples} paired multinomial resamples at each run's own shot count"
+
+    def metric(name: str, value: float, what: str) -> Metric:
+        return Metric(
+            name=name,
+            value=value,
+            kind=EvidenceKind.STATISTICAL,
+            method=f"{what}; {resampling}",
+            method_version=SAMPLING_FLOOR_METHOD_VERSION,
+        )
+
+    quantile = 'null TVD {} quantile, numpy.quantile(method="linear")'
+    return SamplingFloor(
+        method=f"Monte Carlo null distribution of TVD; {resampling}",
+        method_version=SAMPLING_FLOOR_METHOD_VERSION,
+        rng=f"numpy.random.Generator(numpy.random.PCG64(seed)); numpy {r.numpy_version}",
+        seed=r.seed,
+        resamples=r.resamples,
+        null_p50=metric("tvd_null_p50", r.null_p50, quantile.format("0.50")),
+        null_p95=metric("tvd_null_p95", r.null_p95, quantile.format("0.95")),
+        null_p99=metric("tvd_null_p99", r.null_p99, quantile.format("0.99")),
+        p_value=metric(
+            "tvd_monte_carlo_p_value",
+            r.p_value,
+            "Monte Carlo p-value (1 + #{null_tvd >= observed_tvd - 1e-12}) / (resamples + 1)",
+        ),
+        caveats=SAMPLING_FLOOR_CAVEATS,
     )

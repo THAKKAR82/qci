@@ -296,6 +296,33 @@ class HardwareComparison(DomainModel):
 # --- results -------------------------------------------------------------------------------
 
 
+MIN_DISTRIBUTION_NULL_RESAMPLES = 100
+SEED_UPPER_BOUND = 2**53
+"""Seeds are below 2**53, so they are exact JSON integers even for float64 readers."""
+
+
+class SamplingFloor(DomainModel):
+    """How large TVD is expected to be from multinomial sampling alone, at the observed shots.
+
+    H0: both runs sampled one shared distribution, estimated by the pooled plug-in estimate.
+    This is evidence about the observed samples. It is not a verdict and makes no causal claim.
+    """
+
+    method: str
+    method_version: str
+    rng: str
+    """Generator, bit generator and the installed numpy version that produced the resamples."""
+    seed: int = Field(ge=0, lt=SEED_UPPER_BOUND)
+    """Derived from ``comparison_id`` by ``qci.compare.sampling.seed_from_comparison_id``."""
+    resamples: int = Field(ge=MIN_DISTRIBUTION_NULL_RESAMPLES)
+    null_p50: Metric
+    null_p95: Metric
+    null_p99: Metric
+    p_value: Metric
+    """Monte Carlo p-value: (1 + #{null_tvd >= observed_tvd - 1e-12}) / (resamples + 1)."""
+    caveats: list[str]
+
+
 class DistributionComparison(DomainModel):
     """Comparison of observed (sampled) result distributions.
 
@@ -311,6 +338,8 @@ class DistributionComparison(DomainModel):
     candidate_shots: int | None = None
     tvd: Metric | None = None
     hellinger_distance: Metric | None = None
+    sampling_floor: SamplingFloor | None = None
+    """TVD sampling floor. Null unless the comparability gate passed."""
 
 
 # --- top level -----------------------------------------------------------------------------
@@ -319,11 +348,13 @@ class DistributionComparison(DomainModel):
 class ComparisonPolicy(DomainModel):
     """Rules the comparison engine applied. Changing any rule must change ``version``."""
 
-    version: Literal["qci.compare.v1"] = "qci.compare.v1"
+    version: Literal["qci.compare.v2"] = "qci.compare.v2"
     distribution_requires_identical_logical_qasm3: bool = True
     distribution_requires_same_provider: bool = True
     distribution_max_classical_registers: int = 1
     dynamic_circuits_supported: bool = False
+    distribution_null_resamples: int = Field(default=2000, ge=MIN_DISTRIBUTION_NULL_RESAMPLES)
+    """Resamples B used for the TVD sampling floor."""
     hardware_delta_scope: Literal["identical_physical_resources_only"] = (
         "identical_physical_resources_only"
     )

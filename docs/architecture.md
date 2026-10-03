@@ -100,7 +100,9 @@ qci compare BASELINE CANDIDATE [--json]
                           └─ CalibrationReader port, chosen by backend.provider
                              (adapters/qiskit_ibm/calibration.py: pure dict parsing, no Qiskit)
     compare/distribution.py  comparability gate, TVD, Hellinger distance
-  → Comparison (deterministic comparison_id, policy qci.compare.v1, never persisted)
+    compare/sampling.py      TVD sampling floor, only after the gate passes: pooled-H0
+                             multinomial resampling, seeded from the comparison_id
+  → Comparison (deterministic comparison_id, policy qci.compare.v2, never persisted)
 ```
 
 - **Provider neutrality.** The `compare` package, `domain/comparison.py` and

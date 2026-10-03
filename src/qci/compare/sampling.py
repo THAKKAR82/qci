@@ -15,8 +15,9 @@ from numpy.typing import NDArray
 
 from qci.compare.distribution import total_variation_distance
 from qci.core.hashing import HASH_PREFIX
+from qci.domain.comparison import MIN_DISTRIBUTION_NULL_RESAMPLES
 
-MIN_RESAMPLES = 100
+MIN_RESAMPLES = MIN_DISTRIBUTION_NULL_RESAMPLES
 QUANTILES = (0.5, 0.95, 0.99)
 # Absolute tolerance so that a null TVD equal to the observed TVD up to float rounding counts.
 P_VALUE_TOLERANCE = 1e-12

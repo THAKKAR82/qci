@@ -11,18 +11,24 @@ from qci.compare.distribution import (
     total_variation_distance,
 )
 from qci.compare.footprint import footprint_for_run
+from qci.compare.sampling import tvd_sampling_floor
 from qci.domain.comparison import ComparisonPolicy, ComparisonStatus, DistributionComparison
 from qci.domain.metric import EvidenceKind
 from qci.domain.run import Run, RunError, RunStage, RunStatus
 
+SEED = 12345
 
-def dist(baseline: Run, candidate: Run) -> DistributionComparison:
+
+def dist(
+    baseline: Run, candidate: Run, policy: ComparisonPolicy | None = None
+) -> DistributionComparison:
     return compare_distributions(
         baseline,
         candidate,
         footprint_for_run(baseline),
         footprint_for_run(candidate),
-        ComparisonPolicy(),
+        policy or ComparisonPolicy(),
+        seed=SEED,
     )
 
 
@@ -113,3 +119,70 @@ def test_failed_run_is_unavailable() -> None:
     d = dist(run("A", GOOD), failed)
     assert d.status is ComparisonStatus.UNAVAILABLE
     assert d.reasons == ["candidate run has no successful result"]
+
+
+# --- TVD sampling floor ------------------------------------------------------------------
+
+
+def test_comparable_distributions_carry_a_statistical_sampling_floor() -> None:
+    b, c = {"00": 50, "11": 50}, {"00": 150, "11": 50}
+    d = dist(
+        run("A", {"c": b}), run("B", {"c": c}), ComparisonPolicy(distribution_null_resamples=300)
+    )
+    f = d.sampling_floor
+    assert f is not None
+    assert (f.seed, f.resamples) == (SEED, 300)
+    expected = tvd_sampling_floor(b, c, resamples=300, seed=SEED)
+    metrics = (f.null_p50, f.null_p95, f.null_p99, f.p_value)
+    values = (expected.null_p50, expected.null_p95, expected.null_p99, expected.p_value)
+    assert [m.value for m in metrics] == list(values)
+    for m in metrics:
+        assert m.kind is EvidenceKind.STATISTICAL and m.method and m.method_version == "1"
+    assert f"numpy {expected.numpy_version}" in f.rng
+    assert len(f.caveats) == 4
+    # The TVD point estimate itself is unchanged.
+    assert d.tvd is not None and d.tvd.kind is EvidenceKind.CALCULATED
+
+
+def test_identical_distributions_still_carry_a_sampling_floor() -> None:
+    d = dist(run("A", GOOD), run("B", GOOD))
+    assert d.status is ComparisonStatus.UNCHANGED
+    assert d.sampling_floor is not None and d.sampling_floor.p_value.value == 1.0
+
+
+@pytest.mark.parametrize(
+    "candidate",
+    [
+        physical_run(
+            "B",
+            qasm3=physical_bell_qasm(1, 0),
+            counts=GOOD,
+            logical_qasm3=LOGICAL_BELL_QASM.replace("h q[0]", "x q[0]"),
+        ),
+        physical_run("B", qasm3=physical_bell_qasm(1, 0), counts=GOOD, provider="other"),
+        physical_run("B", qasm3=physical_bell_qasm(1, 0), counts={"c": {"000": 50, "011": 50}}),
+        physical_run(
+            "B",
+            qasm3="OPENQASM 3.0;\nbit[2] c;\nc[0] = measure $0;\nif (c[0]) {\n  x $1;\n}\n",
+            counts=GOOD,
+        ),
+    ],
+    ids=["logical", "provider", "width", "dynamic"],
+)
+def test_not_comparable_distribution_has_no_sampling_floor(candidate: Run) -> None:
+    d = dist(run("A", GOOD), candidate)
+    assert d.status is ComparisonStatus.NOT_COMPARABLE
+    assert d.sampling_floor is None
+
+
+def test_unavailable_distribution_has_no_sampling_floor() -> None:
+    failed = make_run(
+        "F",
+        status=RunStatus.FAILED,
+        error=RunError(stage=RunStage.EXECUTE, error_type="E", message="m"),
+        execution=None,
+        result=None,
+    )
+    d = dist(run("A", GOOD), failed)
+    assert d.status is ComparisonStatus.UNAVAILABLE
+    assert d.sampling_floor is None

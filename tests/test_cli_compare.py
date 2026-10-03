@@ -46,6 +46,7 @@ def test_same_seed_runs_are_unchanged_and_json_is_byte_identical(runner: CliRunn
     assert c["hardware"]["relevant_hardware_changed"] is False
     assert c["hardware"]["global_snapshot_changed"] is False
     assert c["footprint"]["status"] == "unchanged"
+    assert c["distribution"]["sampling_floor"]["p_value"]["value"] == 1.0
 
     text = runner.invoke(app, ["compare", a, b])
     assert text.exit_code == 0
@@ -75,6 +76,31 @@ def test_different_seed_changes_execution_and_counts_only(runner: CliRunner) -> 
     assert c["distribution"]["reasons"] == []
     assert c["distribution"]["tvd"]["value"] > 0
     assert c["distribution"]["tvd"]["kind"] == "calculated"
+
+
+def test_sampling_floor_json_is_byte_identical_and_shown_beside_tvd(runner: CliRunner) -> None:
+    a, b = run(runner, "--seed", "7"), run(runner, "--seed", "8")
+    first = runner.invoke(app, ["compare", a, b, "--json"]).stdout
+    second = runner.invoke(app, ["compare", a, b, "--json"]).stdout
+    assert first == second
+    floor = json.loads(first)["distribution"]["sampling_floor"]
+    assert floor["resamples"] == 2000
+    assert isinstance(floor["seed"], int) and 0 <= floor["seed"] < 2**53
+    assert f'"seed": {floor["seed"]},' in first  # a JSON integer, not a float or string
+    for name in ("null_p50", "null_p95", "null_p99", "p_value"):
+        assert floor[name]["kind"] == "statistical"
+
+    text = runner.invoke(app, ["compare", a, b])
+    assert text.exit_code == 0
+    (tvd_line,) = [line for line in text.stdout.splitlines() if line.startswith("  tvd = ")]
+    assert "| sampling floor under H0 (B=2000): p50 " in tvd_line
+    assert ", p95 " in tvd_line and ", p99 " in tvd_line
+    assert "| Monte Carlo p = " in tvd_line
+    (hellinger_line,) = [
+        line for line in text.stdout.splitlines() if line.startswith("  hellinger_distance = ")
+    ]
+    assert "sampling floor" not in hellinger_line
+    assert "Hellinger distance still has no sampling floor" in text.stdout
 
 
 def test_changed_mapping_reports_footprint_and_never_cross_resource_deltas(
@@ -109,6 +135,7 @@ def test_different_workload_is_not_comparable_but_counts_are_shown(
     c = compare_json(runner, a, b)
     assert c["distribution"]["status"] == "not_comparable"
     assert any("logical circuit changed" in r for r in c["distribution"]["reasons"])
+    assert c["distribution"]["sampling_floor"] is None
     assert c["baseline_counts"] and c["candidate_counts"]
     assert c["source"]["source_sha256"]["status"] == "changed"
 
@@ -121,6 +148,7 @@ def test_compare_against_failed_run(runner: CliRunner) -> None:
     c = compare_json(runner, a, f)
     assert c["status"] == "partially_comparable"
     assert c["distribution"]["status"] == "unavailable"
+    assert c["distribution"]["sampling_floor"] is None
     assert c["candidate_footprint"]["status"] == "unavailable"
 
 

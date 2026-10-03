@@ -4,9 +4,11 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from conftest import ibm_properties, make_run, physical_bell_qasm, physical_run
 from qci.adapters.qiskit_ibm.calibration import IbmPropertiesCalibrationReader
+from qci.compare.sampling import MIN_RESAMPLES, seed_from_comparison_id
 from qci.core.errors import RunNotFoundError
 from qci.core.hashing import hash_json
 from qci.domain.comparison import Comparison, ComparisonPolicy, ComparisonStatus
@@ -49,7 +51,7 @@ def test_identical_runs_are_unchanged(service: CompareService) -> None:
     c = service.compare("BASE", "SAME")
     assert c.status is ComparisonStatus.UNCHANGED
     assert (c.baseline_run_id, c.candidate_run_id) == ("BASE", "SAME")
-    assert c.policy.version == "qci.compare.v1"
+    assert c.policy.version == "qci.compare.v2"
     assert any("no causal attribution" in line for line in c.limitations)
 
 
@@ -108,3 +110,38 @@ def test_compare_does_not_mutate_stored_records(
 def test_unknown_run_raises(service: CompareService) -> None:
     with pytest.raises(RunNotFoundError):
         service.compare("BASE", "NOPE")
+
+
+def test_sampling_floor_seed_is_derived_from_the_comparison_id(service: CompareService) -> None:
+    c = service.compare("BASE", "CAND")
+    assert c.engine_version == "qci.compare.engine.2"
+    f = c.distribution.sampling_floor
+    assert f is not None
+    assert f.seed == seed_from_comparison_id(c.comparison_id)
+    assert f.resamples == c.policy.distribution_null_resamples == 2000
+    # Reversing direction changes the comparison_id and therefore the seed.
+    backward = service.compare("CAND", "BASE").distribution.sampling_floor
+    assert backward is not None and backward.seed != f.seed
+
+
+def test_failed_run_comparison_has_no_sampling_floor(service: CompareService) -> None:
+    assert service.compare("BASE", "FAIL").distribution.sampling_floor is None
+
+
+def test_policy_rejects_fewer_than_minimum_null_resamples() -> None:
+    assert MIN_RESAMPLES == 100
+    with pytest.raises(ValidationError):
+        ComparisonPolicy(distribution_null_resamples=99)
+    assert ComparisonPolicy(distribution_null_resamples=100).distribution_null_resamples == 100
+
+
+def test_null_resamples_are_part_of_the_policy_hash() -> None:
+    default = hash_json(ComparisonPolicy())
+    assert hash_json(ComparisonPolicy(distribution_null_resamples=500)) != default
+
+
+def test_limitations_describe_the_sampling_floor(service: CompareService) -> None:
+    text = " ".join(service.compare("BASE", "CAND").limitations)
+    assert "TVD has a sampling floor" in text
+    assert "Hellinger distance still has no sampling floor" in text
+    assert text.count("Sampling floor caveat:") == 4

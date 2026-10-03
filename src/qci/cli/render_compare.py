@@ -6,6 +6,7 @@ from qci.domain.comparison import (
     CounterComparison,
     MappingComparison,
     PhysicalFootprint,
+    SamplingFloor,
     SetComparison,
     ValueComparison,
 )
@@ -61,6 +62,15 @@ def _structure_lines(s: CircuitStructureComparison) -> list[str]:
         lines.append("    OpenQASM 3 text differs")
     lines += _value_line("qasm3_exporter", s.qasm3_exporter)
     return lines
+
+
+def _sampling_floor_text(f: SamplingFloor) -> str:
+    label = f"{f.p_value.kind.value}; v{f.method_version}"
+    return (
+        f" | sampling floor under H0 (B={f.resamples}): p50 {f.null_p50.value:.3g}, "
+        f"p95 {f.null_p95.value:.3g}, p99 {f.null_p99.value:.3g} "
+        f"| Monte Carlo p = {f.p_value.value:.3g}  [{label}]"
+    )
 
 
 def _footprint_line(label: str, fp: PhysicalFootprint) -> str:
@@ -221,7 +231,10 @@ def render_comparison(c: Comparison) -> str:
     for metric in (d.tvd, d.hellinger_distance):
         if metric is not None:
             label = f"{metric.kind.value}; v{metric.method_version}"
-            d_lines.append(f"  {metric.name} = {metric.value:.6g}  [{label}]")
+            line = f"  {metric.name} = {metric.value:.6g}  [{label}]"
+            if metric is d.tvd and d.sampling_floor is not None:
+                line += _sampling_floor_text(d.sampling_floor)
+            d_lines.append(line)
     d_lines += [f"  note: {r}" for r in d.reasons]
     if d.status.value == "changed":
         d_lines.append(EMPIRICAL_DISTRIBUTION_NOTE)
