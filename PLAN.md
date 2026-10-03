@@ -304,6 +304,10 @@ results. It is an experiment, not a product feature.
 6. **Identity.** Requested observables are part of the comparison request. Their canonical hash
    is included in the `comparison_id` derivation. `ENGINE_VERSION` becomes
    `qci.compare.engine.3`.
+7. **Statistics on counts, not bitstrings.** The Wilson and Newcombe functions take integer
+   arguments (k, n) and know nothing about bitstrings. Converting bitstring counts to (k, n) is
+   a separate function. Rationale: a future logical-error-rate observable is also k failures in
+   n trials and must reuse the same tested statistics (ADR 0006).
 
 **Out of scope:** storing observables in the run record (needs schema v2; tracked as D18), and
 parity and expectation-value observables.
@@ -317,6 +321,9 @@ parity and expectation-value observables.
       trials.
 - [ ] Different observable requests produce different `comparison_id`s. The same request
       produces an identical ID.
+- [ ] The Wilson and Newcombe functions accept only integer (k, n) arguments and are tested
+      without any bitstring input. The bitstring-counts-to-(k, n) conversion is a separate
+      function with its own tests.
 - [ ] Example in docs: `qci compare A B --observable ghz=00000,11111`.
 - [ ] All gates pass.
 
@@ -334,7 +341,11 @@ Sub-steps, each reviewed separately:
     tests;
   - whether historical calibration by datetime is supported by the INSTALLED
     qiskit-ibm-runtime, verified by reading the installed package source, not from memory;
-  - how real-device calibration payloads differ from fakes.
+  - how real-device calibration payloads differ from fakes;
+  - snapshot storage designed as generic time-stamped measurements (adapter-defined resource
+    identifier, parameter, value, unit and timestamp), with the raw provider payload kept
+    alongside. The ADR must show how a non-qubit resource, such as a neutral-atom site or a
+    logical error-correction patch, would be stored without a schema change (ADR 0006).
 - **M1.3b: capture and storage,** with offline tests on sanitized recorded fixtures.
 - **M1.3c: footprint-scoped snapshot-to-snapshot comparison,** reusing the existing hardware
   comparison logic. Existing compare outputs stay unchanged. Live capture is run manually by
@@ -355,6 +366,12 @@ None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned 
 - Probe runs as ordinary runs (research H3).
 - Live hardware execution.
 - The M2 meaningfulness policy.
+- `qci test --baseline` and regression detection, built on the M2 meaningfulness policy.
+- Evidence-based attribution.
+- Repeated executions and experiment grouping (D7).
+- More providers.
+- Long-term backend snapshot history, beyond M1.3's standalone snapshots (D10, D19).
+- Research datasets. See `docs/research.md` and `docs/product.md`.
 
 ### M0.5: Archival and richer measurement (deferred, not started)
 
@@ -366,12 +383,6 @@ None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned 
   TVD, all labeled `calculated` with method versions.
 - Golden fixtures, serialization round-trip tests, and a provider contract suite run against
   both the Qiskit adapter and an in-memory adapter.
-
-## Beyond M1 (direction only, unplanned)
-
-`qci test --baseline`, regression detection, evidence-based attribution, repeated executions
-and experiment grouping, more providers, backend snapshot history, and research datasets.
-See `docs/product.md`.
 
 ---
 

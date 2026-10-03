@@ -71,6 +71,10 @@ Work is delivered in small, reviewed steps. For every step:
    decisions / Deviations from PLAN.md / Gate results / Manual verification commands / Open
    questions.
 
+9. If a step's changes make any doc stale, update it within the step when the step's file
+   restrictions allow. Otherwise, list it under Open questions. Prompt file restrictions take
+   priority.
+
 Never start the next step without explicit approval.
 
 ## Conventions

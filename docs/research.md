@@ -53,7 +53,8 @@ These are hypotheses, not facts. QCI must not hard-code which variables matter.
 - **Snapshot granularity.** Is one calibration snapshot per run enough, or is calibration
   history between runs needed?
 - **Statistical design.** How many repetitions are needed before two runs can be distinguished?
-  This directly shapes M1.
+  M1.1 adds a computed sampling floor for TVD, and M1.1v validates it against repeated
+  seeded runs.
 - **Probe design.** What is the cheapest probe set that carries real predictive information?
 - **SDK-level reproducibility hazards.** These were found while building M0.
   `qiskit_ibm_runtime.SamplerV2` local mode silently ignores `seed_simulator=0`. Qiskit's
@@ -87,7 +88,9 @@ Facts established while building it:
 - **Mapping changes defeat time-series comparison.** When the physical mapping changes, the
   same logical workload runs on different physical resources. Per-resource time series are only
   meaningful for resources that are physically identical across runs. How to compare workloads
-  whose footprints differ is an open research question, deferred to M1.x and later.
+  whose footprints differ is an open research question. M1.3 adds footprint-scoped
+  snapshot-to-snapshot comparison for a fixed footprint. Comparing differing footprints stays
+  in the deferred backlog.
 
 ## Not now
 

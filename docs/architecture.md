@@ -2,7 +2,9 @@
 
 QCI is a modular monolith: one Python package with enforced internal boundaries. Provider SDKs
 appear only inside adapters. See [ADR 0001](adr/0001-modular-monolith.md) and
-[ADR 0002](adr/0002-provider-abstraction.md).
+[ADR 0002](adr/0002-provider-abstraction.md). Execution is modeled as a stack of levels, with
+only the physical level today, and new code must respect the constraints in
+[ADR 0006](adr/0006-execution-levels.md).
 
 ## Layers
 
