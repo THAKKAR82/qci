@@ -1,12 +1,12 @@
 # PLAN
 
-**Current milestone: M1.1, sampling floor for TVD.**
+**Current milestone: M1.1, sampling floor for TVD. Next sub-step: M1.1a.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed.
 
-Milestones are strictly sequential: M1.1, then M1.1v, M1.2 and M1.3 (with sub-steps M1.3a, b
-and c). Do not build a later milestone, or anything in the deferred backlog, while an earlier
-one is open. Each step follows the step workflow in `CLAUDE.md`.
+Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.2, M1.3a, M1.3b,
+M1.3c. Do not build a later step, or anything in the deferred backlog, while an earlier one is
+open. Each step follows the step workflow in `CLAUDE.md`.
 
 ---
 
@@ -230,18 +230,36 @@ counts. It reports evidence. It does not decide whether a change is meaningful; 
 **Out of scope:** a Hellinger floor, chi-square tests, thresholds or verdicts, and multiple
 registers.
 
+### M1.1 sub-steps
+
+Each sub-step is reviewed and merged separately, in this order.
+
+- **M1.1a, statistics core.** Branch: `feat/m1.1a-sampling-core`.
+  - Scope items 1 and 7 only: the pure `qci/compare/sampling.py` module, the
+    `comparison_id`-to-seed derivation function, and the explicit numpy dependency.
+  - Every acceptance-criterion unit test that exercises the module directly: identical counts,
+    strongly different samples, unequal shots, determinism, false-positive calibration and
+    power.
+  - No domain, policy, compare-service, CLI or renderer changes.
+- **M1.1b, wiring.** Branch: `feat/m1.1b-sampling-floor`.
+  - Scope items 2–6: the `SamplingFloor` domain model, policy `qci.compare.v2`, the engine
+    version bump, `compare_distributions` integration, `LIMITATIONS` and the CLI renderer.
+  - The remaining acceptance criteria: byte-identical `--json`, and `sampling_floor` null for
+    not-comparable and unavailable comparisons.
+  - Updating the `CLAUDE.md` policy-version convention to `qci.compare.v2`.
+
 ### M1.1 acceptance criteria
 
-- [ ] Unit tests: identical counts give p-value 1.0 and nonzero null quantiles; strongly
+- [ ] (M1.1a) Unit tests: identical counts give p-value 1.0 and nonzero null quantiles; strongly
       different large samples give p-value 1/(B+1); unequal shot counts are each resampled at
       their own size; the same inputs give identical output.
-- [ ] False-positive calibration test: 200 seeded sample pairs drawn from one known
+- [ ] (M1.1a) False-positive calibration test: 200 seeded sample pairs drawn from one known
       distribution, with B=500. The fraction with p < 0.05 lies in [0.01, 0.10].
-- [ ] Power test: a known shifted distribution at a stated shot count is detected (p < 0.05)
+- [ ] (M1.1a) Power test: a known shifted distribution at a stated shot count is detected (p < 0.05)
       in at least 80% of 100 seeded trials.
-- [ ] `qci compare --json` is byte-identical across two invocations.
-- [ ] Not-comparable and unavailable comparisons have `sampling_floor` null.
-- [ ] All gates pass. The architecture test still passes.
+- [ ] (M1.1b) `qci compare --json` is byte-identical across two invocations.
+- [ ] (M1.1b) Not-comparable and unavailable comparisons have `sampling_floor` null.
+- [ ] (M1.1a and M1.1b) All gates pass. The architecture test still passes.
 
 ## M1.1v: Sampling-floor validation experiment
 
@@ -333,7 +351,8 @@ parity and expectation-value observables.
 
 Sub-steps, each reviewed separately:
 
-- **M1.3a: design and ADR 0005 only, no code.** Resolve:
+- **M1.3a: design and ADR 0005 only, no code.** ADR number 0005 is reserved for this step;
+  ADR 0006 was written earlier (2026-10) and is intentionally out of numeric order. Resolve:
   - snapshot storage: an insert-only standalone snapshot table, deduplicated by content hash,
     separate from runs;
   - the command surface;
