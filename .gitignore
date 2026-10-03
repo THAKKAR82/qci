@@ -13,3 +13,6 @@ htmlcov/
 # Local QCI run store
 .qci/
 .DS_Store
+
+# M1.1v experiment run store
+.qci-exp/

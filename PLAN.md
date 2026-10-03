@@ -287,9 +287,9 @@ results. It is an experiment, not a product feature.
 
 ### M1.1v acceptance criteria
 
-- [ ] The predictions commit precedes the results commit.
-- [ ] The report includes raw tables plus the exact commands and seeds.
-- [ ] No `src/` changes.
+- [x] The predictions commit precedes the results commit.
+- [x] The report includes raw tables plus the exact commands and seeds.
+- [x] No `src/` changes.
 
 ## M1.2: Compare-time observables
 
