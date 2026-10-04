@@ -19,14 +19,24 @@ possibly lightweight live probes?
 | H3 | Lightweight diagnostic circuits reveal current backend health. | Probe runs stored as ordinary runs, linked by time to workload runs |
 | H4 | The interaction between circuit topology and backend topology strongly affects quality. | Two-qubit interaction edges, layout, coupling map and per-edge errors |
 | H5 | Different compilations of one workload mainly change where the error outcomes land, not the workload's figure of merit (for GHZ, the GHZ population). | Replicated runs per compilation (several simulator seeds or repeated executions each), workload observables (M1.2), and the full counts |
+| H6 | Output differences between compilations concentrate in pairs whose physical footprints differ. | Replicated runs per compilation, physical footprints, and the full counts |
 
 These are hypotheses, not facts. QCI must not hard-code which variables matter.
 
-H5 comes from M1.1v (D2) and the M1.1v-addendum (Findings, item 3) in
-`docs/experiments/2026-10-repeated-sampling.md`. It is untested: it was formed after seeing
-those results. A proper test needs a replicated design, with several runs per compilation and
-variation within each compilation compared to variation between compilations, as Groups A and
-B did. It also needs M1.2's observables, with the predictions pre-registered.
+H5 and H6 are **post-hoc and untested**. Both were formed after seeing the results they
+describe, so those results cannot count as evidence for them.
+
+- **H5 source:** M1.1v (D2) and the M1.1v-addendum (Findings, item 3) in
+  `docs/experiments/2026-10-repeated-sampling.md`. Across the addendum's 90 runs, GHZ
+  population had mean 0.902 and standard deviation 0.012, against a binomial SE of 0.0094 at
+  that mean, so most of its spread is what sampling alone produces.
+- **H6 source:** the M1.1v-addendum (Findings, item 1). Among different-circuit pairs, all 9
+  with a TVD sampling-floor p < 0.05 had different physical footprints (9/57). None of the 20
+  pairs with identical physical resources did (0/20).
+
+A test of either needs a replicated design, with several runs per compilation and variation
+within each compilation compared to variation between compilations, as M1.1v's Groups A and
+B did. H5 also needs M1.2's observables. Each test needs its predictions pre-registered.
 
 ## What M0 already preserves for research
 

@@ -1,12 +1,11 @@
 # PLAN
 
-**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3a.
-M1.1 (including M1.1v-addendum) and M1.2 are complete.**
+**Current milestone: M1.2, compare-time observables. Current sub-step: M1.2. M1.1 is
+complete, including M1.1v-addendum.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
 complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
-M1.1v-addendum is complete (predictions `b7f9ae6`). M1.2 is complete
-(branch `feat/m1.2-observables`).
+M1.1v-addendum is complete (predictions `b7f9ae6`).
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
 M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the
@@ -371,7 +370,7 @@ product feature. Branch: `exp/m1.1v-addendum-sweep`.
 - [x] No `src/` changes.
 - [x] All gates pass.
 
-## M1.2: Compare-time observables (DONE)
+## M1.2: Compare-time observables (CURRENT)
 
 **Goal:** workload-specific figures of merit with uncertainty, without a run schema change.
 
@@ -408,6 +407,10 @@ product feature. Branch: `exp/m1.1v-addendum-sweep`.
    arguments (k, n) and know nothing about bitstrings. Converting bitstring counts to (k, n) is
    a separate function. Rationale: a future logical-error-rate observable is also k failures in
    n trials and must reuse the same tested statistics (ADR 0006).
+8. **Shared-seed rule.** When the shared-seed guard applies (same rule and policy flag as the
+   TVD sampling floor), each run's estimate and Wilson interval are still reported, but the
+   Newcombe difference interval is not computed; `difference_unavailable_reason` states why.
+   The point difference (calculated) is still reported, as TVD is when the floor is withheld.
 
 **Out of scope:** storing observables in the run record (needs schema v2; tracked as D18), and
 parity and expectation-value observables.
@@ -425,9 +428,13 @@ parity and expectation-value observables.
       without any bitstring input. The bitstring-counts-to-(k, n) conversion is a separate
       function with its own tests.
 - [x] Example in docs: `qci compare A B --observable ghz=00000,11111`.
-- [x] All gates pass.
+- [ ] A shared-seed simulator pair has per-run estimates and Wilson intervals, no Newcombe
+      difference interval, and `difference_unavailable_reason` set.
+- [ ] With `sampling_floor_requires_distinct_simulator_seeds=False`, the same pair gets a
+      Newcombe difference interval and no unavailable reason.
+- [ ] All gates pass.
 
-## M1.3: Read-only live calibration snapshots (CURRENT)
+## M1.3: Read-only live calibration snapshots
 
 **Goal:** real drift evidence for a fixed footprint at zero QPU cost. No hardware execution.
 
@@ -474,7 +481,10 @@ None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned 
   compilation variation from sampling variation, the clean experimental design is
   replication: several runs per compilation, comparing variation within a compilation to
   variation between compilations, as M1.1v's Groups A and B did. It is neither all-pairs
-  comparison nor a pooled single baseline.
+  comparison nor a pooled single baseline. Sharing one baseline run also made the pairs at a
+  level dependent on each other, so their differences cannot be read as independent results.
+- Rename `sampling_floor_requires_distinct_simulator_seeds` to reflect that it also governs
+  observable difference intervals, at the next policy bump made for another reason.
 - `qci test --baseline` and regression detection, built on the M2 meaningfulness policy.
 - Evidence-based attribution.
 - Repeated executions and experiment grouping (D7).
