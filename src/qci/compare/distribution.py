@@ -4,7 +4,9 @@ Compares observed empirical (sampled) distributions only. A nonzero TVD or Helli
 means the observed distributions differ; it does not establish that the underlying probability
 distribution changed, nor that the difference is statistically significant. When the gate
 passes, TVD also carries a sampling floor (``qci.compare.sampling``): evidence about how large TVD
-is expected to be from sampling alone at the observed shot counts, never a verdict.
+is expected to be from sampling alone at the observed shot counts, never a verdict. The floor is
+skipped when both runs were simulated with the same simulator seed, because their samples are
+then not independent.
 """
 
 import math
@@ -41,6 +43,16 @@ SAMPLING_FLOOR_CAVEATS = [
     "within a job on real hardware violates this.",
     "No multiple-comparison correction is applied.",
 ]
+
+
+def shared_simulator_seed(baseline: Run, candidate: Run) -> int | None:
+    """The simulator seed both runs share, if both ran on simulators with one non-null seed."""
+    seeds = []
+    for run in (baseline, candidate):
+        if run.backend is None or not run.backend.is_simulator or run.execution is None:
+            return None
+        seeds.append(run.execution.config.seed_simulator)
+    return seeds[0] if seeds[0] == seeds[1] else None
 
 
 def _probabilities(counts: dict[str, int]) -> dict[str, float]:
@@ -108,6 +120,18 @@ def compare_distributions(
     notes = []
     if br.total_shots != cr.total_shots:
         notes.append("shot counts differ; distributions were normalized")
+    floor: SamplingFloor | None = None
+    floor_unavailable: str | None = None
+    shared_seed = shared_simulator_seed(baseline, candidate)
+    if policy.sampling_floor_requires_distinct_simulator_seeds and shared_seed is not None:
+        floor_unavailable = (
+            f"both samples were drawn with the same simulator seed ({shared_seed}), so they are "
+            "not independent; the sampling floor assumes independent samples"
+        )
+    else:
+        floor = _sampling_floor(
+            br.counts[register], cr.counts[register], policy.distribution_null_resamples, seed
+        )
     return DistributionComparison(
         status=ComparisonStatus.UNCHANGED if p == q else ComparisonStatus.CHANGED,
         reasons=notes,
@@ -128,9 +152,8 @@ def compare_distributions(
             method=f"Hellinger distance between normalized counts; {_NO_UNCERTAINTY}",
             method_version=METHOD_VERSION,
         ),
-        sampling_floor=_sampling_floor(
-            br.counts[register], cr.counts[register], policy.distribution_null_resamples, seed
-        ),
+        sampling_floor=floor,
+        sampling_floor_unavailable_reason=floor_unavailable,
     )
 
 

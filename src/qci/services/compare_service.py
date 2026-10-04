@@ -22,7 +22,7 @@ from qci.core.hashing import hash_json
 from qci.core.ports import CalibrationReader, RunRepository
 from qci.domain.comparison import Comparison, ComparisonPolicy, ComparisonStatus
 
-ENGINE_VERSION = "qci.compare.engine.2"
+ENGINE_VERSION = "qci.compare.engine.3"
 
 LIMITATIONS = [
     "This comparison reports what differs between the baseline and candidate runs.",
@@ -35,6 +35,9 @@ LIMITATIONS = [
     "Monte Carlo p-value under H0 that both runs sampled one shared distribution, at the "
     "observed shot counts. Hellinger distance still has no sampling floor.",
     *(f"Sampling floor caveat: {caveat}" for caveat in SAMPLING_FLOOR_CAVEATS),
+    "The TVD sampling floor is not computed when both runs were simulated with the same "
+    "simulator seed: their samples are not independent, and the floor assumes independent "
+    "samples.",
     "A changed result distribution means the observed empirical (sampled) distributions "
     "differ. It does not establish that the underlying probability distribution changed, nor "
     "that the difference is statistically significant.",

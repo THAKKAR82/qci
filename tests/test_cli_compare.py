@@ -47,11 +47,17 @@ def test_same_seed_runs_are_unchanged_and_json_is_byte_identical(runner: CliRunn
     assert c["hardware"]["relevant_hardware_changed"] is False
     assert c["hardware"]["global_snapshot_changed"] is False
     assert c["footprint"]["status"] == "unchanged"
-    assert c["distribution"]["sampling_floor"]["p_value"]["value"] == 1.0
+    # Same simulator seed: the samples are not independent, so no sampling floor is computed.
+    assert c["distribution"]["sampling_floor"] is None
+    assert "same simulator seed (7)" in c["distribution"]["sampling_floor_unavailable_reason"]
 
     text = runner.invoke(app, ["compare", a, b])
     assert text.exit_code == 0
     assert "status:    unchanged" in text.stdout and "no causal attribution" in text.stdout
+    (tvd_line,) = [line for line in text.stdout.splitlines() if line.startswith("  tvd = ")]
+    assert "| sampling floor unavailable: both samples were drawn with the same simulator seed" in (
+        tvd_line
+    )
     for banned in ("better", "worse", "regression", "improve", "PASS", "FAIL"):
         assert banned not in text.stdout.replace(
             "regression, improvement, better/worse or pass/fail", ""

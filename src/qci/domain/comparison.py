@@ -340,6 +340,9 @@ class DistributionComparison(DomainModel):
     hellinger_distance: Metric | None = None
     sampling_floor: SamplingFloor | None = None
     """TVD sampling floor. Null unless the comparability gate passed."""
+    sampling_floor_unavailable_reason: str | None = None
+    """Why the floor was not computed although the gate passed. Null whenever the floor is
+    computed, and when the gate failed (those reasons are in ``reasons``)."""
 
 
 # --- top level -----------------------------------------------------------------------------
@@ -348,13 +351,15 @@ class DistributionComparison(DomainModel):
 class ComparisonPolicy(DomainModel):
     """Rules the comparison engine applied. Changing any rule must change ``version``."""
 
-    version: Literal["qci.compare.v2"] = "qci.compare.v2"
+    version: Literal["qci.compare.v3"] = "qci.compare.v3"
     distribution_requires_identical_logical_qasm3: bool = True
     distribution_requires_same_provider: bool = True
     distribution_max_classical_registers: int = 1
     dynamic_circuits_supported: bool = False
     distribution_null_resamples: int = Field(default=2000, ge=MIN_DISTRIBUTION_NULL_RESAMPLES)
     """Resamples B used for the TVD sampling floor."""
+    sampling_floor_requires_distinct_simulator_seeds: bool = True
+    """Skip the floor when both runs used simulators with the same non-null simulator seed."""
     hardware_delta_scope: Literal["identical_physical_resources_only"] = (
         "identical_physical_resources_only"
     )

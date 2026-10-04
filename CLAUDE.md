@@ -89,7 +89,7 @@ Never start the next step without explicit approval.
   layer only as opaque `object` handles owned by the adapter.
 - `openqasm3` is the vendor-neutral OpenQASM parser, not a provider SDK. It may be used outside
   adapters, but its AST handling must stay inside `qci/compare/footprint.py` (ADR 0004).
-- Changing comparison rules means bumping `ComparisonPolicy.version` (`qci.compare.v2`).
+- Changing comparison rules means bumping `ComparisonPolicy.version` (`qci.compare.v3`).
 - Circuit/workload identity is **provisional** (see `docs/data-model.md`). Do not introduce a
   "canonical circuit ID" without an ADR.
 - Record non-obvious architectural decisions as ADRs in `docs/adr/`.

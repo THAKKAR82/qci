@@ -322,13 +322,17 @@ Branch: `feat/m1.1c-shared-seed-guard`.
 
 ### M1.1c acceptance criteria
 
-- [ ] Shared seed, different circuits: `sampling_floor` null, reason set.
-- [ ] Shared seed, identical circuits: status unchanged, `sampling_floor` null, reason set.
-- [ ] Different seeds: floor present.
-- [ ] Both unseeded: floor present.
-- [ ] One seeded and one unseeded: floor present.
-- [ ] `qci compare --json` is byte-identical across two invocations.
-- [ ] All gates pass.
+- [x] Shared seed, different circuits: `sampling_floor` null, reason set.
+- [x] Shared seed, identical circuits: status unchanged, `sampling_floor` null, reason set.
+- [x] Different seeds: floor present.
+- [x] Both unseeded: floor present.
+- [x] One seeded and one unseeded: floor present.
+- [x] With `sampling_floor_requires_distinct_simulator_seeds=False`, a shared-seed simulator
+      pair gets a computed floor and no unavailable reason.
+- [x] Equal non-null `seed_simulator` values where the backends are not both simulators: floor
+      present.
+- [x] `qci compare --json` is byte-identical across two invocations.
+- [x] All gates pass.
 
 ## M1.2: Compare-time observables
 

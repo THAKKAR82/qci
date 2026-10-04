@@ -51,7 +51,7 @@ def test_identical_runs_are_unchanged(service: CompareService) -> None:
     c = service.compare("BASE", "SAME")
     assert c.status is ComparisonStatus.UNCHANGED
     assert (c.baseline_run_id, c.candidate_run_id) == ("BASE", "SAME")
-    assert c.policy.version == "qci.compare.v2"
+    assert c.policy.version == "qci.compare.v3"
     assert any("no causal attribution" in line for line in c.limitations)
 
 
@@ -114,7 +114,7 @@ def test_unknown_run_raises(service: CompareService) -> None:
 
 def test_sampling_floor_seed_is_derived_from_the_comparison_id(service: CompareService) -> None:
     c = service.compare("BASE", "CAND")
-    assert c.engine_version == "qci.compare.engine.2"
+    assert c.engine_version == "qci.compare.engine.3"
     f = c.distribution.sampling_floor
     assert f is not None
     assert f.seed == seed_from_comparison_id(c.comparison_id)
@@ -140,8 +140,16 @@ def test_null_resamples_are_part_of_the_policy_hash() -> None:
     assert hash_json(ComparisonPolicy(distribution_null_resamples=500)) != default
 
 
+def test_shared_seed_guard_is_part_of_the_policy_hash() -> None:
+    default = ComparisonPolicy()
+    assert default.sampling_floor_requires_distinct_simulator_seeds is True
+    disabled = ComparisonPolicy(sampling_floor_requires_distinct_simulator_seeds=False)
+    assert hash_json(disabled) != hash_json(default)
+
+
 def test_limitations_describe_the_sampling_floor(service: CompareService) -> None:
     text = " ".join(service.compare("BASE", "CAND").limitations)
     assert "TVD has a sampling floor" in text
     assert "Hellinger distance still has no sampling floor" in text
     assert text.count("Sampling floor caveat:") == 4
+    assert "not computed when both runs were simulated with the same simulator seed" in text

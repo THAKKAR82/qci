@@ -231,3 +231,92 @@ def test_unsupported_reasons_name_the_policy_not_a_version() -> None:
     assert "multiple classical registers are not supported by this comparison policy" in reasons
     assert "dynamic circuits are not supported by this comparison policy" in reasons
     assert not any("v1" in r for r in reasons)
+
+
+# --- Shared-seed guard (M1.1c) -----------------------------------------------------------
+
+OTHER = {"c": {"00": 40, "11": 60}}
+
+
+def seeded(run_id: str, seed: int | None, *, qasm3: str | None = None, **kw: object) -> Run:
+    return physical_run(
+        run_id,
+        qasm3=qasm3 or physical_bell_qasm(1, 0),
+        seed_simulator=seed,
+        **kw,  # type: ignore[arg-type]
+    )
+
+
+def assert_floor_skipped_for_shared_seed(d: DistributionComparison, seed: int) -> None:
+    assert d.sampling_floor is None
+    assert d.sampling_floor_unavailable_reason == (
+        f"both samples were drawn with the same simulator seed ({seed}), so they are not "
+        "independent; the sampling floor assumes independent samples"
+    )
+
+
+def assert_floor_computed(d: DistributionComparison) -> None:
+    assert d.sampling_floor is not None
+    assert d.sampling_floor_unavailable_reason is None
+
+
+def test_shared_seed_with_different_circuits_has_no_sampling_floor() -> None:
+    baseline = seeded("A", 1, counts=GOOD)
+    candidate = seeded("B", 1, qasm3=physical_bell_qasm(2, 3), layout=None, counts=OTHER)
+    assert baseline.compilation is not None and candidate.compilation is not None
+    assert baseline.compilation.output.qasm3 != candidate.compilation.output.qasm3
+    d = dist(baseline, candidate)
+    assert d.status is ComparisonStatus.CHANGED
+    assert d.tvd is not None and d.hellinger_distance is not None
+    assert_floor_skipped_for_shared_seed(d, 1)
+
+
+def test_shared_seed_with_identical_circuits_is_unchanged_without_sampling_floor() -> None:
+    d = dist(seeded("A", 7, counts=GOOD), seeded("B", 7, counts=GOOD))
+    assert d.status is ComparisonStatus.UNCHANGED
+    assert d.tvd is not None and d.tvd.value == 0.0
+    assert_floor_skipped_for_shared_seed(d, 7)
+
+
+def test_shared_seed_zero_is_a_real_seed() -> None:
+    assert_floor_skipped_for_shared_seed(dist(seeded("A", 0), seeded("B", 0)), 0)
+
+
+@pytest.mark.parametrize(
+    ("baseline_seed", "candidate_seed"),
+    [(1, 2), (None, None), (1, None), (None, 1)],
+    ids=["different", "both-unseeded", "candidate-unseeded", "baseline-unseeded"],
+)
+def test_distinct_or_missing_seeds_keep_the_sampling_floor(
+    baseline_seed: int | None, candidate_seed: int | None
+) -> None:
+    d = dist(seeded("A", baseline_seed, counts=GOOD), seeded("B", candidate_seed, counts=OTHER))
+    assert d.status is ComparisonStatus.CHANGED
+    assert_floor_computed(d)
+
+
+def test_shared_seed_guard_can_be_disabled_by_policy() -> None:
+    policy = ComparisonPolicy(sampling_floor_requires_distinct_simulator_seeds=False)
+    assert_floor_computed(dist(seeded("A", 1, counts=GOOD), seeded("B", 1, counts=OTHER), policy))
+
+
+@pytest.mark.parametrize(
+    ("baseline_sim", "candidate_sim"),
+    [(False, False), (True, False), (False, True)],
+    ids=["neither", "baseline-only", "candidate-only"],
+)
+def test_shared_seed_applies_only_when_both_backends_are_simulators(
+    baseline_sim: bool, candidate_sim: bool
+) -> None:
+    d = dist(
+        seeded("A", 1, counts=GOOD, is_simulator=baseline_sim),
+        seeded("B", 1, counts=OTHER, is_simulator=candidate_sim),
+    )
+    assert_floor_computed(d)
+
+
+def test_failed_gate_with_shared_seed_has_no_unavailable_reason() -> None:
+    candidate = seeded("B", 1, counts=GOOD, provider="other")
+    d = dist(seeded("A", 1, counts=GOOD), candidate)
+    assert d.status is ComparisonStatus.NOT_COMPARABLE
+    assert d.sampling_floor is None and d.sampling_floor_unavailable_reason is None

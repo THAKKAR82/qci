@@ -102,8 +102,9 @@ qci compare BASELINE CANDIDATE [--json]
     compare/distribution.py  comparability gate, TVD and Hellinger distance metrics
     compare/divergence.py    pure TVD and Hellinger distance functions
     compare/sampling.py      TVD sampling floor, only after the gate passes: pooled-H0
-                             multinomial resampling, seeded from the comparison_id
-  → Comparison (deterministic comparison_id, policy qci.compare.v2, never persisted)
+                             multinomial resampling, seeded from the comparison_id; skipped
+                             when both runs were simulated with the same simulator seed
+  → Comparison (deterministic comparison_id, policy qci.compare.v3, never persisted)
 ```
 
 - **Provider neutrality.** The `compare` package, `domain/comparison.py` and

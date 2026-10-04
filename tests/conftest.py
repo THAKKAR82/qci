@@ -268,12 +268,20 @@ def physical_run(
     counts: dict[str, dict[str, int]] | None = None,
     logical_qasm3: str | None = LOGICAL_BELL_QASM,
     provider: str = "qiskit_ibm",
+    seed_simulator: int | None = None,
+    is_simulator: bool = True,
 ) -> Run:
+    """A run with a physical footprint. Unseeded by default, so the TVD sampling floor applies."""
     from qci.domain.circuit import Layout
 
     base = make_run(run_id)
     assert base.compilation is not None and base.backend is not None
     assert base.backend_snapshot is not None and base.result is not None
+    assert base.execution is not None
+    exec_config = base.execution.config.model_copy(update={"seed_simulator": seed_simulator})
+    execution = base.execution.model_copy(
+        update={"config": exec_config, "config_hash": hash_json(exec_config)}
+    )
     output = base.compilation.output.model_copy(update={"qasm3": qasm3})
     compilation = base.compilation.model_copy(
         update={
@@ -294,7 +302,10 @@ def physical_run(
         run_id,
         compilation=compilation,
         backend_snapshot=snapshot,
-        backend=base.backend.model_copy(update={"provider": provider}),
+        backend=base.backend.model_copy(
+            update={"provider": provider, "is_simulator": is_simulator}
+        ),
+        execution=execution,
         result=result,
         logical_circuit=base.logical_circuit.model_copy(update={"qasm3": logical_qasm3}),
     )

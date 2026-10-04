@@ -245,6 +245,8 @@ def render_comparison(c: Comparison) -> str:
             line = f"  {metric.name} = {metric.value:.6g}  [{label}]"
             if metric is d.tvd and d.sampling_floor is not None:
                 line += _sampling_floor_text(d.sampling_floor)
+            elif metric is d.tvd and d.sampling_floor_unavailable_reason is not None:
+                line += f" | sampling floor unavailable: {d.sampling_floor_unavailable_reason}"
             d_lines.append(line)
     d_lines += [f"  note: {r}" for r in d.reasons]
     if d.status.value == "changed":

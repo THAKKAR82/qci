@@ -166,9 +166,10 @@ baseline. All models live in `qci/domain/comparison.py`.
 Comparison
 ├── schema_version: 1
 ├── comparison_id      hash_json({baseline_run_id, candidate_run_id, engine_version, policy_hash})
-├── engine_version     "qci.compare.engine.2"
-├── policy: ComparisonPolicy (version "qci.compare.v2", gate rules,
-│                      distribution_null_resamples), policy_hash
+├── engine_version     "qci.compare.engine.3"
+├── policy: ComparisonPolicy (version "qci.compare.v3", gate rules,
+│                      distribution_null_resamples,
+│                      sampling_floor_requires_distinct_simulator_seeds), policy_hash
 ├── baseline_run_id, candidate_run_id
 ├── status             overall ComparisonStatus
 ├── source / environment / logical_circuit / compilation / execution / backend
@@ -180,7 +181,8 @@ Comparison
 ├── hardware: HardwareComparison
 ├── baseline_counts, candidate_counts    raw results, always shown when present
 ├── distribution: DistributionComparison (TVD, Hellinger distance as calculated Metrics;
-│                      sampling_floor: SamplingFloor | null for TVD)
+│                      sampling_floor: SamplingFloor | null for TVD;
+│                      sampling_floor_unavailable_reason: str | null)
 └── limitations        fixed text: no regression, improvement or causal claims
 ```
 
@@ -260,10 +262,16 @@ observed_tvd - 1e-12}) / (B + 1)` are `statistical` Metrics. The p-value is itse
 estimate: its `uncertainty` is the standard error `sqrt(p(1 − p) / (B + 1))` (p-value method
 version 2). The seed is the leading 53 bits of the `comparison_id` digest, stored as a JSON
 integer, and `rng` records the installed numpy version. `sampling_floor` is null for
-`not_comparable` and `unavailable` distributions. It is evidence, not a verdict, and always
-carries four caveats: it makes no causal claim; the plug-in estimate cannot resample unobserved
-outcomes, so sparse floors are slightly underestimated; it assumes i.i.d. shots within a run;
-and no multiple-comparison correction is applied.
+`not_comparable` and `unavailable` distributions. It is also null when both runs executed on
+simulator backends with the same non-null `seed_simulator` (policy
+`sampling_floor_requires_distinct_simulator_seeds`, default true): the two samples are then
+not independent, and the floor assumes independent samples. This holds whether or not the
+compiled circuits differ. `sampling_floor_unavailable_reason` then says so. It is null whenever
+the floor is computed and when the gate failed, since `reasons` already explains that case. The
+floor is evidence, not a verdict, and always carries four caveats: it makes no causal claim;
+the plug-in estimate cannot resample unobserved outcomes, so sparse floors are slightly
+underestimated; it assumes i.i.d. shots within a run; and no multiple-comparison correction is
+applied.
 
 A `changed` distribution status, meaning a nonzero TVD or Hellinger distance, says only that
 the **observed empirical** result distributions differ. It does not establish that the
