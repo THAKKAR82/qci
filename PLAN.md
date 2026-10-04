@@ -1,14 +1,15 @@
 # PLAN
 
-**Current milestone: M1.1, sampling floor for TVD. Current sub-step: M1.1c. Then
-M1.1v-addendum, then M1.2.**
+**Current milestone: M1.1, sampling floor for TVD. Current sub-step: M1.1v-addendum. Then
+M1.2.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
-complete (`82ccd2e`).
+complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
-M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the deferred backlog, while an earlier one is
-open. Each step follows the step workflow in `CLAUDE.md`.
+M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the
+deferred backlog, while an earlier one is open. Each step follows the step workflow in
+`CLAUDE.md`.
 
 ---
 

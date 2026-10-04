@@ -78,6 +78,8 @@ Work is delivered in small, reviewed steps. For every step:
 10. If a step's changes make any doc stale, update it within the step when the step's file
     restrictions allow. Otherwise, list it under Open questions. Prompt file restrictions take
     priority.
+11. When a step's acceptance criteria are all met, update the PLAN.md header to name the step
+    as done and the next sub-step as current, in the same branch.
 
 Never start the next step without explicit approval.
 
