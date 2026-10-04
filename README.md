@@ -92,3 +92,13 @@ Use `--entrypoint NAME` to call a different function.
 - [docs/data-model.md](docs/data-model.md): the Run record, identity and schema versioning.
 - [docs/research.md](docs/research.md): research hypotheses and what data supports them.
 - [docs/adr/](docs/adr/): architecture decision records.
+
+## Landing page
+
+The static marketing page is `index.html` with `styles.css`, `script.js`, and synthetic examples in `demo-fixtures.js`. It has no frontend build step. Preview it locally with:
+
+```bash
+python -m http.server 4173
+```
+
+The contact section is deliberately unconfigured in the draft. Set a monitored email address or a form endpoint in `site-config.js` before publishing. A form endpoint must acknowledge receipt with JSON `{"received": true}`; the page shows success only after that response.

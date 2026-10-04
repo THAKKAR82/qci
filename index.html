@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7f9" />
+    <meta name="description" content="Record quantum runs and inspect changes across source, compilation, workload-relevant hardware metadata and results. Explore QCI's early-stage prototype." />
+    <title>QCI | Compare quantum executions</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="#top" aria-label="QCI home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>QCI</span></a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation"><span></span><span></span><span></span></button>
+        <nav class="primary-nav" id="primary-nav" aria-label="Main navigation">
+          <a href="#how-it-works">How it works</a>
+          <a href="#example">Example</a>
+          <a href="#direction">Direction</a>
+          <a class="nav-action" href="#contact">Discuss your workflow <span aria-hidden="true">↗</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="bloch-visual" aria-hidden="true"><canvas id="bloch-sphere"></canvas></div>
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-line" aria-hidden="true"></span> Quantum execution observability</p>
+          <h1>See what changed between quantum runs.</h1>
+          <p class="hero-description">QCI records quantum executions and compares the evidence across source, compilation, workload-relevant hardware metadata and results. Start your investigation with the changes in view.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#contact">Discuss your workflow <span aria-hidden="true">↗</span></a>
+            <a class="button button-secondary" href="#example">See an example comparison <span aria-hidden="true">↓</span></a>
+          </div>
+          <p class="status-line"><span class="status-dot" aria-hidden="true"></span> Early-stage prototype <span aria-hidden="true">·</span> Qiskit-first <span aria-hidden="true">·</span> Local recording and comparison</p>
+        </div>
+        <p class="hero-visual-label">Move across the Bloch sphere to perturb its quantum symbols. Illustrative interaction.</p>
+      </section>
+
+      <section class="example-section" id="example">
+        <div class="shell example-layout">
+          <div class="example-heading"><p class="section-label">An example comparison</p><h2>From one run to the next, see the evidence side by side.</h2><p>Explore synthetic comparisons based on the data QCI records today.</p></div>
+        <article class="demo" aria-label="Interactive illustrative run comparison">
+          <div class="demo-toolbar">
+            <div class="demo-command"><span class="command-mark" aria-hidden="true">›</span><code>qci compare</code></div>
+            <span class="demo-tag">Illustrative data</span>
+          </div>
+          <div class="demo-intro">
+            <p class="demo-kicker">One workload / two runs</p>
+            <h2>Inspect the evidence</h2>
+            <p>A compact view of what a run comparison brings together.</p>
+          </div>
+          <div class="demo-tabs" role="group" aria-label="Choose an example comparison">
+            <button type="button" class="demo-tab is-active" data-demo="sampling" aria-pressed="true">Sampling only</button>
+            <button type="button" class="demo-tab" data-demo="compilation" aria-pressed="false">Compilation</button>
+            <button type="button" class="demo-tab" data-demo="missing" aria-pressed="false">Missing metadata</button>
+          </div>
+          <div class="demo-run-head">
+            <div><span class="run-dot run-dot-baseline" aria-hidden="true"></span><span>Baseline</span><strong data-run="baseline">Example baseline</strong><small>1,000 shots</small></div>
+            <div><span class="run-dot run-dot-candidate" aria-hidden="true"></span><span>Candidate</span><strong data-run="candidate">Example candidate</strong><small>1,000 shots</small></div>
+          </div>
+          <div class="demo-rows">
+            <div class="demo-row" data-field="source">
+              <div class="demo-row-heading"><span>Source &amp; logical circuit</span><span class="evidence-state state-unchanged" data-state="source"><span aria-hidden="true">●</span> Unchanged</span></div>
+              <div class="demo-row-values"><span data-value="source-baseline">Same source / env · Bell circuit</span><span data-value="source-candidate">Same source / env · Bell circuit</span></div>
+            </div>
+            <div class="demo-row" data-field="compilation">
+              <div class="demo-row-heading"><span>Compilation</span><span class="evidence-state state-unchanged" data-state="compilation"><span aria-hidden="true">●</span> Unchanged</span></div>
+              <div class="demo-row-values"><span data-value="compilation-baseline">Same settings · fixed seed</span><span data-value="compilation-candidate">Same settings · fixed seed</span></div>
+            </div>
+            <div class="demo-row" data-field="footprint">
+              <div class="demo-row-heading"><span>Physical footprint</span><span class="evidence-state state-unchanged" data-state="footprint"><span aria-hidden="true">●</span> Unchanged</span></div>
+              <div class="demo-row-values"><span data-value="footprint-baseline">Same physical resources</span><span data-value="footprint-candidate">Same physical resources</span></div>
+            </div>
+            <div class="demo-row" data-field="calibration">
+              <div class="demo-row-heading"><span>Recorded calibration</span><span class="evidence-state state-unchanged" data-state="calibration"><span aria-hidden="true">●</span> Unchanged</span></div>
+              <div class="demo-row-values"><span data-value="calibration-baseline">Same saved metadata</span><span data-value="calibration-candidate">Same saved metadata</span></div>
+            </div>
+            <div class="demo-row demo-counts-row" data-field="counts">
+              <div class="demo-row-heading"><span>Counts <small>00 / 01 / 10 / 11</small></span><span class="evidence-state state-changed"><span aria-hidden="true">●</span> Changed</span></div>
+              <div class="demo-row-values"><span data-counts="baseline">480 / 20 / 20 / 480</span><span data-counts="candidate">460 / 30 / 30 / 480</span></div>
+            </div>
+          </div>
+          <div class="demo-result">
+            <div><span>Empirical TVD</span><strong data-tvd>0.020</strong></div>
+            <p data-interpretation aria-live="polite">The sampled counts differ. The recorded source, compilation, footprint and calibration metadata match in this example. Statistical significance and regression are not assessed.</p>
+          </div>
+          <details class="demo-details">
+            <summary>What makes calibration relevant?</summary>
+            <p>QCI limits this comparison to calibration metadata associated with resources the workload used. That association does not prove those values affected the result. Missing metadata is labelled unavailable.</p>
+          </details>
+          <p class="demo-caption">All scenarios are synthetic. The default Bell-circuit example uses independent 1,000-shot samples and saved FakeSherbrooke metadata. QCI currently provides a Python CLI, not a released dashboard.</p>
+        </article>
+        </div>
+      </section>
+
+      <section class="problem-section" id="problem">
+        <div class="shell problem-layout">
+          <div><p class="section-label">The investigation</p><h2>The results changed.<br />What else changed?</h2></div>
+          <div class="problem-detail">
+            <p>Code, circuit construction, transpilation, physical mapping, hardware conditions and finite-shot sampling can all contribute to different outcomes. QCI brings the recorded evidence together so you can inspect those dimensions side by side.</p>
+            <div class="evidence-chain" aria-label="Evidence QCI compares"><span>Source</span><span>Compilation</span><span>Used resources</span><span>Calibration</span><span>Results</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="workflow-section shell" id="how-it-works">
+        <div class="section-heading"><p class="section-label">How it works</p><h2>A record for each run.<br />A comparison across runs.</h2></div>
+        <div class="workflow-steps">
+          <article><span class="step-number">01</span><h3>Record</h3><p>Preserve source and environment provenance, logical and transpiled circuits, execution settings, backend metadata and measurement counts.</p></article>
+          <article><span class="step-number">02</span><h3>Compare</h3><p>Inspect changes across two recorded executions, including the physical resources used by the workload.</p></article>
+          <article><span class="step-number">03</span><h3>Investigate</h3><p>Use the comparison to decide what to examine next. Observed differences alone do not establish a regression or its cause.</p></article>
+        </div>
+        <div class="command-strip"><span>Actual CLI command</span><code>qci compare BASELINE_RUN_ID CANDIDATE_RUN_ID</code></div>
+      </section>
+
+      <section class="direction-section" id="direction">
+        <div class="shell direction-layout">
+          <div class="direction-copy"><p class="section-label">Trust and direction</p><h2>Clear about what the evidence can say.</h2><p>QCI records classical metadata and final results without inserting measurements into your workload. Distribution distances describe an observed difference; they do not by themselves establish statistical significance, performance degradation or causality. QCI has a provider-neutral core; Qiskit is its first implementation.</p></div>
+          <div class="direction-stages">
+            <div class="direction-stage stage-now"><span>Today · prototype</span><h3>Record and compare</h3><p>Local Qiskit runs on fake backends, stored in SQLite.</p></div>
+            <div class="direction-stage"><span>Next · research</span><h3>Assess meaningful change</h3><p>Explore statistical evidence, objectives and practical thresholds.</p></div>
+            <div class="direction-stage"><span>Later · direction</span><h3>Explain and route</h3><p>Attribution and workload routing are longer-term research directions.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact-section" id="contact">
+        <div class="shell contact-layout">
+          <div><p class="section-label">A conversation, not a signup</p><h2>How do you investigate a changed quantum result?</h2><p>We want to learn from researchers and engineers running repeated quantum experiments. Tell us what you run, how you compare results and where the investigation gets difficult.</p></div>
+          <div class="contact-card">
+            <form id="contact-form" novalidate hidden>
+              <h3>Discuss your workflow</h3>
+              <div class="form-grid">
+                <div class="form-field full-width"><label for="contact-email">Email <span aria-hidden="true">*</span></label><input id="contact-email" name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" aria-describedby="email-error" /><small class="field-error" id="email-error"></small></div>
+                <div class="form-field"><label for="contact-name">Name <span class="optional">(optional)</span></label><input id="contact-name" name="name" type="text" autocomplete="name" maxlength="100" /></div>
+                <div class="form-field"><label for="contact-team">Team <span class="optional">(optional)</span></label><input id="contact-team" name="team" type="text" autocomplete="organization" maxlength="100" /></div>
+                <div class="form-field full-width"><label for="contact-message">What makes comparison difficult? <span class="optional">(optional)</span></label><textarea id="contact-message" name="message" rows="4" maxlength="2000"></textarea></div>
+              </div>
+              <p class="contact-privacy">We’ll use these details only to follow up about QCI. Please don’t send circuits, API keys or execution records.</p>
+              <button class="button button-primary" type="submit">Send message <span aria-hidden="true">↗</span></button>
+              <p class="form-status" role="status" aria-live="polite"></p>
+            </form>
+            <div id="contact-email-option" hidden><h3>Discuss your workflow</h3><p>Share how you compare repeated quantum runs and where the investigation gets difficult.</p><a class="button button-primary" id="contact-email-link">Email the founder <span aria-hidden="true">↗</span></a><p class="contact-privacy">We’ll use your message only to follow up about QCI. Please don’t send circuits, API keys or execution records.</p></div>
+            <div id="contact-pending"><h3>Contact channel in progress</h3><p>This preview is waiting for a monitored contact destination. The conversation action will be enabled before launch.</p></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="shell footer-inner"><a class="brand" href="#top" aria-label="QCI home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>QCI</span></a><span>Quantum execution, with context.</span><a href="#top">Back to top ↑</a></div></footer>
+  </body>
+</html>
