@@ -335,6 +335,40 @@ Branch: `feat/m1.1c-shared-seed-guard`.
 - [x] `qci compare --json` is byte-identical across two invocations.
 - [x] All gates pass.
 
+## M1.1v-addendum: Compilation sweep with distinct simulator seeds
+
+**Goal:** answer the question M1.1v's sweep re-score could not: are the output differences
+between compilations larger than sampling alone produces? M1.1v's re-score was invalid
+because every sweep run shared simulator seed 7 (see
+`docs/experiments/2026-10-repeated-sampling.md`, "Findings beyond the marked predictions").
+This reruns the sweep with a distinct simulator seed per run. It is an experiment, not a
+product feature. Branch: `exp/m1.1v-addendum-sweep`.
+
+### Design
+
+1. **Runs.** GHZ-star, `fake_sherbrooke`, 1000 shots, transpiler seeds 0–29 at optimization
+   levels 1, 2 and 3 (90 runs). Simulator seed = 1000 + 100 × level + transpiler seed, so
+   every run has a distinct simulator seed.
+2. **Store and scripts.** Scripts under `experiments/repeated_sampling/` use `RunService` and
+   `CompareService`, not the CLI, and write to a fresh store `QCI_HOME=.qci-exp-addendum`
+   (gitignored). The run script refuses to run if the working tree is dirty.
+3. **Comparisons.** Each run is compared against the transpiler-seed-0 run of its level
+   (29 pairs per level, 87 in total). Pairs with identical transpiled circuits (same
+   transpiled qasm3 hash) are flagged.
+4. **GHZ population.** P(00000) + P(11111) per run, with binomial standard error, computed in
+   the experiment script only.
+5. **Order.** Plan, scripts and pre-registered predictions are committed before any run is
+   generated. Results and discussion are appended to the existing experiment document in a
+   section "Addendum: sweep with distinct simulator seeds".
+
+### M1.1v-addendum acceptance criteria
+
+- [ ] Predictions are committed before any run is generated.
+- [ ] All runs record git provenance with `dirty=false`.
+- [ ] Results are appended, with each prediction marked matched, not matched or inconclusive.
+- [ ] No `src/` changes.
+- [ ] All gates pass.
+
 ## M1.2: Compare-time observables
 
 **Goal:** workload-specific figures of merit with uncertainty, without a run schema change.
