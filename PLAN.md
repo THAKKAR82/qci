@@ -1,11 +1,11 @@
 # PLAN
 
-**Current milestone: M1.2, compare-time observables. Current sub-step: M1.2. M1.1 is
-complete, including M1.1v-addendum.**
+**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3a.
+M1.1 (including M1.1v-addendum) and M1.2 are complete.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
 complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
-M1.1v-addendum is complete (predictions `b7f9ae6`).
+M1.1v-addendum is complete (predictions `b7f9ae6`). M1.2 is complete (`aec0e3d`, `c564c13`).
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
 M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the
@@ -370,7 +370,7 @@ product feature. Branch: `exp/m1.1v-addendum-sweep`.
 - [x] No `src/` changes.
 - [x] All gates pass.
 
-## M1.2: Compare-time observables (CURRENT)
+## M1.2: Compare-time observables (DONE)
 
 **Goal:** workload-specific figures of merit with uncertainty, without a run schema change.
 
@@ -428,13 +428,13 @@ parity and expectation-value observables.
       without any bitstring input. The bitstring-counts-to-(k, n) conversion is a separate
       function with its own tests.
 - [x] Example in docs: `qci compare A B --observable ghz=00000,11111`.
-- [ ] A shared-seed simulator pair has per-run estimates and Wilson intervals, no Newcombe
+- [x] A shared-seed simulator pair has per-run estimates and Wilson intervals, no Newcombe
       difference interval, and `difference_unavailable_reason` set.
-- [ ] With `sampling_floor_requires_distinct_simulator_seeds=False`, the same pair gets a
+- [x] With `sampling_floor_requires_distinct_simulator_seeds=False`, the same pair gets a
       Newcombe difference interval and no unavailable reason.
-- [ ] All gates pass.
+- [x] All gates pass.
 
-## M1.3: Read-only live calibration snapshots
+## M1.3: Read-only live calibration snapshots (CURRENT)
 
 **Goal:** real drift evidence for a fixed footprint at zero QPU cost. No hardware execution.
 
