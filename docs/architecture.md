@@ -106,7 +106,8 @@ qci compare BASELINE CANDIDATE [--json]
                              when both runs were simulated with the same simulator seed
     compare/observables.py   requested observables behind the same gate: bitstring counts
                              to (k, n), then compare/proportions.py (Wilson, Newcombe on
-                             integer k and n only; ADR 0006)
+                             integer k and n only; ADR 0006); the Newcombe interval
+                             is withheld under the same shared-seed rule as the floor
   → Comparison (deterministic comparison_id including the observable request, policy
     qci.compare.v3, engine qci.compare.engine.4, never persisted)
 ```

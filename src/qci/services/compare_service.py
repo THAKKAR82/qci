@@ -49,7 +49,9 @@ LIMITATIONS = [
     "Hardware calibration is compared only for physical resources identical on both sides.",
     "Observable intervals (Wilson for each run, Newcombe for the difference) describe sampling "
     "uncertainty at the observed shot counts, assuming independent shots. They are not "
-    "verdicts, and no multiple-comparison correction is applied across observables.",
+    "verdicts, and no multiple-comparison correction is applied across observables. The "
+    "Newcombe interval is not computed when both runs were simulated with the same simulator "
+    "seed, because the samples are then not independent.",
 ]
 
 _INCOMPLETE = {
@@ -110,7 +112,9 @@ class CompareService:
         distribution = compare_distributions(
             baseline, candidate, b_fp, c_fp, self._policy, seed=seed_from_comparison_id(cid)
         )
-        observable_comparisons = compare_observables(observables, baseline, candidate, distribution)
+        observable_comparisons = compare_observables(
+            observables, baseline, candidate, distribution, self._policy
+        )
 
         statuses = {
             source.status,

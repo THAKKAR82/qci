@@ -64,6 +64,9 @@ Each run gets k/n with a Wilson 95% score interval, and the difference (candidat
 baseline) gets a Newcombe hybrid score interval. The intervals describe sampling uncertainty at
 the observed shot counts. They are not verdicts. Observables reuse the result-distribution
 comparability gate: when it fails, each observable is `not_comparable` with the same reasons.
+When both runs were simulated with the same simulator seed, their samples are not independent,
+so the Newcombe interval is not computed and the output says why. Each run's estimate, its
+Wilson interval and the point delta are still shown.
 
 Bitstrings must match the provider's counts keys verbatim. For Qiskit, classical bit 0 is the
 **rightmost** character, so in a 3-bit register `001` means bit 0 is 1. A bitstring that was

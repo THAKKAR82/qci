@@ -191,7 +191,8 @@ Comparison
 │                      baseline / candidate: ObservableSide (k, n, estimate k/n calculated,
 │                        Wilson 95% bounds statistical)
 │                      difference: ObservableDifference (delta candidate minus baseline
-│                        calculated, Newcombe 95% bounds statistical)
+│                        calculated, Newcombe 95% bounds statistical | null)
+│                      difference_unavailable_reason: str | null
 └── limitations        fixed text: no regression, improvement or causal claims
 ```
 
@@ -201,6 +202,13 @@ Bitstrings are provider counts keys verbatim. For Qiskit, classical bit 0 is the
 character. The Wilson and Newcombe functions in `qci/compare/proportions.py` take integer
 (k, n) arguments only. Converting bitstring counts to (k, n) is a separate function in
 `qci/compare/observables.py` (ADR 0006).
+
+Observables follow the same shared-seed rule as the TVD sampling floor, under the same policy
+flag. When both runs were simulated with the same non-null simulator seed, each run's estimate
+and Wilson interval and the point delta are still reported, but the Newcombe bounds are null
+and `difference_unavailable_reason` says why. The reason is null when the interval is computed
+and when the gate failed. If a run has no counts in the register, the observable is
+`unavailable`.
 
 The output contains no generation timestamp, so the same two runs always produce byte-identical
 JSON.

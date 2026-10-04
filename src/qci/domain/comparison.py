@@ -393,10 +393,11 @@ class ObservableDifference(DomainModel):
     """Candidate minus baseline estimate, with a Newcombe hybrid score interval."""
 
     delta: Metric
-    """p_candidate - p_baseline (calculated)."""
-    newcombe_lower: Metric
-    newcombe_upper: Metric
-    """Newcombe 95% hybrid score interval bounds (statistical)."""
+    """p_candidate - p_baseline (calculated). Reported even when the interval is withheld."""
+    newcombe_lower: Metric | None = None
+    newcombe_upper: Metric | None = None
+    """Newcombe 95% hybrid score interval bounds (statistical). Null when withheld; the reason
+    is ``ObservableComparison.difference_unavailable_reason``."""
 
 
 class ObservableComparison(DomainModel):
@@ -410,6 +411,10 @@ class ObservableComparison(DomainModel):
     baseline: ObservableSide | None = None
     candidate: ObservableSide | None = None
     difference: ObservableDifference | None = None
+    difference_unavailable_reason: str | None = None
+    """Why the Newcombe interval was not computed, for example a shared simulator seed. Null
+    when the interval is computed, and when the gate failed (those reasons are in
+    ``reasons``)."""
 
 
 # --- top level -----------------------------------------------------------------------------
@@ -426,7 +431,9 @@ class ComparisonPolicy(DomainModel):
     distribution_null_resamples: int = Field(default=2000, ge=MIN_DISTRIBUTION_NULL_RESAMPLES)
     """Resamples B used for the TVD sampling floor."""
     sampling_floor_requires_distinct_simulator_seeds: bool = True
-    """Skip the floor when both runs used simulators with the same non-null simulator seed."""
+    """When both runs used simulators with the same non-null simulator seed, skip the TVD
+    sampling floor and withhold every observable's Newcombe difference interval. Both assume
+    independent samples. The name predates observables (rename at the next policy bump)."""
     hardware_delta_scope: Literal["identical_physical_resources_only"] = (
         "identical_physical_resources_only"
     )

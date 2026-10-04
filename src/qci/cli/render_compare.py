@@ -94,9 +94,9 @@ OBSERVABLE_NOTE = (
 
 def _observable_lines(o: ObservableComparison) -> list[str]:
     head = f"  {o.spec.name} = P({{{', '.join(o.spec.bitstrings)}}}): {o.status.value}"
+    lines = [head] + [f"    reason: {r}" for r in o.reasons]
     if o.baseline is None or o.candidate is None or o.difference is None:
-        return [head] + [f"    reason: {r}" for r in o.reasons]
-    lines = [head]
+        return lines
     for label, side in (("baseline ", o.baseline), ("candidate", o.candidate)):
         e = side.estimate
         lines.append(
@@ -105,11 +105,15 @@ def _observable_lines(o: ObservableComparison) -> list[str]:
             f"{side.wilson_upper.value:.4f}]  [{side.wilson_lower.kind.value}]"
         )
     d = o.difference
-    lines.append(
-        f"    delta: {d.delta.value:+.4f}  [{d.delta.kind.value}; v{d.delta.method_version}]  "
-        f"Newcombe [{d.newcombe_lower.value:+.4f}, {d.newcombe_upper.value:+.4f}]  "
-        f"[{d.newcombe_lower.kind.value}]"
-    )
+    line = f"    delta: {d.delta.value:+.4f}  [{d.delta.kind.value}; v{d.delta.method_version}]"
+    if d.newcombe_lower is not None and d.newcombe_upper is not None:
+        line += (
+            f"  Newcombe [{d.newcombe_lower.value:+.4f}, {d.newcombe_upper.value:+.4f}]  "
+            f"[{d.newcombe_lower.kind.value}]"
+        )
+    elif o.difference_unavailable_reason is not None:
+        line += f" | Newcombe interval unavailable: {o.difference_unavailable_reason}"
+    lines.append(line)
     return lines
 
 
