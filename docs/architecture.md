@@ -104,7 +104,11 @@ qci compare BASELINE CANDIDATE [--json]
     compare/sampling.py      TVD sampling floor, only after the gate passes: pooled-H0
                              multinomial resampling, seeded from the comparison_id; skipped
                              when both runs were simulated with the same simulator seed
-  → Comparison (deterministic comparison_id, policy qci.compare.v3, never persisted)
+    compare/observables.py   requested observables behind the same gate: bitstring counts
+                             to (k, n), then compare/proportions.py (Wilson, Newcombe on
+                             integer k and n only; ADR 0006)
+  → Comparison (deterministic comparison_id including the observable request, policy
+    qci.compare.v3, engine qci.compare.engine.4, never persisted)
 ```
 
 - **Provider neutrality.** The `compare` package, `domain/comparison.py` and

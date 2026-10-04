@@ -8,7 +8,7 @@ mean candidate minus baseline.
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import AwareDatetime, Field, JsonValue, NonNegativeInt
+from pydantic import AwareDatetime, Field, JsonValue, NonNegativeInt, field_validator
 
 from qci.domain.backend import SnapshotSource
 from qci.domain.base import DomainModel
@@ -345,6 +345,73 @@ class DistributionComparison(DomainModel):
     computed, and when the gate failed (those reasons are in ``reasons``)."""
 
 
+# --- observables ---------------------------------------------------------------------------
+
+
+class ObservableSpec(DomainModel):
+    """A workload-specific figure of merit requested at compare time.
+
+    ``bitstring_set_probability`` is the fraction of shots whose outcome is in ``bitstrings``.
+    Bitstrings must match provider counts keys verbatim (``bit_order="provider_counts_key"``).
+    For Qiskit, classical bit 0 is the rightmost character.
+    """
+
+    name: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
+    kind: Literal["bitstring_set_probability"] = "bitstring_set_probability"
+    bitstrings: list[str] = Field(min_length=1)
+    """Unique and sorted; only the characters 0 and 1."""
+    classical_register: str | None = None
+    """Classical register; null means the single register of the runs."""
+    bit_order: Literal["provider_counts_key"] = "provider_counts_key"
+
+    @field_validator("bitstrings")
+    @classmethod
+    def _sorted_unique_binary(cls, value: list[str]) -> list[str]:
+        for bits in value:
+            if not bits or set(bits) - {"0", "1"}:
+                raise ValueError(f"bitstring {bits!r} must be non-empty and contain only 0 and 1")
+        if len(set(value)) != len(value):
+            raise ValueError(f"bitstrings must be unique, got {value}")
+        if len({len(b) for b in value}) > 1:
+            raise ValueError(f"bitstrings must all have the same width, got {value}")
+        return sorted(value)
+
+
+class ObservableSide(DomainModel):
+    """One run's estimate: k of n shots fell in the bitstring set."""
+
+    k: NonNegativeInt
+    n: NonNegativeInt
+    estimate: Metric
+    """k / n (calculated)."""
+    wilson_lower: Metric
+    wilson_upper: Metric
+    """Wilson 95% score interval bounds (statistical)."""
+
+
+class ObservableDifference(DomainModel):
+    """Candidate minus baseline estimate, with a Newcombe hybrid score interval."""
+
+    delta: Metric
+    """p_candidate - p_baseline (calculated)."""
+    newcombe_lower: Metric
+    newcombe_upper: Metric
+    """Newcombe 95% hybrid score interval bounds (statistical)."""
+
+
+class ObservableComparison(DomainModel):
+    """``changed`` means the observed estimates differ, never that the difference is
+    significant or that the underlying probability changed."""
+
+    spec: ObservableSpec
+    status: ComparisonStatus
+    reasons: list[str] = Field(default_factory=list)
+    classical_register: str | None = None
+    baseline: ObservableSide | None = None
+    candidate: ObservableSide | None = None
+    difference: ObservableDifference | None = None
+
+
 # --- top level -----------------------------------------------------------------------------
 
 
@@ -368,7 +435,8 @@ class ComparisonPolicy(DomainModel):
 class Comparison(DomainModel):
     schema_version: Literal[1] = 1
     comparison_id: str
-    """Deterministic: derived from both run IDs, the engine version and the policy hash."""
+    """Deterministic: derived from both run IDs, the engine version, the policy hash and the
+    canonical hash of the requested observables."""
     engine_version: str
     policy: ComparisonPolicy
     policy_hash: str
@@ -388,4 +456,7 @@ class Comparison(DomainModel):
     baseline_counts: dict[str, dict[str, int]] | None
     candidate_counts: dict[str, dict[str, int]] | None
     distribution: DistributionComparison
+    observables: list[ObservableComparison] = Field(default_factory=list)
+    """One entry per requested observable, sorted by name. The request is part of
+    ``comparison_id``."""
     limitations: list[str]

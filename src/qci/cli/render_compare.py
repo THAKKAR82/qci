@@ -7,6 +7,7 @@ from qci.domain.comparison import (
     Comparison,
     CounterComparison,
     MappingComparison,
+    ObservableComparison,
     PhysicalFootprint,
     SamplingFloor,
     SetComparison,
@@ -82,6 +83,34 @@ def _sampling_floor_text(f: SamplingFloor) -> str:
         f"p95 {f.null_p95.value:.3g}, p99 {f.null_p99.value:.3g} "
         f"| Monte Carlo p = {_estimate_text(p.value, p.uncertainty)}  [{label}]"
     )
+
+
+OBSERVABLE_NOTE = (
+    "  note: changed means only that the observed estimates differ; intervals are 95% (Wilson "
+    "per run, Newcombe for candidate minus baseline) and describe sampling uncertainty at the "
+    "observed shots; they are not verdicts"
+)
+
+
+def _observable_lines(o: ObservableComparison) -> list[str]:
+    head = f"  {o.spec.name} = P({{{', '.join(o.spec.bitstrings)}}}): {o.status.value}"
+    if o.baseline is None or o.candidate is None or o.difference is None:
+        return [head] + [f"    reason: {r}" for r in o.reasons]
+    lines = [head]
+    for label, side in (("baseline ", o.baseline), ("candidate", o.candidate)):
+        e = side.estimate
+        lines.append(
+            f"    {label}: {side.k}/{side.n} = {e.value:.4f}  [{e.kind.value}; "
+            f"v{e.method_version}]  Wilson [{side.wilson_lower.value:.4f}, "
+            f"{side.wilson_upper.value:.4f}]  [{side.wilson_lower.kind.value}]"
+        )
+    d = o.difference
+    lines.append(
+        f"    delta: {d.delta.value:+.4f}  [{d.delta.kind.value}; v{d.delta.method_version}]  "
+        f"Newcombe [{d.newcombe_lower.value:+.4f}, {d.newcombe_upper.value:+.4f}]  "
+        f"[{d.newcombe_lower.kind.value}]"
+    )
+    return lines
 
 
 def _footprint_line(label: str, fp: PhysicalFootprint) -> str:
@@ -252,6 +281,11 @@ def render_comparison(c: Comparison) -> str:
     if d.status.value == "changed":
         d_lines.append(EMPIRICAL_DISTRIBUTION_NOTE)
     section("Result distribution", d.status.value, d_lines)
+
+    if c.observables:
+        o_lines = [line for o in c.observables for line in _observable_lines(o)]
+        o_lines.append(OBSERVABLE_NOTE)
+        section("Observables", f"{len(c.observables)} requested", o_lines)
 
     out.append("Limitations:")
     out += [f"  - {line}" for line in c.limitations]

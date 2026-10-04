@@ -1,11 +1,12 @@
 # PLAN
 
-**Current milestone: M1.2, compare-time observables. Current sub-step: M1.2. M1.1 is
-complete, including M1.1v-addendum.**
+**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3a.
+M1.1 (including M1.1v-addendum) and M1.2 are complete.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
 complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
-M1.1v-addendum is complete (predictions `b7f9ae6`).
+M1.1v-addendum is complete (predictions `b7f9ae6`). M1.2 is complete
+(branch `feat/m1.2-observables`).
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
 M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the
@@ -370,7 +371,7 @@ product feature. Branch: `exp/m1.1v-addendum-sweep`.
 - [x] No `src/` changes.
 - [x] All gates pass.
 
-## M1.2: Compare-time observables (CURRENT)
+## M1.2: Compare-time observables (DONE)
 
 **Goal:** workload-specific figures of merit with uncertainty, without a run schema change.
 
@@ -380,7 +381,9 @@ product feature. Branch: `exp/m1.1v-addendum-sweep`.
    - name (identifier);
    - kind `bitstring_set_probability`;
    - bitstrings (unique, sorted);
-   - register (optional; defaults to the single register);
+   - register (optional; defaults to the single register). Implemented as
+     `classical_register`, because a field named `register` shadows `ABCMeta.register` on
+     pydantic models;
    - bit_order `provider_counts_key`.
 
    The bitstrings must match provider counts keys verbatim. For Qiskit, classical bit 0 is the
@@ -411,20 +414,20 @@ parity and expectation-value observables.
 
 ### M1.2 acceptance criteria
 
-- [ ] Wilson checks: k=5, n=10 gives about [0.2366, 0.7634]; k=0, n=10 gives an upper bound
+- [x] Wilson checks: k=5, n=10 gives about [0.2366, 0.7634]; k=0, n=10 gives an upper bound
       of about 0.2775. Both are verified independently in the test.
-- [ ] Seeded coverage test: the Wilson interval covers the true p in 93–97% of 2000 trials at
+- [x] Seeded coverage test: the Wilson interval covers the true p in 93–97% of 2000 trials at
       p=0.9, n=1000. The Newcombe interval covers the true difference in at least 93% of 2000
       trials.
-- [ ] Different observable requests produce different `comparison_id`s. The same request
+- [x] Different observable requests produce different `comparison_id`s. The same request
       produces an identical ID.
-- [ ] The Wilson and Newcombe functions accept only integer (k, n) arguments and are tested
+- [x] The Wilson and Newcombe functions accept only integer (k, n) arguments and are tested
       without any bitstring input. The bitstring-counts-to-(k, n) conversion is a separate
       function with its own tests.
-- [ ] Example in docs: `qci compare A B --observable ghz=00000,11111`.
-- [ ] All gates pass.
+- [x] Example in docs: `qci compare A B --observable ghz=00000,11111`.
+- [x] All gates pass.
 
-## M1.3: Read-only live calibration snapshots
+## M1.3: Read-only live calibration snapshots (CURRENT)
 
 **Goal:** real drift evidence for a fixed footprint at zero QPU cost. No hardware execution.
 

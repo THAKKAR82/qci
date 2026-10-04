@@ -23,3 +23,7 @@ class DuplicateRunError(QCIError):
 
 class SchemaVersionError(QCIError):
     """The store or record uses a schema version this QCI cannot read."""
+
+
+class InvalidObservableError(QCIError):
+    """A requested observable does not fit the runs being compared."""

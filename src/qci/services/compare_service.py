@@ -4,11 +4,12 @@ Read-only: it never writes to the repository. It reports what changed; it never 
 or worse and never attributes cause.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from qci.compare.distribution import SAMPLING_FLOOR_CAVEATS, compare_distributions
 from qci.compare.footprint import footprint_for_run
 from qci.compare.hardware import compare_footprints, compare_hardware
+from qci.compare.observables import compare_observables, observables_hash
 from qci.compare.sampling import seed_from_comparison_id
 from qci.compare.sections import (
     compare_backend,
@@ -20,9 +21,10 @@ from qci.compare.sections import (
 )
 from qci.core.hashing import hash_json
 from qci.core.ports import CalibrationReader, RunRepository
-from qci.domain.comparison import Comparison, ComparisonPolicy, ComparisonStatus
+from qci.domain.comparison import Comparison, ComparisonPolicy, ComparisonStatus, ObservableSpec
 
-ENGINE_VERSION = "qci.compare.engine.3"
+ENGINE_VERSION = "qci.compare.engine.4"
+"""Engine 4 adds compare-time observables and includes their request in ``comparison_id``."""
 
 LIMITATIONS = [
     "This comparison reports what differs between the baseline and candidate runs.",
@@ -45,6 +47,9 @@ LIMITATIONS = [
     "used. It does not mean a parameter is known to affect workload performance, nor that a "
     "calibration change caused any result change.",
     "Hardware calibration is compared only for physical resources identical on both sides.",
+    "Observable intervals (Wilson for each run, Newcombe for the difference) describe sampling "
+    "uncertainty at the observed shot counts, assuming independent shots. They are not "
+    "verdicts, and no multiple-comparison correction is applied across observables.",
 ]
 
 _INCOMPLETE = {
@@ -54,12 +59,18 @@ _INCOMPLETE = {
 }
 
 
-def comparison_id(baseline_run_id: str, candidate_run_id: str, policy_hash: str) -> str:
+def comparison_id(
+    baseline_run_id: str,
+    candidate_run_id: str,
+    policy_hash: str,
+    observables: Sequence[ObservableSpec] = (),
+) -> str:
     return hash_json(
         {
             "baseline_run_id": baseline_run_id,
             "candidate_run_id": candidate_run_id,
             "engine_version": ENGINE_VERSION,
+            "observables_hash": observables_hash(observables),
             "policy_hash": policy_hash,
         }
     )
@@ -76,11 +87,16 @@ class CompareService:
         self._readers = dict(calibration_readers)
         self._policy = policy or ComparisonPolicy()
 
-    def compare(self, baseline_run_id: str, candidate_run_id: str) -> Comparison:
+    def compare(
+        self,
+        baseline_run_id: str,
+        candidate_run_id: str,
+        observables: Sequence[ObservableSpec] = (),
+    ) -> Comparison:
         baseline = self._repository.get(baseline_run_id)
         candidate = self._repository.get(candidate_run_id)
         policy_hash = hash_json(self._policy)
-        cid = comparison_id(baseline.run_id, candidate.run_id, policy_hash)
+        cid = comparison_id(baseline.run_id, candidate.run_id, policy_hash, observables)
 
         b_fp, c_fp = footprint_for_run(baseline), footprint_for_run(candidate)
         source = compare_source(baseline, candidate)
@@ -94,6 +110,7 @@ class CompareService:
         distribution = compare_distributions(
             baseline, candidate, b_fp, c_fp, self._policy, seed=seed_from_comparison_id(cid)
         )
+        observable_comparisons = compare_observables(observables, baseline, candidate, distribution)
 
         statuses = {
             source.status,
@@ -105,6 +122,7 @@ class CompareService:
             footprint.status,
             hardware.status,
             distribution.status,
+            *(o.status for o in observable_comparisons),
         }
         if statuses & _INCOMPLETE:
             overall = ComparisonStatus.PARTIALLY_COMPARABLE
@@ -135,4 +153,5 @@ class CompareService:
             footprint=footprint,
             hardware=hardware,
             distribution=distribution,
+            observables=observable_comparisons,
         )

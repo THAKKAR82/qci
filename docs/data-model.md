@@ -165,8 +165,9 @@ baseline. All models live in `qci/domain/comparison.py`.
 ```
 Comparison
 ├── schema_version: 1
-├── comparison_id      hash_json({baseline_run_id, candidate_run_id, engine_version, policy_hash})
-├── engine_version     "qci.compare.engine.3"
+├── comparison_id      hash_json({baseline_run_id, candidate_run_id, engine_version,
+│                      observables_hash, policy_hash})
+├── engine_version     "qci.compare.engine.4"
 ├── policy: ComparisonPolicy (version "qci.compare.v3", gate rules,
 │                      distribution_null_resamples,
 │                      sampling_floor_requires_distinct_simulator_seeds), policy_hash
@@ -183,8 +184,23 @@ Comparison
 ├── distribution: DistributionComparison (TVD, Hellinger distance as calculated Metrics;
 │                      sampling_floor: SamplingFloor | null for TVD;
 │                      sampling_floor_unavailable_reason: str | null)
+├── observables: list[ObservableComparison], sorted by name; [] when none requested
+│                      spec: ObservableSpec (name, kind "bitstring_set_probability",
+│                        bitstrings sorted and unique, classical_register | null,
+│                        bit_order "provider_counts_key")
+│                      baseline / candidate: ObservableSide (k, n, estimate k/n calculated,
+│                        Wilson 95% bounds statistical)
+│                      difference: ObservableDifference (delta candidate minus baseline
+│                        calculated, Newcombe 95% bounds statistical)
 └── limitations        fixed text: no regression, improvement or causal claims
 ```
+
+`observables_hash` is the canonical hash of the requested observables, sorted by name, so the
+same request always gives the same `comparison_id` and a different request a different one.
+Bitstrings are provider counts keys verbatim. For Qiskit, classical bit 0 is the rightmost
+character. The Wilson and Newcombe functions in `qci/compare/proportions.py` take integer
+(k, n) arguments only. Converting bitstring counts to (k, n) is a separate function in
+`qci/compare/observables.py` (ADR 0006).
 
 The output contains no generation timestamp, so the same two runs always produce byte-identical
 JSON.

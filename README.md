@@ -19,7 +19,7 @@ python3.13 -m venv .venv
 .venv/bin/qci runs
 .venv/bin/qci show <RUN_ID>
 .venv/bin/qci show <RUN_ID> --json
-.venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json]
+.venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json] [--observable NAME=BITS[,BITS...]]
 ```
 
 ### Seeds
@@ -50,6 +50,25 @@ Two terms need care when reading a comparison:
 - **Relevant hardware** means calibration data for the physical resources the workload actually
   used. It does not mean those parameters are known to affect the result, or that a calibration
   change caused a result change.
+
+### Observables
+
+`--observable NAME=BITS[,BITS...]` adds a workload-specific figure of merit: the probability that
+a shot's outcome is in the given bitstring set. It is repeatable. For a 5-qubit GHZ state:
+
+```bash
+qci compare A B --observable ghz=00000,11111
+```
+
+Each run gets k/n with a Wilson 95% score interval, and the difference (candidate minus
+baseline) gets a Newcombe hybrid score interval. The intervals describe sampling uncertainty at
+the observed shot counts. They are not verdicts. Observables reuse the result-distribution
+comparability gate: when it fails, each observable is `not_comparable` with the same reasons.
+
+Bitstrings must match the provider's counts keys verbatim. For Qiskit, classical bit 0 is the
+**rightmost** character, so in a 3-bit register `001` means bit 0 is 1. A bitstring that was
+never observed counts as 0. Bitstrings of the wrong width, or with characters other than 0 and
+1, are rejected.
 
 No IBM account or network access is needed. `fake_sherbrooke` is a local simulator that uses
 a frozen IBM calibration snapshot as its noise model.

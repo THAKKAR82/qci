@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 
-from qci.core.errors import QCIError, RunNotFoundError, WorkloadLoadError
+from qci.core.errors import InvalidObservableError, QCIError, RunNotFoundError, WorkloadLoadError
 from qci.domain.circuit import CircuitSummary, CompileConfig
+from qci.domain.comparison import ObservableSpec
 from qci.domain.execution import ExecutionConfig
 from qci.domain.run import Run, RunStatus
 from qci.services.run_service import RunRequest, RunService
@@ -31,6 +33,25 @@ def store_dir() -> Path:
 
 def _repository() -> SqliteRunRepository:
     return SqliteRunRepository(store_dir() / DB_FILENAME)
+
+
+def _parse_observables(values: list[str]) -> list[ObservableSpec]:
+    """Parse ``NAME=BITS[,BITS...]``. Bitstrings are provider counts keys, verbatim."""
+    specs: list[ObservableSpec] = []
+    for item in values:
+        name, sep, bits = item.partition("=")
+        if not sep or not name or not bits:
+            raise typer.BadParameter(
+                f"observable {item!r} must look like NAME=BITS[,BITS...]", param_hint="--observable"
+            )
+        try:
+            specs.append(ObservableSpec(name=name, bitstrings=bits.split(",")))
+        except ValidationError as exc:
+            messages = "; ".join(e["msg"] for e in exc.errors())
+            raise typer.BadParameter(
+                f"observable {item!r}: {messages}", param_hint="--observable"
+            ) from exc
+    return specs
 
 
 def _parse_tags(values: list[str]) -> dict[str, str]:
@@ -266,11 +287,21 @@ def compare(
     as_json: Annotated[
         bool, typer.Option("--json", help="Print the full comparison as JSON.")
     ] = False,
+    observable: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--observable",
+            help="NAME=BITS[,BITS...]: probability of the bitstring set, with Wilson and "
+            "Newcombe intervals. Bitstrings are provider counts keys verbatim (Qiskit: "
+            "classical bit 0 is the rightmost character). Repeatable.",
+        ),
+    ] = None,
 ) -> None:
     """Report what changed from BASELINE to CANDIDATE. Deltas are candidate minus baseline.
 
     Makes no better/worse, regression or causal claims.
     """
+    specs = _parse_observables(observable or [])
     # Qiskit-free: the calibration reader parses stored JSON only.
     from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
     from qci.adapters.qiskit_ibm.calibration import IbmPropertiesCalibrationReader
@@ -281,10 +312,13 @@ def compare(
     try:
         result = CompareService(
             repository, {PROVIDER_ID: IbmPropertiesCalibrationReader()}
-        ).compare(baseline, candidate)
+        ).compare(baseline, candidate, specs)
     except RunNotFoundError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+    except InvalidObservableError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     finally:
         repository.close()
     typer.echo(result.model_dump_json(indent=2) if as_json else render_comparison(result))

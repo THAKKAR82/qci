@@ -161,3 +161,42 @@ def test_compare_against_failed_run(runner: CliRunner) -> None:
 
 def test_unknown_run_exits_nonzero(runner: CliRunner) -> None:
     assert runner.invoke(app, ["compare", "NOPE", "NOPE2"]).exit_code == 1
+
+
+def test_observable_json_is_byte_identical_and_rendered(runner: CliRunner) -> None:
+    a, b = run(runner, "--seed", "7"), run(runner, "--seed", "8")
+    args = ["compare", a, b, "--observable", "bell=11,00", "--observable", "odd=01,10"]
+    first = runner.invoke(app, [*args, "--json"])
+    second = runner.invoke(app, [*args, "--json"])
+    assert first.exit_code == 0, first.output
+    assert first.stdout == second.stdout
+    c = Comparison.model_validate_json(first.stdout)
+    assert [o.spec.name for o in c.observables] == ["bell", "odd"]
+    assert c.observables[0].spec.bitstrings == ["00", "11"]
+    assert c.observables[0].baseline is not None and c.observables[0].baseline.n == 1000
+    assert c.comparison_id != compare_json(runner, a, b)["comparison_id"]
+
+    text = runner.invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert "Observables: 2 requested" in text.stdout
+    assert "bell = P({00, 11})" in text.stdout
+    assert "Wilson [" in text.stdout and "Newcombe [" in text.stdout
+    section = text.stdout.split("Observables:")[1].split("Limitations:")[0].lower()
+    for word in ("significant", "regression", "improvement", "better", "worse", "pass", "fail"):
+        assert word not in section
+
+
+@pytest.mark.parametrize(
+    "value", ["bell", "bell=", "=00", "bell=0a", "bell=00,00", "bell=00,111", "1bell=00"]
+)
+def test_malformed_observable_exits_with_usage_error(runner: CliRunner, value: str) -> None:
+    a = run(runner, "--seed", "7")
+    result = runner.invoke(app, ["compare", a, a, "--observable", value])
+    assert result.exit_code == 2
+
+
+def test_observable_of_wrong_width_exits_with_usage_error(runner: CliRunner) -> None:
+    a = run(runner, "--seed", "7")
+    result = runner.invoke(app, ["compare", a, a, "--observable", "ghz=00000,11111"])
+    assert result.exit_code == 2
+    assert "wrong width" in result.output

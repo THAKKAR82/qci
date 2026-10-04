@@ -15,7 +15,7 @@ MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
 .venv/bin/qci run examples/bell.py --backend fake_sherbrooke --seed 7
 .venv/bin/qci runs
 .venv/bin/qci show <RUN_ID> [--json]
-.venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json]
+.venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json] [--observable NAME=BITS,...]
 ```
 
 The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`.

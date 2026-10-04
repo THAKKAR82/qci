@@ -114,7 +114,7 @@ def test_unknown_run_raises(service: CompareService) -> None:
 
 def test_sampling_floor_seed_is_derived_from_the_comparison_id(service: CompareService) -> None:
     c = service.compare("BASE", "CAND")
-    assert c.engine_version == "qci.compare.engine.3"
+    assert c.engine_version == "qci.compare.engine.4"
     f = c.distribution.sampling_floor
     assert f is not None
     assert f.seed == seed_from_comparison_id(c.comparison_id)
