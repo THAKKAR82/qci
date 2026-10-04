@@ -16,3 +16,9 @@ htmlcov/
 
 # M1.1v experiment run store
 .qci-exp/
+
+# Sampling-floor calibration experiment store
+.qci-fpr/
+
+# Transpiler-seed sweep experiment store
+.qci-sweep/
