@@ -16,3 +16,6 @@ htmlcov/
 
 # M1.1v experiment run store
 .qci-exp/
+
+# M1.1v-addendum experiment run store
+.qci-exp-addendum/
