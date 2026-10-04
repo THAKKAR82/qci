@@ -565,3 +565,233 @@ inconclusive. The original question is answered descriptively: each level's frac
 an internal control. No threshold is pre-registered for this reading, so it is a
 description, not a test. The 87 comparisons get no multiple-comparison correction, and pairs
 within a level share a baseline run, so they are dependent.
+
+### Results
+
+Produced on 2026-10-03 from branch `exp/m1.1v-addendum-sweep` at commit `b7f9ae6`, with no
+`src/` changes relative to `bccef77`. All 90 runs record git provenance with `dirty=false`
+and commit `b7f9ae6c6734ee4d91737d593e3bc8ce94646727`, the predictions commit. Exact
+commands, from the repository root:
+
+```bash
+PYTHONPATH=src:experiments/repeated_sampling QCI_HOME=.qci-exp-addendum \
+    .venv/bin/python experiments/repeated_sampling/run_addendum.py
+PYTHONPATH=src:experiments/repeated_sampling QCI_HOME=.qci-exp-addendum \
+    .venv/bin/python experiments/repeated_sampling/analyze_addendum.py \
+    > .qci-exp-addendum/results.md
+```
+
+**Runtime:** run creation 152.9 s (90 runs), analysis 6.7 s (87 `CompareService`
+comparisons). Wall clock for both commands: 162 s.
+
+The identical-circuit pairs are the same 10 that M1.1v found (level 1: seed 28; level 2:
+seeds 8, 9, 14, 20, 28; level 3: seeds 9, 10, 14, 28). The tables below are the verbatim
+output of `analyze_addendum.py`, with headings demoted one level. "> p95" means observed
+TVD > null p95. "GHZ diff" is candidate minus baseline.
+
+#### Provenance
+
+Runs: 90. Runs with git `dirty=false`: 90. Recorded commits: `b7f9ae6c6734ee4d91737d593e3bc8ce94646727`. Branches: exp/m1.1v-addendum-sweep. Distinct simulator seeds: 90/90.
+
+#### P6: pairs with identical transpiled circuits
+
+Identical-circuit pairs: **10**. p < 0.05: **0**. p >= 0.9: **1**. Rule (not-matched thresholds: p < 0.05 count >= 3, p >= 0.9 count >= 4): **matched**.
+
+| level | c seed_t | b seed_s | c seed_s | TVD | null p95 | p | p SE | > p95 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 28 | 1100 | 1128 | 0.0330 | 0.0640 | 0.6937 | 0.0103 | no |
+| 2 | 8 | 1200 | 1208 | 0.0170 | 0.0630 | 0.9960 | 0.0014 | no |
+| 2 | 9 | 1200 | 1209 | 0.0630 | 0.0640 | 0.0605 | 0.0053 | no |
+| 2 | 14 | 1200 | 1214 | 0.0430 | 0.0640 | 0.2959 | 0.0102 | no |
+| 2 | 20 | 1200 | 1220 | 0.0500 | 0.0640 | 0.1879 | 0.0087 | no |
+| 2 | 28 | 1200 | 1228 | 0.0310 | 0.0650 | 0.6897 | 0.0103 | no |
+| 3 | 9 | 1300 | 1309 | 0.0380 | 0.0640 | 0.4763 | 0.0112 | no |
+| 3 | 10 | 1300 | 1310 | 0.0350 | 0.0630 | 0.5602 | 0.0111 | no |
+| 3 | 14 | 1300 | 1314 | 0.0350 | 0.0650 | 0.5782 | 0.0110 | no |
+| 3 | 28 | 1300 | 1328 | 0.0290 | 0.0650 | 0.8031 | 0.0089 | no |
+
+#### P7: pairs with different transpiled circuits, per optimization level
+
+| level | pairs | p < 0.05 | fraction | > null p95 | p deciles [0,0.1) ... [0.9,1.0] |
+|---|---|---|---|---|---|
+| 1 | 28 | 3 | 0.1071 | 3 | [7, 9, 3, 1, 5, 2, 0, 1, 0, 0] |
+| 2 | 24 | 4 | 0.1667 | 4 | [6, 6, 3, 2, 4, 1, 1, 1, 0, 0] |
+| 3 | 25 | 2 | 0.0800 | 2 | [3, 4, 7, 3, 4, 1, 1, 1, 0, 1] |
+
+#### Sweep, optimization level 1 (baseline transpiler seed 0)
+
+Baseline simulator seed 1100, GHZ population 0.9010 (SE 0.0094). GHZ diff is candidate minus baseline.
+
+| c seed_t | c seed_s | identical qasm3 | resources identical | TVD | null p95 | p | p SE | > p95 | Hellinger | GHZ pop | GHZ SE | GHZ diff | diff SE |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1101 | no | False | 0.0520 | 0.0650 | 0.1774 | 0.0085 | no | 0.1301 | 0.8970 | 0.0096 | -0.0040 | 0.0135 |
+| 2 | 1102 | no | False | 0.0570 | 0.0670 | 0.1374 | 0.0077 | no | 0.1416 | 0.8860 | 0.0101 | -0.0150 | 0.0138 |
+| 3 | 1103 | no | False | 0.0530 | 0.0640 | 0.1604 | 0.0082 | no | 0.1494 | 0.8990 | 0.0095 | -0.0020 | 0.0134 |
+| 4 | 1104 | no | False | 0.0420 | 0.0670 | 0.4223 | 0.0110 | no | 0.1305 | 0.8820 | 0.0102 | -0.0190 | 0.0139 |
+| 5 | 1105 | no | False | 0.0610 | 0.0670 | 0.0880 | 0.0063 | no | 0.1613 | 0.8910 | 0.0099 | -0.0100 | 0.0136 |
+| 6 | 1106 | no | False | 0.0580 | 0.0630 | 0.1009 | 0.0067 | no | 0.1088 | 0.9040 | 0.0093 | +0.0030 | 0.0133 |
+| 7 | 1107 | no | False | 0.0550 | 0.0640 | 0.1379 | 0.0077 | no | 0.1297 | 0.8960 | 0.0097 | -0.0050 | 0.0135 |
+| 8 | 1108 | no | False | 0.0400 | 0.0640 | 0.4278 | 0.0111 | no | 0.1135 | 0.9120 | 0.0090 | +0.0110 | 0.0130 |
+| 9 | 1109 | no | False | 0.0520 | 0.0650 | 0.1929 | 0.0088 | no | 0.1237 | 0.8910 | 0.0099 | -0.0100 | 0.0136 |
+| 10 | 1110 | no | False | 0.0390 | 0.0660 | 0.5382 | 0.0111 | no | 0.1201 | 0.8800 | 0.0103 | -0.0210 | 0.0140 |
+| 11 | 1111 | no | False | 0.0470 | 0.0650 | 0.2869 | 0.0101 | no | 0.1180 | 0.8890 | 0.0099 | -0.0120 | 0.0137 |
+| 12 | 1112 | no | False | 0.0600 | 0.0660 | 0.0995 | 0.0067 | no | 0.1466 | 0.8810 | 0.0102 | -0.0200 | 0.0139 |
+| 13 | 1113 | no | False | 0.0560 | 0.0650 | 0.1194 | 0.0072 | no | 0.1427 | 0.9010 | 0.0094 | +0.0000 | 0.0134 |
+| 14 | 1114 | no | False | 0.0530 | 0.0650 | 0.1534 | 0.0081 | no | 0.1412 | 0.9100 | 0.0090 | +0.0090 | 0.0131 |
+| 15 | 1115 | no | False | 0.0310 | 0.0650 | 0.7336 | 0.0099 | no | 0.1104 | 0.9070 | 0.0092 | +0.0060 | 0.0132 |
+| 16 | 1116 | no | False | 0.0610 | 0.0640 | 0.0785 | 0.0060 | no | 0.1497 | 0.8950 | 0.0097 | -0.0060 | 0.0135 |
+| 17 | 1117 | no | False | 0.0490 | 0.0640 | 0.2334 | 0.0095 | no | 0.1408 | 0.9170 | 0.0087 | +0.0160 | 0.0129 |
+| 18 | 1118 | no | False | 0.0710 | 0.0620 | 0.0215 | 0.0032 | yes | 0.1296 | 0.8990 | 0.0095 | -0.0020 | 0.0134 |
+| 19 | 1119 | no | True | 0.0440 | 0.0670 | 0.3303 | 0.0105 | no | 0.1197 | 0.9040 | 0.0093 | +0.0030 | 0.0133 |
+| 20 | 1120 | no | False | 0.0400 | 0.0660 | 0.4608 | 0.0111 | no | 0.1100 | 0.8900 | 0.0099 | -0.0110 | 0.0137 |
+| 21 | 1121 | no | False | 0.0400 | 0.0660 | 0.4373 | 0.0111 | no | 0.0996 | 0.9040 | 0.0093 | +0.0030 | 0.0133 |
+| 22 | 1122 | no | False | 0.0380 | 0.0650 | 0.5067 | 0.0112 | no | 0.1270 | 0.8990 | 0.0095 | -0.0020 | 0.0134 |
+| 23 | 1123 | no | False | 0.0490 | 0.0650 | 0.2464 | 0.0096 | no | 0.1291 | 0.8830 | 0.0102 | -0.0180 | 0.0139 |
+| 24 | 1124 | no | False | 0.0520 | 0.0650 | 0.1839 | 0.0087 | no | 0.1348 | 0.9090 | 0.0091 | +0.0080 | 0.0131 |
+| 25 | 1125 | no | False | 0.0380 | 0.0640 | 0.4703 | 0.0112 | no | 0.1065 | 0.9010 | 0.0094 | +0.0000 | 0.0134 |
+| 26 | 1126 | no | False | 0.0640 | 0.0630 | 0.0450 | 0.0046 | yes | 0.1315 | 0.9110 | 0.0090 | +0.0100 | 0.0130 |
+| 27 | 1127 | no | False | 0.0650 | 0.0650 | 0.0580 | 0.0052 | no | 0.1222 | 0.8780 | 0.0103 | -0.0230 | 0.0140 |
+| 28 | 1128 | yes | True | 0.0330 | 0.0640 | 0.6937 | 0.0103 | no | 0.0731 | 0.8940 | 0.0097 | -0.0070 | 0.0136 |
+| 29 | 1129 | no | False | 0.0720 | 0.0660 | 0.0295 | 0.0038 | yes | 0.1544 | 0.8910 | 0.0099 | -0.0100 | 0.0136 |
+
+#### Sweep, optimization level 2 (baseline transpiler seed 0)
+
+Baseline simulator seed 1200, GHZ population 0.9210 (SE 0.0085). GHZ diff is candidate minus baseline.
+
+| c seed_t | c seed_s | identical qasm3 | resources identical | TVD | null p95 | p | p SE | > p95 | Hellinger | GHZ pop | GHZ SE | GHZ diff | diff SE |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1201 | no | False | 0.0590 | 0.0660 | 0.0980 | 0.0066 | no | 0.1222 | 0.8790 | 0.0103 | -0.0420 | 0.0134 |
+| 2 | 1202 | no | False | 0.0590 | 0.0650 | 0.1029 | 0.0068 | no | 0.1466 | 0.8840 | 0.0101 | -0.0370 | 0.0132 |
+| 3 | 1203 | no | False | 0.0840 | 0.0640 | 0.0075 | 0.0019 | yes | 0.1247 | 0.9030 | 0.0094 | -0.0180 | 0.0127 |
+| 4 | 1204 | no | True | 0.0380 | 0.0640 | 0.4673 | 0.0112 | no | 0.1227 | 0.9190 | 0.0086 | -0.0020 | 0.0121 |
+| 5 | 1205 | no | True | 0.0460 | 0.0620 | 0.2644 | 0.0099 | no | 0.1024 | 0.8930 | 0.0098 | -0.0280 | 0.0130 |
+| 6 | 1206 | no | False | 0.0290 | 0.0640 | 0.7681 | 0.0094 | no | 0.1159 | 0.9120 | 0.0090 | -0.0090 | 0.0124 |
+| 7 | 1207 | no | True | 0.0390 | 0.0650 | 0.4343 | 0.0111 | no | 0.1133 | 0.9110 | 0.0090 | -0.0100 | 0.0124 |
+| 8 | 1208 | yes | True | 0.0170 | 0.0630 | 0.9960 | 0.0014 | no | 0.0579 | 0.9150 | 0.0088 | -0.0060 | 0.0123 |
+| 9 | 1209 | yes | True | 0.0630 | 0.0640 | 0.0605 | 0.0053 | no | 0.0915 | 0.9130 | 0.0089 | -0.0080 | 0.0123 |
+| 10 | 1210 | no | False | 0.0690 | 0.0640 | 0.0295 | 0.0038 | yes | 0.1321 | 0.8780 | 0.0103 | -0.0430 | 0.0134 |
+| 11 | 1211 | no | False | 0.0500 | 0.0640 | 0.1924 | 0.0088 | no | 0.1119 | 0.9120 | 0.0090 | -0.0090 | 0.0124 |
+| 12 | 1212 | no | False | 0.0690 | 0.0660 | 0.0405 | 0.0044 | yes | 0.1403 | 0.8730 | 0.0105 | -0.0480 | 0.0136 |
+| 13 | 1213 | no | False | 0.0760 | 0.0650 | 0.0155 | 0.0028 | yes | 0.1378 | 0.8890 | 0.0099 | -0.0320 | 0.0131 |
+| 14 | 1214 | yes | True | 0.0430 | 0.0640 | 0.2959 | 0.0102 | no | 0.0808 | 0.9120 | 0.0090 | -0.0090 | 0.0124 |
+| 15 | 1215 | no | False | 0.0460 | 0.0630 | 0.2499 | 0.0097 | no | 0.0950 | 0.9110 | 0.0090 | -0.0100 | 0.0124 |
+| 16 | 1216 | no | True | 0.0380 | 0.0630 | 0.4298 | 0.0111 | no | 0.1109 | 0.9290 | 0.0081 | +0.0080 | 0.0118 |
+| 17 | 1217 | no | False | 0.0550 | 0.0640 | 0.1314 | 0.0076 | no | 0.1302 | 0.9070 | 0.0092 | -0.0140 | 0.0125 |
+| 18 | 1218 | no | False | 0.0410 | 0.0620 | 0.3798 | 0.0108 | no | 0.1076 | 0.9160 | 0.0088 | -0.0050 | 0.0122 |
+| 19 | 1219 | no | True | 0.0580 | 0.0630 | 0.0905 | 0.0064 | no | 0.1101 | 0.9090 | 0.0091 | -0.0120 | 0.0125 |
+| 20 | 1220 | yes | True | 0.0500 | 0.0640 | 0.1879 | 0.0087 | no | 0.1011 | 0.8930 | 0.0098 | -0.0280 | 0.0130 |
+| 21 | 1221 | no | True | 0.0350 | 0.0630 | 0.5292 | 0.0112 | no | 0.1034 | 0.9100 | 0.0090 | -0.0110 | 0.0124 |
+| 22 | 1222 | no | False | 0.0520 | 0.0630 | 0.1794 | 0.0086 | no | 0.1264 | 0.9050 | 0.0093 | -0.0160 | 0.0126 |
+| 23 | 1223 | no | True | 0.0390 | 0.0650 | 0.4453 | 0.0111 | no | 0.0955 | 0.8970 | 0.0096 | -0.0240 | 0.0129 |
+| 24 | 1224 | no | False | 0.0410 | 0.0640 | 0.3918 | 0.0109 | no | 0.1162 | 0.9120 | 0.0090 | -0.0090 | 0.0124 |
+| 25 | 1225 | no | False | 0.0450 | 0.0650 | 0.2809 | 0.0100 | no | 0.1135 | 0.9040 | 0.0093 | -0.0170 | 0.0126 |
+| 26 | 1226 | no | False | 0.0550 | 0.0630 | 0.1199 | 0.0073 | no | 0.1187 | 0.9060 | 0.0092 | -0.0150 | 0.0126 |
+| 27 | 1227 | no | True | 0.0550 | 0.0630 | 0.1179 | 0.0072 | no | 0.1051 | 0.9110 | 0.0090 | -0.0100 | 0.0124 |
+| 28 | 1228 | yes | True | 0.0310 | 0.0650 | 0.6897 | 0.0103 | no | 0.0800 | 0.9050 | 0.0093 | -0.0160 | 0.0126 |
+| 29 | 1229 | no | True | 0.0310 | 0.0630 | 0.6727 | 0.0105 | no | 0.1058 | 0.9230 | 0.0084 | +0.0020 | 0.0120 |
+
+#### Sweep, optimization level 3 (baseline transpiler seed 0)
+
+Baseline simulator seed 1300, GHZ population 0.9050 (SE 0.0093). GHZ diff is candidate minus baseline.
+
+| c seed_t | c seed_s | identical qasm3 | resources identical | TVD | null p95 | p | p SE | > p95 | Hellinger | GHZ pop | GHZ SE | GHZ diff | diff SE |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1301 | no | False | 0.0700 | 0.0670 | 0.0380 | 0.0043 | yes | 0.1498 | 0.8810 | 0.0102 | -0.0240 | 0.0138 |
+| 2 | 1302 | no | True | 0.0330 | 0.0650 | 0.6697 | 0.0105 | no | 0.1096 | 0.8980 | 0.0096 | -0.0070 | 0.0133 |
+| 3 | 1303 | no | False | 0.0480 | 0.0630 | 0.2364 | 0.0095 | no | 0.1193 | 0.9080 | 0.0091 | +0.0030 | 0.0130 |
+| 4 | 1304 | no | True | 0.0580 | 0.0640 | 0.1119 | 0.0070 | no | 0.1244 | 0.8980 | 0.0096 | -0.0070 | 0.0133 |
+| 5 | 1305 | no | True | 0.0480 | 0.0650 | 0.2519 | 0.0097 | no | 0.1224 | 0.9060 | 0.0092 | +0.0010 | 0.0131 |
+| 6 | 1306 | no | False | 0.0410 | 0.0650 | 0.4148 | 0.0110 | no | 0.1286 | 0.9160 | 0.0088 | +0.0110 | 0.0128 |
+| 7 | 1307 | no | False | 0.0560 | 0.0650 | 0.1294 | 0.0075 | no | 0.1529 | 0.8910 | 0.0099 | -0.0140 | 0.0135 |
+| 8 | 1308 | no | False | 0.0420 | 0.0650 | 0.3683 | 0.0108 | no | 0.1133 | 0.9160 | 0.0088 | +0.0110 | 0.0128 |
+| 9 | 1309 | yes | True | 0.0380 | 0.0640 | 0.4763 | 0.0112 | no | 0.1027 | 0.9130 | 0.0089 | +0.0080 | 0.0129 |
+| 10 | 1310 | yes | True | 0.0350 | 0.0630 | 0.5602 | 0.0111 | no | 0.0882 | 0.9080 | 0.0091 | +0.0030 | 0.0130 |
+| 11 | 1311 | no | False | 0.0670 | 0.0660 | 0.0480 | 0.0048 | yes | 0.1465 | 0.9160 | 0.0088 | +0.0110 | 0.0128 |
+| 12 | 1312 | no | False | 0.0630 | 0.0660 | 0.0740 | 0.0059 | no | 0.1511 | 0.9060 | 0.0092 | +0.0010 | 0.0131 |
+| 13 | 1313 | no | True | 0.0410 | 0.0620 | 0.3718 | 0.0108 | no | 0.0978 | 0.9100 | 0.0090 | +0.0050 | 0.0130 |
+| 14 | 1314 | yes | True | 0.0350 | 0.0650 | 0.5782 | 0.0110 | no | 0.0916 | 0.9140 | 0.0089 | +0.0090 | 0.0128 |
+| 15 | 1315 | no | False | 0.0360 | 0.0650 | 0.5682 | 0.0111 | no | 0.1358 | 0.9070 | 0.0092 | +0.0020 | 0.0131 |
+| 16 | 1316 | no | True | 0.0550 | 0.0640 | 0.1504 | 0.0080 | no | 0.1346 | 0.8860 | 0.0101 | -0.0190 | 0.0137 |
+| 17 | 1317 | no | True | 0.0290 | 0.0620 | 0.7736 | 0.0094 | no | 0.0982 | 0.9120 | 0.0090 | +0.0070 | 0.0129 |
+| 18 | 1318 | no | False | 0.0410 | 0.0650 | 0.4233 | 0.0110 | no | 0.1163 | 0.8940 | 0.0097 | -0.0110 | 0.0134 |
+| 19 | 1319 | no | True | 0.0480 | 0.0640 | 0.2629 | 0.0098 | no | 0.1244 | 0.9070 | 0.0092 | +0.0020 | 0.0131 |
+| 20 | 1320 | no | False | 0.0470 | 0.0650 | 0.2784 | 0.0100 | no | 0.1335 | 0.9000 | 0.0095 | -0.0050 | 0.0133 |
+| 21 | 1321 | no | False | 0.0180 | 0.0650 | 0.9900 | 0.0022 | no | 0.0716 | 0.9060 | 0.0092 | +0.0010 | 0.0131 |
+| 22 | 1322 | no | False | 0.0380 | 0.0650 | 0.4883 | 0.0112 | no | 0.1230 | 0.9040 | 0.0093 | -0.0010 | 0.0131 |
+| 23 | 1323 | no | True | 0.0420 | 0.0660 | 0.3933 | 0.0109 | no | 0.1385 | 0.9120 | 0.0090 | +0.0070 | 0.0129 |
+| 24 | 1324 | no | False | 0.0470 | 0.0670 | 0.2844 | 0.0101 | no | 0.1421 | 0.9130 | 0.0089 | +0.0080 | 0.0129 |
+| 25 | 1325 | no | False | 0.0400 | 0.0640 | 0.4173 | 0.0110 | no | 0.1311 | 0.9220 | 0.0085 | +0.0170 | 0.0126 |
+| 26 | 1326 | no | False | 0.0470 | 0.0650 | 0.2879 | 0.0101 | no | 0.1365 | 0.8870 | 0.0100 | -0.0180 | 0.0136 |
+| 27 | 1327 | no | True | 0.0460 | 0.0640 | 0.2909 | 0.0102 | no | 0.1307 | 0.8940 | 0.0097 | -0.0110 | 0.0134 |
+| 28 | 1328 | yes | True | 0.0290 | 0.0650 | 0.8031 | 0.0089 | no | 0.0851 | 0.9080 | 0.0091 | +0.0030 | 0.0130 |
+| 29 | 1329 | no | True | 0.0530 | 0.0640 | 0.1629 | 0.0083 | no | 0.1306 | 0.9010 | 0.0094 | -0.0040 | 0.0132 |
+
+Runtime: run creation 152.9 s, analysis 6.7 s.
+
+### Discussion
+
+#### Predictions
+
+| Prediction | Result | Marking | Reasoning |
+|---|---|---|---|
+| P6 | N = 10 identical-circuit pairs. p < 0.05: 0/10. p ≥ 0.9: 1/10. p-values 0.06–0.996, median 0.57 | **matched** | Both counts are below the pre-registered thresholds (3 and 4). This is weak evidence: 10 dependent pairs show no clear departure from uniformity, and none of them shows the shared-seed pile-up near 1 seen in M1.1v. |
+| P7 | Different-circuit pairs with p < 0.05: level 1 3/28 (0.107), level 2 4/24 (0.167), level 3 2/25 (0.080); 9/77 overall (0.117) | **inconclusive** (by the pre-registered rule) | P7 predicted no outcome and is reported descriptively. |
+
+No prediction was marked not matched. The analysis was not changed after the results were
+seen. The marking used the pre-registered rule as implemented in `analyze_addendum.py`.
+
+#### The original question, answered descriptively
+
+The question was whether the output differences between compilations are larger than
+sampling alone produces. As pre-registered, this is a description, not a test.
+
+- **Fraction below 0.05.** For different-circuit pairs, the fraction with p < 0.05 is above
+  the 5% expected from sampling alone at every level (8.0%–16.7%; 11.7% overall). The
+  identical-circuit control has 0/10.
+- **Shape of the p-value distribution.** The different-circuit p-values lean toward 0 at
+  every level, most strongly at levels 1 and 2. Below 0.2: 16/28, 12/24 and 7/25, against
+  about 5.6, 4.8 and 5.0 expected from uniform p-values. At 0.5 or above: 3/28, 3/24 and
+  4/25, against about 14, 12 and 12.5 expected.
+- **Reading.** At 1000 shots, the empirical distributions of differently compiled GHZ-star
+  circuits on `fake_sherbrooke` differ by more than sampling alone typically produces, in
+  aggregate across pairs. For any one pair, the floor usually does not distinguish them:
+  68/77 different-circuit pairs have p ≥ 0.05. The pairs within a level share a baseline
+  run, and the 87 comparisons get no multiple-comparison correction, so these aggregate
+  counts are not a calibrated test. No significance claim is made.
+
+#### Findings beyond the marked predictions
+
+These are post-hoc observations, not marked results. None of these splits was
+pre-registered.
+
+1. **Every pair with p < 0.05 has a different physical footprint.** Among different-circuit
+   pairs that use the same physical resources (`resources identical` true: 1, 9 and 10 pairs
+   at levels 1–3), 0/20 have p < 0.05. Among pairs with different footprints (27, 15 and
+   15), 9/57 do. At level 2, the median p-value is 0.43 for same-resource pairs and 0.13 for
+   different-footprint pairs. At level 3 the medians are similar (0.28 and 0.29).
+2. **Level 2's baseline drew a high GHZ population.** The level-2 baseline has population
+   0.921 (SE 0.0085). The other 29 level-2 runs average 0.9045, and 27/29 of their
+   differences are negative. Seven of them have |diff| > 1.96 × diff SE. The five level-2
+   runs with the same transpiled circuit as the baseline average 0.9076. Their circuit is
+   identical to the baseline's, so their gap to the baseline is sampling, not compilation.
+   Most of level 2's one-sided GHZ differences therefore come from comparing every run
+   against a single baseline sample. This is the shared-baseline dependence noted under P7.
+   At levels 1 and 3, no run has |diff| > 1.96 × diff SE.
+3. **GHZ population barely varies across compilations.** Across all 90 runs, GHZ population
+   has mean 0.902 and standard deviation 0.012. The binomial SE at that mean is 0.0094. Most
+   of the spread is what sampling alone produces. Together with item 1, this matches M1.1v's
+   D2 hypothesis: compilations differ mainly in where the rare error outcomes land, not in
+   GHZ population. That hypothesis remains untested. M1.2's observables would be the place
+   to test it.
+4. **Hellinger distance (no floor).** The median Hellinger distance for different-circuit
+   pairs is 0.130, 0.115 and 0.131 at levels 1–3. For identical-circuit pairs it is 0.073,
+   0.081 and 0.090. Hellinger has no sampling floor, so these medians have no reference
+   distribution.
+
+#### Scope statement
+
+All runs used `fake_sherbrooke`: a static noise model and calibration simulated locally with
+qiskit-aer. **None of these results is evidence about real hardware.** They say nothing
+about drift, about shot independence on a QPU, or about how a real device behaves across
+compilations. They describe only how differently compiled circuits behave under one static
+simulated noise model, and how the M1.1 TVD sampling floor scores them.

@@ -1,10 +1,11 @@
 # PLAN
 
-**Current milestone: M1.1, sampling floor for TVD. Current sub-step: M1.1v-addendum. Then
-M1.2.**
+**Current milestone: M1.2, compare-time observables. Current sub-step: M1.2. M1.1 is
+complete, including M1.1v-addendum.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
 complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
+M1.1v-addendum is complete (predictions `b7f9ae6`).
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
 M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the
@@ -190,7 +191,7 @@ improved or regressed, or why it changed.
 - **First real-world evidence costs nothing.** It comes from read-only live calibration
   snapshots, at zero QPU cost, before any paid hardware execution.
 
-## M1.1: Sampling floor for TVD (CURRENT)
+## M1.1: Sampling floor for TVD (DONE)
 
 **Goal:** report how large TVD is expected to be from sampling alone, at the observed shot
 counts. It reports evidence. It does not decide whether a change is meaningful; that is M2.
@@ -363,13 +364,13 @@ product feature. Branch: `exp/m1.1v-addendum-sweep`.
 
 ### M1.1v-addendum acceptance criteria
 
-- [ ] Predictions are committed before any run is generated.
-- [ ] All runs record git provenance with `dirty=false`.
-- [ ] Results are appended, with each prediction marked matched, not matched or inconclusive.
-- [ ] No `src/` changes.
-- [ ] All gates pass.
+- [x] Predictions are committed before any run is generated.
+- [x] All runs record git provenance with `dirty=false`.
+- [x] Results are appended, with each prediction marked matched, not matched or inconclusive.
+- [x] No `src/` changes.
+- [x] All gates pass.
 
-## M1.2: Compare-time observables
+## M1.2: Compare-time observables (CURRENT)
 
 **Goal:** workload-specific figures of merit with uncertainty, without a run schema change.
 
