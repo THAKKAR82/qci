@@ -1,6 +1,7 @@
 """Boundary rules from docs/architecture.md and ADR 0002."""
 
 import ast
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -51,11 +52,17 @@ def test_importing_neutral_layers_does_not_load_qiskit() -> None:
         "print(sorted(m for m in sys.modules if m.split('.')[0] in "
         f"{PROVIDER_SDKS!r}))"
     )
+    # Scrub the environment so the child cannot pick up an already-imported qiskit
+    # through PYTHONPATH or sitecustomize. SYSTEMROOT must survive: on Windows,
+    # asyncio imports _overlapped, and Winsock fails with WinError 10106 without it.
+    env = {"PYTHONPATH": str(SRC.parent)}
+    if (systemroot := os.environ.get("SYSTEMROOT")) is not None:
+        env["SYSTEMROOT"] = systemroot
     out = subprocess.run(
         [sys.executable, "-c", code],
         capture_output=True,
         text=True,
         check=True,
-        env={"PYTHONPATH": str(SRC.parent)},
+        env=env,
     )
     assert out.stdout.strip() == "[]"
