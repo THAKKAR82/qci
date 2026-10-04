@@ -463,7 +463,15 @@ None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned 
 - Run-recorded observables (schema v2; D18).
 - Probe runs as ordinary runs (research H3).
 - Live hardware execution.
-- The M2 meaningfulness policy.
+- The M2 meaningfulness policy. Design input from the M1.1v-addendum: a baseline should be a
+  population of runs, not one run. In that sweep, every run at a level was compared against
+  one baseline run. Level 2's baseline drew a high GHZ population (0.921, against a mean of
+  0.9045 for the other 29 runs), so 27/29 differences were negative, and the five runs with
+  the same circuit as the baseline still differed from it by sampling alone. To separate
+  compilation variation from sampling variation, the clean experimental design is
+  replication: several runs per compilation, comparing variation within a compilation to
+  variation between compilations, as M1.1v's Groups A and B did. It is neither all-pairs
+  comparison nor a pooled single baseline.
 - `qci test --baseline` and regression detection, built on the M2 meaningfulness policy.
 - Evidence-based attribution.
 - Repeated executions and experiment grouping (D7).

@@ -18,8 +18,15 @@ possibly lightweight live probes?
 | H2 | Historical execution behavior adds information beyond current calibration data. | Repeated runs over time with snapshot timestamps |
 | H3 | Lightweight diagnostic circuits reveal current backend health. | Probe runs stored as ordinary runs, linked by time to workload runs |
 | H4 | The interaction between circuit topology and backend topology strongly affects quality. | Two-qubit interaction edges, layout, coupling map and per-edge errors |
+| H5 | Different compilations of one workload mainly change where the error outcomes land, not the workload's figure of merit (for GHZ, the GHZ population). | Replicated runs per compilation (several simulator seeds or repeated executions each), workload observables (M1.2), and the full counts |
 
 These are hypotheses, not facts. QCI must not hard-code which variables matter.
+
+H5 comes from M1.1v (D2) and the M1.1v-addendum (Findings, item 3) in
+`docs/experiments/2026-10-repeated-sampling.md`. It is untested: it was formed after seeing
+those results. A proper test needs a replicated design, with several runs per compilation and
+variation within each compilation compared to variation between compilations, as Groups A and
+B did. It also needs M1.2's observables, with the predictions pre-registered.
 
 ## What M0 already preserves for research
 
