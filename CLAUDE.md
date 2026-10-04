@@ -67,6 +67,12 @@ Work is delivered in small, reviewed steps. For every step:
    .venv/bin/pytest -q
    ```
    When a new experiment directory is added, append it to `MYPYPATH`.
+   Also run the neutral-wording check over the lines the branch adds in `src/`, `docs/` and
+   `README.md` (rule 8 words plus `significan`, `verdict`, `caus`, `degrad`), paste its output,
+   and justify every hit in the report:
+   ```bash
+   git diff main...HEAD -U0 -- src docs README.md | grep -E '^\+' | grep -v '^+++' | grep -n -i -E 'better|worse|regress|improv|degrad|\bpass|fail|significan|verdict|caus'
+   ```
 6. Experiment scripts must be committed before they generate runs, so experiment runs record
    git provenance with `dirty=false`.
 7. Do not weaken, skip, xfail or delete an existing test to make a gate pass. If an existing

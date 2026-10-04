@@ -485,6 +485,12 @@ None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned 
   level dependent on each other, so their differences cannot be read as independent results.
 - Rename `sampling_floor_requires_distinct_simulator_seeds` to reflect that it also governs
   observable difference intervals, at the next policy bump made for another reason.
+- Invariant: per-register counts sum to `total_shots` for succeeded runs. Verify every stored
+  run satisfies it before adding a validator, because validators also run when old records
+  load.
+- At the next policy bump, treat a register with no counts as `not_comparable` in the
+  distribution gate (currently it crashes the sampling floor; unreachable through the Qiskit
+  adapter).
 - `qci test --baseline` and regression detection, built on the M2 meaningfulness policy.
 - Evidence-based attribution.
 - Repeated executions and experiment grouping (D7).
