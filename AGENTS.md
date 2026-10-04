@@ -74,8 +74,8 @@ Layering is a strict DAG — `domain` ← `core` ← `compare` ← `services` �
 - **Ordered gate operands are load-bearing.** IBM calibrates `ecr(104,103)` but not
   `ecr(103,104)`. `compare/footprint.py` keeps operand order; `summarize.py` normalizes edges
   to undirected `min/max`. Don't unify them.
-- `index.html`, `styles.css`, `script.js`, `demo-fixtures.js`, `site-config.js` are an
-  uncommitted static landing page with no build step — not part of the Python package.
+- `index.html`, `styles.css`, `script.js`, `demo-fixtures.js`, and `site-config.js` make up the
+  static landing page. It has no build step and is independent of the Python package.
 
 ## Extending
 
