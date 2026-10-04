@@ -159,12 +159,13 @@ calibration_measurements           the generic projection of a snapshot (ADR 000
 
 ```python
 class Measurement(DomainModel):
-    resource_kind: str             # adapter-defined; not the physical-level ResourceKind enum
-    resource: str                  # adapter-defined; core never parses it
+    resource_kind: str  # adapter-defined; not the physical-level ResourceKind enum
+    resource: str  # adapter-defined; core never parses it
     parameter: str
-    value: float | str | None      # None = unavailable, never 0
+    value: float | str | None  # None = unavailable, never 0
     unit: str | None = None
     measured_at: AwareDatetime | None = None
+
 
 class CalibrationSnapshot(DomainModel):
     schema_version: Literal[1] = 1
@@ -173,15 +174,15 @@ class CalibrationSnapshot(DomainModel):
     provider: str
     backend_name: str
     backend_version: str | None
-    source: SnapshotSource         # LIVE_CALIBRATION for captures
-    captured_at: AwareDatetime     # first capture
+    source: SnapshotSource  # LIVE_CALIBRATION for captures
+    captured_at: AwareDatetime  # first capture
     calibrated_at: AwareDatetime | None
-    capture_options: dict[str, JsonValue]   # e.g. {"use_fractional_gates": false}
-    extraction_method: str         # measurement extractor, e.g. "qiskit_ibm.properties"
+    capture_options: dict[str, JsonValue]  # e.g. {"use_fractional_gates": false}
+    extraction_method: str  # measurement extractor, e.g. "qiskit_ibm.properties"
     extraction_method_version: str
-    redactions: list[str]          # JSON paths the redactor replaced; values never kept
-    environment: dict[str, str]    # versions of qci, qiskit, qiskit-ibm-runtime only
-    provider_raw: dict[str, JsonValue]      # {"properties": ..., "configuration": ...}
+    redactions: list[str]  # JSON paths the redactor replaced; values never kept
+    environment: dict[str, str]  # versions of qci, qiskit, qiskit-ibm-runtime only
+    provider_raw: dict[str, JsonValue]  # {"properties": ..., "configuration": ...}
 ```
 
 The record carries no git provenance, hostname, user path, account name, token or instance.
@@ -375,7 +376,8 @@ def compare_calibration(
     notes: list[str],
     common: dict[str, Any],
 ) -> HardwareComparison:
-    ...  # the current body from "shared_qubits = ..." to the final return, moved verbatim
+    # The current body, from "shared_qubits = ..." to the final return, moved verbatim.
+    ...
 ```
 
 `compare_hardware` keeps its signature, its guards and its notes, and its last line becomes
