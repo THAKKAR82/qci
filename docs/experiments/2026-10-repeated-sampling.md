@@ -498,3 +498,70 @@ qiskit-aer. **None of these results is evidence about real hardware.** They say 
 about drift, about shots within a job being independent and identically distributed on a
 QPU, or about how a real device behaves across compilations. They check only the M1.1 TVD
 sampling floor against draws from its own null on simulated data.
+
+## Addendum: sweep with distinct simulator seeds
+
+Date: 2026-10-03. Branch: `exp/m1.1v-addendum-sweep`. Milestone: M1.1v-addendum in `PLAN.md`.
+
+M1.1v's compilation-sweep re-score was not a valid test, because every sweep run shared
+simulator seed 7 (Findings, item 1). This addendum reruns the sweep with a distinct simulator
+seed per run. The original question: are the output differences between compilations larger
+than sampling alone produces?
+
+### Setup
+
+- **Code under test:** no `src/` changes relative to `bccef77` (`main` at the start of this
+  step, which includes the M1.1c shared-seed guard). The runs record the commit that adds this
+  section as their git commit, with `dirty=false`. The run script refuses to start on a dirty
+  tree.
+- **Environment:** as in M1.1v (Python 3.13.9, numpy 2.5.3, qiskit 2.5.2, qiskit-aer 0.17.2,
+  qiskit-ibm-runtime 0.50.0).
+- **Workload, backend and execution:** as in M1.1v: `examples/ghz_star.py`, `fake_sherbrooke`,
+  `BackendSamplerV2` through `RunService`, 1000 shots.
+- **Runs:** transpiler seeds 0–29 at optimization levels 1, 2 and 3 (90 runs). Simulator
+  seed = 1000 + 100 × level + transpiler seed (1100–1129, 1200–1229, 1300–1329). Every run has
+  a distinct simulator seed.
+- **Store:** `QCI_HOME=.qci-exp-addendum` (gitignored), fresh.
+- **Pairs:** each run is compared against the transpiler-seed-0 run of its level, through
+  `CompareService` with policy `qci.compare.v3` and B = 2000. That gives 29 pairs per level,
+  87 in total. Baseline = transpiler seed 0, candidate = the other run. The resampling seed is
+  derived from `comparison_id`, which includes freshly generated run IDs, so a regeneration
+  reproduces counts exactly and p-values only within Monte Carlo error.
+- **Identical-circuit flag:** a pair has identical transpiled circuits when both runs have
+  the same SHA-256 of their stored transpiled qasm3.
+- **GHZ population:** P(00000) + P(11111) per run, with binomial standard error
+  sqrt(p(1-p)/n), computed in the experiment script only. The per-run difference is
+  candidate minus baseline, with standard error sqrt(SE_b² + SE_c²).
+- **Scripts:** `experiments/repeated_sampling/run_addendum.py` and `analyze_addendum.py`.
+
+### Pre-registered predictions
+
+Written and committed before any addendum run.
+
+**P6.** Pairs with identical transpiled circuits are now independent draws from one
+distribution, so their p-values are roughly uniform, with about 5% below 0.05.
+*How many such pairs:* M1.1v found 10 identical-circuit pairs (1 at level 1, 5 at level 2,
+4 at level 3). Transpilation depends on the level and transpiler seed, not on the simulator
+seed, so the same 10 pairs are expected. With N ≈ 10, the expected number below 0.05 is 0.5,
+so "about 5%" cannot be confirmed directly. The pairs within a level also share their
+baseline run, so they are not independent of each other. The rule therefore checks only for
+clear departures from uniformity, in both directions. A pile-up near 0 would mean the floor
+reports differences that sampling alone produces. A pile-up near 1 is the M1.1v failure
+mode: correlated samples.
+*Marking rule:* let N be the observed number of identical-circuit pairs. If N < 5, P6 is
+inconclusive. Otherwise, let T(q) be the smallest k with P(Binomial(N, q) ≥ k) < 0.025.
+P6 is not matched if the number of p-values below 0.05 is at least T(0.05), or the number of
+p-values ≥ 0.9 is at least T(0.10). Otherwise it is matched. For N = 10, these thresholds
+are 3 and 4. A "matched" means only that these few pairs show no clear departure from
+uniformity. It is weak evidence.
+
+**P7.** No direction is predicted for pairs with different transpiled circuits. Report,
+per optimization level, the number of such pairs, the number and fraction with p < 0.05,
+the number above null p95, and the p-value decile histogram. Also report each run's GHZ
+population difference against its level's baseline, with standard error.
+*Marking rule:* P7 predicts no outcome, so it is reported descriptively and marked
+inconclusive. The original question is answered descriptively: each level's fraction below
+0.05 is read against the 5% expected from sampling alone, with the identical-circuit pairs as
+an internal control. No threshold is pre-registered for this reading, so it is a
+description, not a test. The 87 comparisons get no multiple-comparison correction, and pairs
+within a level share a baseline run, so they are dependent.
