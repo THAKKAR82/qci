@@ -1,11 +1,13 @@
 # PLAN
 
-**Current milestone: M1.1, sampling floor for TVD. Next sub-step: M1.1v.**
+**Current milestone: M1.1, sampling floor for TVD. Current sub-step: M1.1c. Then
+M1.1v-addendum, then M1.2.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
-(`80cfe02`) and the GHZ-star workload (`48638a5`) are committed.
+(`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
+complete (`82ccd2e`).
 
-Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.2, M1.3a, M1.3b,
-M1.3c. Do not build a later step, or anything in the deferred backlog, while an earlier one is
+Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
+M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the deferred backlog, while an earlier one is
 open. Each step follows the step workflow in `CLAUDE.md`.
 
 ---
@@ -291,6 +293,43 @@ results. It is an experiment, not a product feature.
 - [x] The report includes raw tables plus the exact commands and seeds.
 - [x] No `src/` changes.
 
+## M1.1c: Shared-seed guard
+
+**Goal:** stop reporting a sampling floor when its independence assumption is known to fail.
+M1.1v found that runs sharing a simulator seed produce correlated samples, so the floor gives
+misleadingly high p-values for them (0.62–0.99 for different compilations; see
+`docs/experiments/2026-10-repeated-sampling.md`, "Findings beyond the marked predictions").
+Branch: `feat/m1.1c-shared-seed-guard`.
+
+### Scope
+
+1. **Guard.** When both runs executed on simulator backends and both have the same non-null
+   `seed_simulator`, the distribution comparison does not compute the sampling floor.
+   `sampling_floor` is null, and a new field `sampling_floor_unavailable_reason` states that
+   the two samples were drawn with the same simulator seed, so they are not independent, and
+   the floor assumes independent samples. This applies whether or not the compiled circuits
+   differ.
+2. **Unaffected runs.** Runs with different seeds, or where either seed is null (unseeded),
+   are unaffected.
+3. **Policy and engine version.** `ComparisonPolicy` version becomes `qci.compare.v3` and adds
+   `sampling_floor_requires_distinct_simulator_seeds: bool = True`. Bump `ENGINE_VERSION`.
+   Update the `CLAUDE.md` policy-version convention.
+4. **Limitations and CLI.** `LIMITATIONS` gains one line on this rule. The text renderer
+   shows the unavailable reason where the floor would appear.
+5. **Reason scope.** `sampling_floor_unavailable_reason` is null whenever the floor is
+   computed, and also when the comparability gate failed, because those reasons are already
+   reported elsewhere.
+
+### M1.1c acceptance criteria
+
+- [ ] Shared seed, different circuits: `sampling_floor` null, reason set.
+- [ ] Shared seed, identical circuits: status unchanged, `sampling_floor` null, reason set.
+- [ ] Different seeds: floor present.
+- [ ] Both unseeded: floor present.
+- [ ] One seeded and one unseeded: floor present.
+- [ ] `qci compare --json` is byte-identical across two invocations.
+- [ ] All gates pass.
+
 ## M1.2: Compare-time observables
 
 **Goal:** workload-specific figures of merit with uncertainty, without a run schema change.
@@ -321,8 +360,7 @@ results. It is an experiment, not a product feature.
    observed counts as 0.
 5. **CLI:** `qci compare A B --observable NAME=BITS[,BITS...]`, repeatable.
 6. **Identity.** Requested observables are part of the comparison request. Their canonical hash
-   is included in the `comparison_id` derivation. `ENGINE_VERSION` becomes
-   `qci.compare.engine.3`.
+   is included in the `comparison_id` derivation. Bump `ENGINE_VERSION`.
 7. **Statistics on counts, not bitstrings.** The Wilson and Newcombe functions take integer
    arguments (k, n) and know nothing about bitstrings. Converting bitstring counts to (k, n) is
    a separate function. Rationale: a future logical-error-rate observable is also k failures in

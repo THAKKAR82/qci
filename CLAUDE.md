@@ -10,6 +10,7 @@ Read `PLAN.md` for the current milestone and `docs/architecture.md` before chang
 python3.13 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy --strict src tests
+MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
 .venv/bin/pytest -q
 .venv/bin/qci run examples/bell.py --backend fake_sherbrooke --seed 7
 .venv/bin/qci runs
@@ -62,18 +63,21 @@ Work is delivered in small, reviewed steps. For every step:
    .venv/bin/ruff check .
    .venv/bin/ruff format --check .
    .venv/bin/mypy --strict src tests
+   MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
    .venv/bin/pytest -q
    ```
-6. Do not weaken, skip, xfail or delete an existing test to make a gate pass. If an existing
+   When a new experiment directory is added, append it to `MYPYPATH`.
+6. Experiment scripts must be committed before they generate runs, so experiment runs record
+   git provenance with `dirty=false`.
+7. Do not weaken, skip, xfail or delete an existing test to make a gate pass. If an existing
    test must change because a spec changed, say which test and why.
-7. Commit on the branch with a conventional commit message. Never push, merge or rebase `main`.
-8. Stop and print a report with exactly these headings: Summary / Files changed / Design
+8. Commit on the branch with a conventional commit message. Never push, merge or rebase `main`.
+9. Stop and print a report with exactly these headings: Summary / Files changed / Design
    decisions / Deviations from PLAN.md / Gate results / Manual verification commands / Open
    questions.
-
-9. If a step's changes make any doc stale, update it within the step when the step's file
-   restrictions allow. Otherwise, list it under Open questions. Prompt file restrictions take
-   priority.
+10. If a step's changes make any doc stale, update it within the step when the step's file
+    restrictions allow. Otherwise, list it under Open questions. Prompt file restrictions take
+    priority.
 
 Never start the next step without explicit approval.
 
