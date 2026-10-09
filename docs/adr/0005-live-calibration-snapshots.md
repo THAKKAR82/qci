@@ -1,8 +1,9 @@
 # ADR 0005: Live calibration snapshots
 
-- **Status:** Proposed (M1.3a). Becomes Accepted when the M1.3b and M1.3c acceptance criteria
-  below are approved.
-- **Date:** 2026-10-04
+- **Status:** Accepted (2026-10-09), with four amendments: unit mismatch in snapshot
+  comparison (section 7, D20), fixture format (section 5), cross-backend footprints
+  (section 7), and a manual check of historical capture (Findings, M1.3b).
+- **Date:** 2026-10-04 (proposed), 2026-10-09 (accepted)
 - **Resolves:** D19 in `PLAN.md`.
 
 ## Context
@@ -64,6 +65,44 @@ this step makes no network calls. QCI therefore designs for **forward-only captu
 is the set of snapshots the user has captured, starting at the first capture. QCI never
 requests a past datetime and never backfills. Adding historical capture needs a new ADR, backed
 by a recorded server response that shows the parameter is honored.
+
+#### Server behavior (to be recorded in M1.3b)
+
+M1.3b's manual live verification makes exactly one attempt at a historical request, and records
+the result here. Capture stays forward-only whatever the result. The result only informs a
+future decision.
+
+The user runs, once, with their saved account:
+
+```python
+from datetime import UTC, datetime, timedelta
+
+from qiskit_ibm_runtime import QiskitRuntimeService
+
+backend = QiskitRuntimeService(name="default-ibm-quantum-platform").backend("<ibm_backend>")
+now = backend.properties(refresh=True)
+at = datetime.now(UTC) - timedelta(hours=24)
+try:
+    past = backend.properties(datetime=at)
+except Exception as exc:  # recorded, not handled
+    print("raises:", type(exc).__name__)
+else:
+    print("now:", now.last_update_date if now else None)
+    print("past:", past.last_update_date if past else None)
+    print("same payload:", (now.to_dict() if now else None) == (past.to_dict() if past else None))
+```
+
+It prints only dates, a boolean and an exception type, never account data or error text. The
+result is one of:
+
+- **honored:** a payload different from now's, with `last_update_date` at or before `at`;
+- **ignored:** the same payload as now's, while now's `last_update_date` is later than `at`;
+- **raises:** an exception, recorded by type;
+- **inconclusive:** the same payload, but now's `last_update_date` is itself before `at`. No
+  calibration was published in the last 24 hours, so the two cases cannot be told apart. The
+  result is recorded as inconclusive, not repeated in a loop.
+
+Result: *pending M1.3b* (backend, date of the attempt, outcome).
 
 ### Account resolution
 
@@ -224,7 +263,8 @@ qci snapshot capture --backend NAME [--account ACCOUNT]                     (M1.
 qci snapshots [--backend NAME] [--limit N]                                  (M1.3b)
 qci snapshot show SNAPSHOT_ID [--json]                                      (M1.3b)
 qci snapshot export SNAPSHOT_ID --fixture PATH                              (M1.3b, developer)
-qci snapshot compare BASELINE_ID CANDIDATE_ID --footprint-run RUN_ID [--json]   (M1.3c)
+qci snapshot compare BASELINE_ID CANDIDATE_ID --footprint-run RUN_ID
+    [--allow-footprint-backend-mismatch] [--json]                           (M1.3c)
 ```
 
 - `capture` is the only command that touches the network. It runs once and exits: no
@@ -296,12 +336,15 @@ fixture.
    ```
 2. `export --fixture` applies `redact_payload` again and writes the full `CalibrationSnapshot`
    record plus its measurements. It replaces `snapshot_id` and `capture_id` with fixed
-   placeholders. It then scans the serialized output for exact matches of the active saved
-   account's token, instance and URL, which it reads through the client's own
-   `AccountManager.get(name=...)`. These values are held in memory for the scan only, and are
-   never printed or written. **It aborts and writes nothing on a match.** An
-   exact match outside the redaction rules means the rules are incomplete. That must be fixed
-   in code, not by hand-editing the fixture.
+   placeholders. The file is plain UTF-8 JSON, written as
+   `json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False) + "\n"`. It is never
+   compressed, so the sanitization can be reviewed line by line in the diff. Before writing,
+   it scans the serialized output for exact matches of the active saved account's token,
+   instance and URL, which it reads through the client's own `AccountManager.get(name=...)`.
+   These values are held in memory for the scan only, and are never printed or written.
+   **It aborts and writes nothing on a match.** An exact match outside the redaction rules
+   means the rules are incomplete. That must be fixed in code, not by hand-editing the
+   fixture.
 3. The user reviews `git diff` of the fixture and commits it with a message that names the
    backend and `calibrated_at`. The full payload is kept, not trimmed. A trimmed payload would
    no longer be a real capture, and the real gate-name and parameter differences are what the
@@ -330,6 +373,9 @@ stay. They are public device data.
   stub service whose account and backend objects carry sentinel token, instance and CRN
   values. It asserts that no sentinel occurs in the raw bytes of `qci.db`, in stdout or stderr,
   or in the `caplog` text.
+- `test_fixture_is_plain_sorted_json`: asserts that the committed file's bytes equal
+  `json.dumps(json.loads(text), sort_keys=True, indent=2, ensure_ascii=False) + "\n"`, and that
+  it is not gzip (it does not start with the bytes `1f 8b`).
 - `test_fixture_export_aborts_on_account_match`: plants a sentinel equal to the stub account's
   token under a key no rule covers. It asserts that the export exits non-zero and writes no
   file.
@@ -375,32 +421,77 @@ def compare_calibration(
     reader: CalibrationReader,
     notes: list[str],
     common: dict[str, Any],
+    *,
+    require_matching_units: bool = False,
 ) -> HardwareComparison:
-    # The current body, from "shared_qubits = ..." to the final return, moved verbatim.
+    # The current body, from "shared_qubits = ..." to the final return, moved verbatim,
+    # plus the unit check below when require_matching_units is True.
     ...
 ```
 
 `compare_hardware` keeps its signature, its guards and its notes, and its last line becomes
 `return compare_calibration(bs, cs, baseline_footprint, candidate_footprint, reader, notes,
-common)`. Nothing else in the module changes.
+common)`. It does not pass `require_matching_units`, so run comparison keeps the current
+behavior and its output is unchanged. Nothing else in the module changes.
+
+**Unit mismatch (`require_matching_units=True`, snapshot path only).** Today the shared core
+takes the first non-null unit and never checks that the two units agree (D20). In the snapshot
+path:
+
+- The check applies to a parameter whose value is present on both sides. Units are compared as
+  the reader returns them, where an empty unit is already `None`. Any inequality is a mismatch,
+  including `None` against a unit.
+- A mismatched parameter gets `status="not_comparable"`, keeps both raw values, and has
+  `delta = None` and `unit = None`. Units are never converted.
+- The reason names the resource, the parameter and both units, for example
+  `qubit 3 T1: units differ (baseline us, candidate ns); not compared`. It is added to
+  `HardwareComparison.reason`, which already exists. Adding a field to `ParameterComparison`
+  or `HardwareComparison` would change run comparison JSON, so neither model gains a field.
+  The `ParameterComparison.status` literal gains the value `"not_comparable"`, which the run
+  path never produces.
+- In the overall status, a mismatched parameter counts like an unavailable one. If another
+  parameter has `changed`, the status is `changed` and `relevant_hardware_changed` is true.
+  Otherwise the status is `partially_comparable` and `relevant_hardware_changed` is null.
+- Date-change entries are not produced for a mismatched parameter.
 
 `qci/compare/snapshots.py` adds `compare_snapshots(baseline, candidate, footprint, reader_for)`:
 
 - It returns `not_comparable`, with a reason, unless both snapshots have the same `provider`
   and `backend_name`. Calibration of different devices is never presented as change of one
   device.
+- It calls `compare_calibration` with `require_matching_units=True`.
 - It builds a `BackendSnapshot` view of each `CalibrationSnapshot`: `source`, `captured_at`,
   `calibrated_at`, `provider_raw`, and `basis_gates` and `coupling_edges` from the stored
   configuration. It passes the same footprint on both sides, so `resources_identical` is true
   by construction. `global_snapshot_changed` compares content hashes.
 - The footprint comes from a stored run, through the existing `footprint.py`. The run only
-  selects which physical resources to read. It is never compared with a snapshot. A run on
-  `fake_fez` can scope `ibm_fez` snapshots, because they share qubit indices. The output
-  records the footprint run ID and that run's backend name. If the two backend names differ,
-  the output adds a note saying the footprint was taken from a different backend. Qubits
-  outside a snapshot's range are already unavailable in the reader.
+  selects which physical resources to read. It is never compared with a snapshot. The output
+  records the footprint run ID and that run's backend name.
+- **Footprint backend mismatch.** A mismatch means the footprint run's `backend.name` differs
+  from the snapshots' `backend_name`, for example a run on `fake_fez` scoping `ibm_fez`
+  snapshots.
+  - Without `--allow-footprint-backend-mismatch`, a mismatch gives `not_comparable`, with a
+    reason naming both backends and no parameter comparisons.
+  - With the flag, the output always carries a note naming both backends, for example
+    `footprint taken from run 01J... on fake_fez; snapshots are of ibm_fez`. In addition,
+    every footprint resource must exist in both snapshots. If any is missing, the result is
+    `not_comparable`, with a reason listing every missing resource per snapshot, and no
+    parameter comparisons.
+  - Presence is decided from each snapshot's stored configuration, by a new IBM adapter
+    function, `missing_resources(snapshot, qubits, operations) -> list[str]`, in
+    `adapters/qiskit_ibm/calibration.py`, behind a small new port, `SnapshotResourceIndex`.
+    The reader class is not changed. A qubit is present if it is below `n_qubits`. An
+    operation with a `gates` entry is present if that entry's `coupling_map` contains the
+    exact ordered qubits. `measure`, `reset` and `delay` are present if the name is in
+    `supported_instructions` and all their qubits are present. Anything else is missing. A
+    snapshot without a configuration payload makes every resource missing.
+  - Presence is about the device. Calibration can still be unavailable for a present
+    resource, and that is reported as unavailable, as now.
+- Without a mismatch, no presence check runs. A missing resource is reported as unavailable by
+  the reader, as now.
 - It returns a new `SnapshotComparison` model: snapshot IDs, `calibrated_at` and
-  `captured_at` of each, the footprint run ID and its backend, the elapsed time between
+  `captured_at` of each, the footprint run ID and its backend, whether
+  `allow_footprint_backend_mismatch` was set, the elapsed time between
   captures as a `calculated` value, and the `HardwareComparison` from `compare_calibration`.
   Like run comparisons, it is never persisted. It uses the same neutral vocabulary: deltas
   are candidate minus baseline, and the words in rule 8 do not appear.
@@ -425,7 +516,7 @@ common)`. Nothing else in the module changes.
    golden test passes after the refactor. The existing byte-identity CLI tests stay as they
    are.
 
-## Proposed acceptance criteria
+## Acceptance criteria (approved 2026-10-09)
 
 ### M1.3b: capture and storage
 
@@ -455,8 +546,14 @@ common)`. Nothing else in the module changes.
       validates as `CalibrationSnapshot`.
 - [ ] `redact_payload` and the six sanitization tests in section 5 exist and pass.
       `sanitize_error_message` redacts CRNs, bearer tokens and JWTs.
-- [ ] One real sanitized capture is committed under `tests/fixtures/snapshots/`, together
-      with a test showing the reader and the measurement rows agree on every selected value.
+- [ ] One real sanitized capture is committed under `tests/fixtures/snapshots/` as plain
+      JSON with sorted keys and 2-space indentation, not gzip, checked by
+      `test_fixture_is_plain_sorted_json`. A test shows the reader and the measurement rows
+      agree on every selected value.
+- [ ] Manual live verification includes the single historical attempt in Findings,
+      `properties(datetime=...)` for 24 hours earlier. The result (honored, ignored, raises or
+      inconclusive), the backend and the date are recorded in this ADR's Findings. Capture
+      stays forward-only regardless.
 - [ ] No test constructs `QiskitRuntimeService`, enforced by a guard. No test opens a
       network connection.
 - [ ] `docs/architecture.md` and `docs/data-model.md` describe the snapshot store, and README
@@ -470,13 +567,31 @@ common)`. Nothing else in the module changes.
 - [ ] The second commit extracts `compare_calibration` and changes no golden file. Its golden
       test, and all existing compare tests, pass unchanged. `ComparisonPolicy.version`
       stays `qci.compare.v3` and `ENGINE_VERSION` stays `qci.compare.engine.4`.
-- [ ] `qci snapshot compare BASE CAND --footprint-run RUN [--json]` compares only the
+- [ ] `qci snapshot compare BASE CAND --footprint-run RUN
+      [--allow-footprint-backend-mismatch] [--json]` compares only the
       calibration of the run's physical footprint, using `IbmPropertiesCalibrationReader`
       unchanged.
 - [ ] Snapshots from different providers or backends give `not_comparable` with a reason, and
       no parameter comparisons.
-- [ ] A footprint from a run on a different backend name gives a note. A footprint qubit
-      outside a snapshot's range is unavailable.
+- [ ] `compare_calibration` takes `require_matching_units`, defaulting to `False`.
+      `compare_hardware` does not pass it, and the golden files are unchanged. The snapshot
+      path passes `True`.
+- [ ] In the snapshot path, a parameter whose unit differs between the captures, including
+      `None` against a unit, has `status="not_comparable"`, both raw values, `delta=None` and
+      a reason in `HardwareComparison.reason` naming the resource, the parameter and both
+      units. No unit is converted. With no other `changed` parameter, the status is
+      `partially_comparable` and `relevant_hardware_changed` is null.
+- [ ] A test feeds the same unit mismatch through run comparison and gets the current
+      behavior: no `not_comparable` parameter and output identical to before.
+- [ ] A footprint run whose backend name differs from the snapshots' gives `not_comparable`,
+      with a reason naming both backends, unless `--allow-footprint-backend-mismatch` is set.
+- [ ] With the flag, the output always has a note naming both backends. If any footprint
+      resource is missing from either snapshot, the result is `not_comparable`, with a reason
+      listing every missing resource, and no parameter comparisons. Tests cover a qubit at or
+      above `n_qubits`, a two-qubit gate on an ordered pair not in its `coupling_map`, and a
+      `measure` on a present qubit (present).
+- [ ] Without a backend mismatch, no presence check runs, and a footprint qubit outside a
+      snapshot's range is unavailable, as now.
 - [ ] On the committed real fixture against a synthetic second snapshot derived from it:
       a changed footprint value gives `changed`, with delta = candidate minus baseline; a
       change outside the footprint sets only `global_snapshot_changed`; a removed parameter or
@@ -503,8 +618,11 @@ common)`. Nothing else in the module changes.
 - **Cost:** the measurement projection duplicates data held in the raw payload. It exists for
   generic queries and future providers. M1.3c's comparison reads the raw payload through the
   reader, and a test keeps the two consistent.
-- **Known gap:** `compare_hardware` takes the first non-null unit and does not check that
-  baseline and candidate units agree. Real devices could change a unit between captures.
-  Fixing this is a comparison-rule change, which needs a policy bump. It is not part of M1.3.
+- **Known gap (D20):** run comparison takes the first non-null unit and does not check that
+  baseline and candidate units agree. Changing that is a comparison-rule change, so it waits
+  for the next policy bump. Snapshot comparison checks units from the start, through
+  `require_matching_units`.
+- **Cost:** the fixture is stored uncompressed, several hundred KB of plain JSON, so its
+  sanitization can be reviewed in diffs.
 - **Revisit when:** historical capture is confirmed against the server, a second provider
   arrives, or an encoding layer arrives (ADR 0006).
