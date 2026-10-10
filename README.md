@@ -123,8 +123,10 @@ package, has no build step, and is not covered by the product gates. Preview it 
 the repository root with:
 
 ```bash
-python -m http.server 4173 --directory site
+python3 -m http.server 8765 --bind 127.0.0.1 --directory site
 ```
+
+Then open http://127.0.0.1:8765/.
 
 The contact section is deliberately unconfigured in the draft. Set a monitored email address or
 a form endpoint in `site/site-config.js` before publishing. A form endpoint must acknowledge

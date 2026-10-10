@@ -181,6 +181,8 @@ only for things the CLI needs to filter or sort on.
 | Compare (M1, built) | `CompareService` over two stored Runs plus a provider `CalibrationReader` |
 | Hosted storage | Another `RunRepository` implementation |
 | Probes, prediction, routing | New services consuming stored runs and snapshots. These are deliberately not designed yet. |
+| New run metrics | Append to `compute_metrics` in `services/run_service.py`. Each metric carries an `EvidenceKind`, a `method` and a `method_version`. |
+| New comparison rules | Change `ComparisonPolicy` and bump `ComparisonPolicy.version`. The field is typed as a `Literal` (currently `"qci.compare.v3"`), so a bump is a type change: `mypy --strict` then flags every equality check against the old version string as a non-overlapping comparison. It does not flag `ComparisonPolicy(version=<old string>)`, because the pydantic mypy plugin leaves `__init__` arguments untyped by default; pydantic rejects that value at runtime instead. mypy cannot detect a rule change made without a bump; making the bump is the author's responsibility under `CLAUDE.md`. |
 
 ## Technology
 
