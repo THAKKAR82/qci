@@ -1,9 +1,10 @@
 # PLAN
 
-**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3c,
-implemented on branch `feat/m1.3c-snapshot-diff` and awaiting the user's manual live check
-and review. No later step is scheduled. M1.3b is done (capture and storage, branch `feat/m1.3b-snapshot-capture`). M1.3a is done
-(ADR 0005 accepted 2026-10-09). M1.1 (including M1.1v-addendum) and M1.2 are complete.**
+**Current milestone: none. M1.3 (read-only live calibration snapshots) is done. The next step
+is to be decided. M1.3c is done (footprint-scoped snapshot comparison, branch
+`feat/m1.3c-snapshot-diff`, live check 2026-10-10). M1.3b is done (capture and storage, branch
+`feat/m1.3b-snapshot-capture`). M1.3a is done (ADR 0005 accepted 2026-10-09). M1.1 (including
+M1.1v-addendum) and M1.2 are complete.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
 complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
@@ -436,7 +437,7 @@ parity and expectation-value observables.
       Newcombe difference interval and no unavailable reason.
 - [x] All gates pass.
 
-## M1.3: Read-only live calibration snapshots (CURRENT: M1.3c)
+## M1.3: Read-only live calibration snapshots (DONE)
 
 **Goal:** real drift evidence for a fixed footprint at zero QPU cost. No hardware execution.
 
@@ -458,7 +459,7 @@ Sub-steps, each reviewed separately:
     alongside. The ADR must show how a non-qubit resource, such as a neutral-atom site or a
     logical error-correction patch, would be stored without a schema change (ADR 0006).
 - **M1.3b: capture and storage (DONE),** with offline tests on sanitized recorded fixtures.
-- **M1.3c: footprint-scoped snapshot-to-snapshot comparison,** reusing the existing hardware
+- **M1.3c: footprint-scoped snapshot-to-snapshot comparison (DONE),** reusing the existing hardware
   comparison logic. Existing compare outputs stay unchanged. Live capture is run manually by
   the user.
 
@@ -566,9 +567,10 @@ used, never environment variables.
 - [x] `--json` output is byte-identical across repeated invocations. The comparison is never
       persisted: the database bytes are unchanged after the command.
 - [x] Rendered and JSON output contain none of the rule 8 words.
-- [ ] Docs updated, all gates pass, and the live capture is run manually by the user. No
-      test performs one. (Docs and gates done on `feat/m1.3c-snapshot-diff`; the user's manual
-      live check is pending.)
+- [x] Docs updated, all gates pass, and the live capture is run manually by the user. No
+      test performs one. (Live check by the user on 2026-10-10: two `ibm_fez` captures
+      compared over a seeded GHZ-star footprint compiled for `fake_fez`; findings in ADR 0005,
+      section 6.)
 
 ## Deferred backlog (unplanned order)
 
@@ -650,3 +652,7 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D21 | Historical calibration backfill. | `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). Before relying on it: test multiple dates and devices, find how far back it works, and check IBM's terms and rate limits. Capture stays forward-only until then. |
 | D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |
 | D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |
+| D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). |
+| D25 | Report, for a footprint, the age of each relevant measurement at capture time and the oldest one, as a calculated value. | Open. In the first live comparison, values that were not re-measured were about 1 h (T2) to about 22 h (cz) old at the later capture. |
+| D26 | Show units in the text renderer (T1 and T2 in microseconds, lengths in nanoseconds). | Open. Checked on 2026-10-10: the JSON carries `unit` on every `hardware.shared_resource_parameters` entry (`us`, `ns`, or null for dimensionless values and unit mismatches). `unchanged_values` and `error_values_at_one` entries have no unit field. The text renderer shows the unit only on changed lines. |
+| D27 | Research: estimate the noise in provider calibration estimates by tracking the same parameter across many recalibrations. | Open. IBM publishes no uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and `date`. A `changed` value means only that the reported value changed. |

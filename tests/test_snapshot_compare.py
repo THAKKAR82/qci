@@ -531,3 +531,9 @@ def test_cli_unknown_ids_exit_1(store: Path) -> None:
         result = CliRunner().invoke(app, ["snapshot", "compare", *args])
         assert result.exit_code == 1
         assert "error:" in result.stderr
+
+
+def test_limitations_qualify_re_measured_by_the_provider_timestamp() -> None:
+    (line,) = [x for x in compare(fez("FEZ-B")).limitations if "provider's timestamp" in x]
+    assert "virtual gates (such as rz)" in line and "configured durations" in line
+    assert "may not mean physically re-measured" in line

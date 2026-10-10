@@ -441,6 +441,29 @@ cited above:
 - 50 parameter dates are later than the document's `last_update_date`, so `calibrated_at` is
   not the newest parameter date.
 
+**Observed in the first live comparison (M1.3c, 2026-10-10).** Run by the user on their own
+store: `qci snapshot compare 01M4HQ5J939C5ZCK43M51EX1CF 01M4HSD6AMXB4RWC1JSEHE6BYY
+--footprint-run 01M4K9G88XK5DS4X23D7ZSH1T0 --allow-footprint-backend-mismatch`, two `ibm_fez`
+captures scoped by a seeded GHZ-star run compiled for `fake_fez`. Checked against the stored
+comparison JSON:
+
+- The footprint has qubits 136, 141, 142, 143 and 144 and 5 `cz` operations on 4 physical
+  connections: (142,141), (142,143), (143,136), (143,142), (143,144), where (142,143) and
+  (143,142) are the same connection in both directions. Every footprint resource is present in
+  both snapshots. No error-type value equals 1.
+- Elapsed between captures: 2347 s. 5 of 65 parameters changed, all `sx` `gate_error`, and
+  `sx` was re-measured between the captures (dates 2026-10-09 00:55 to 2026-10-10 01:48 UTC).
+  The largest relative changes are `sx[142]` +70% and `sx[141]` -30%. IBM publishes no
+  uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and
+  `date`. So `changed` means only that the reported value changed (D27).
+- 15 values were classified "re-measured, same value": `rz` `gate_error` and `gate_length`,
+  and `sx` `gate_length`. `rz` entries report 0 for both and carry the document timestamp
+  (`calibrated_at`, 2026-10-10 01:48:16 UTC) as their date. `rz` is a virtual gate on IBM
+  hardware and is not physically measured, and `gate_length` is a configured duration. They
+  were classified this way only from their changed dates (D24).
+- The 45 values that were not re-measured ranged from about 1.3 h old (T2) to about 22.5 h
+  old (`cz` `gate_error` and `gate_length`) at the later capture (D25).
+
 **`CalibrationReader` reports these as unavailable, never zero.** M1.3c reuses
 `IbmPropertiesCalibrationReader` unchanged. Its existing rules already cover every row of the
 table: an absent qubit or empty entry list gives `available=False`, an absent or ambiguous gate

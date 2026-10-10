@@ -51,6 +51,9 @@ LIMITATIONS = [
     "An unchanged value that was not re-measured (the same measurement date in both "
     "snapshots) is one measurement reported twice. It is not evidence that the parameter held "
     "constant between the captures.",
+    "A changed measurement date is the provider's timestamp. For virtual gates (such as rz) "
+    "and configured durations (such as gate_length), the provider can update the date without "
+    "a physical measurement, so 're-measured' may not mean physically re-measured.",
     "Error-type parameters with a value of exactly 1 are listed as the provider reported them. "
     "QCI does not interpret them.",
     "Pairwise general parameters (D14) and measure gate entries (D22) are not compared.",
