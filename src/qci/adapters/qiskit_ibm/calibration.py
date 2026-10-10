@@ -15,6 +15,10 @@ from qci.domain.comparison import (
     OperationCalibration,
     QubitCalibration,
 )
+from qci.domain.snapshot import Measurement
+
+EXTRACTION_METHOD = "qiskit_ibm.properties"
+EXTRACTION_METHOD_VERSION = "1"
 
 # Readout calibration is reported per qubit by IBM; measure has no gate entry.
 _MEASURE_NOTE = "readout calibration is reported under the measured qubit"
@@ -132,3 +136,53 @@ class IbmPropertiesCalibrationReader:
         return FootprintCalibration(
             qubits=selected_qubits, operations=selected_ops, excluded=excluded
         )
+
+
+def gate_resource(name: str, qubits: Sequence[int]) -> str:
+    return f"gate/{name}/{','.join(str(q) for q in qubits)}"
+
+
+def _entry_measurements(kind: str, resource: str, entries: Any) -> list[Measurement]:
+    """One row per reported parameter, in payload order. Duplicates are kept."""
+    rows: list[Measurement] = []
+    for entry in entries if isinstance(entries, list) else []:
+        if isinstance(entry, Mapping) and isinstance(entry.get("name"), str):
+            rows.append(
+                Measurement(
+                    resource_kind=kind,
+                    resource=resource,
+                    parameter=entry["name"],
+                    value=_value(entry.get("value")),
+                    unit=entry.get("unit") or None,
+                    measured_at=_date(entry.get("date")),
+                )
+            )
+    return rows
+
+
+def extract_measurements(properties: Any) -> list[Measurement]:
+    """Project a stored ``BackendProperties`` payload onto generic measurement rows.
+
+    Uses the reader's own parsing helpers, so a selected value always equals its row. Entries
+    the reader cannot address (no name, or non-integer qubits) produce no row; they stay in the
+    raw payload. A parameter the provider did not report has no row. An unrepresentable value
+    (non-finite, complex, redacted) has ``value=None``, never 0.
+    """
+    if not isinstance(properties, Mapping):
+        return []
+    rows: list[Measurement] = []
+    raw_qubits = properties.get("qubits")
+    for index, entries in enumerate(raw_qubits if isinstance(raw_qubits, list) else []):
+        rows += _entry_measurements("qubit", f"qubit/{index}", entries)
+    raw_gates = properties.get("gates")
+    for gate in raw_gates if isinstance(raw_gates, list) else []:
+        if not isinstance(gate, Mapping) or not isinstance(gate.get("gate"), str):
+            continue
+        gate_qubits = gate.get("qubits")
+        if not isinstance(gate_qubits, list) or not all(isinstance(x, int) for x in gate_qubits):
+            continue
+        rows += _entry_measurements(
+            "gate", gate_resource(gate["gate"], gate_qubits), gate.get("parameters")
+        )
+    rows += _entry_measurements("general", "general", properties.get("general"))
+    return rows

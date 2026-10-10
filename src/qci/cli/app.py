@@ -1,4 +1,4 @@
-"""QCI command-line interface: run, runs, show, compare."""
+"""QCI command-line interface: run, runs, show, compare, and calibration snapshots."""
 
 import os
 from dataclasses import dataclass
@@ -8,12 +8,24 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from qci.core.errors import InvalidObservableError, QCIError, RunNotFoundError, WorkloadLoadError
+from qci.adapters.qiskit_ibm import live as ibm_live
+from qci.core.errors import (
+    CaptureRejectedError,
+    FixtureExportError,
+    InvalidObservableError,
+    QCIError,
+    RunNotFoundError,
+    SnapshotNotFoundError,
+    WorkloadLoadError,
+)
 from qci.domain.circuit import CircuitSummary, CompileConfig
 from qci.domain.comparison import ObservableSpec
 from qci.domain.execution import ExecutionConfig
 from qci.domain.run import Run, RunStatus
-from qci.services.run_service import RunRequest, RunService
+from qci.domain.snapshot import CalibrationSnapshot, SnapshotCapture
+from qci.services.run_service import RunRequest, RunService, sanitize_error_message
+from qci.services.snapshot_service import SnapshotService
+from qci.storage.snapshots import SqliteSnapshotRepository
 from qci.storage.sqlite import SqliteRunRepository
 
 app = typer.Typer(
@@ -33,6 +45,17 @@ def store_dir() -> Path:
 
 def _repository() -> SqliteRunRepository:
     return SqliteRunRepository(store_dir() / DB_FILENAME)
+
+
+def _snapshot_repository() -> SqliteSnapshotRepository:
+    return SqliteSnapshotRepository(store_dir() / DB_FILENAME)
+
+
+snapshot_app = typer.Typer(
+    help="Read-only calibration snapshots of live hardware. Nothing is executed.",
+    no_args_is_help=True,
+)
+app.add_typer(snapshot_app, name="snapshot")
 
 
 def _parse_observables(values: list[str]) -> list[ObservableSpec]:
@@ -339,6 +362,177 @@ def show(
     finally:
         repository.close()
     typer.echo(record.model_dump_json(indent=2) if as_json else render_run(record))
+
+
+AccountOption = Annotated[
+    str,
+    typer.Option(
+        help="Name of an account saved with QiskitRuntimeService.save_account. QCI uses only "
+        "saved accounts, never environment variables, and never stores or prints credentials."
+    ),
+]
+
+
+def _safe_error(exc: BaseException, account: str) -> str:
+    """Sanitized error text with the account name removed."""
+    message = sanitize_error_message(str(exc))
+    return message.replace(account, "[account]") if account else message
+
+
+@snapshot_app.command("capture")
+def snapshot_capture(
+    backend: Annotated[str, typer.Option(help="Live IBM backend name, e.g. ibm_fez.")],
+    account: AccountOption = ibm_live.DEFAULT_ACCOUNT,
+) -> None:
+    """Read the backend's published calibration once and store it as a snapshot.
+
+    Uses the network. Runs once: no retries, polling or scheduling. Content identical to an
+    existing snapshot adds only a capture record. On any error nothing is stored.
+    """
+    source = ibm_live.IbmLiveCalibrationSource(account=account)
+    try:
+        captured = source.capture(backend)
+    except CaptureRejectedError as exc:
+        typer.echo(f"error: {_safe_error(exc, account)}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"error: capture failed: {type(exc).__name__}: {_safe_error(exc, account)}", err=True
+        )
+        typer.echo("Nothing was recorded.", err=True)
+        raise typer.Exit(code=1) from exc
+
+    repository = _snapshot_repository()
+    try:
+        outcome = SnapshotService(repository).record(captured)
+    finally:
+        repository.close()
+    snap = outcome.snapshot
+    typer.echo(snap.snapshot_id)
+    typer.echo(
+        "New snapshot."
+        if outcome.created
+        else "Content identical to this existing snapshot; recorded one more capture.",
+        err=True,
+    )
+    calibrated = snap.calibrated_at.isoformat() if snap.calibrated_at else "unknown"
+    typer.echo(f"calibrated at: {calibrated}", err=True)
+    typer.echo(f"measurements: {outcome.measurement_count}", err=True)
+    if snap.provider_raw.get("properties") is None:
+        typer.echo("note: the provider returned no properties payload.", err=True)
+    typer.echo(f"Inspect it with: qci snapshot show {snap.snapshot_id}", err=True)
+
+
+@app.command()
+def snapshots(
+    backend: Annotated[str | None, typer.Option(help="Only this backend.")] = None,
+    limit: Annotated[int, typer.Option(min=1, help="Maximum number of snapshots.")] = 20,
+) -> None:
+    """List calibration snapshots, newest first capture first."""
+    repository = _snapshot_repository()
+    try:
+        items = repository.list_snapshots(backend_name=backend, limit=limit)
+    finally:
+        repository.close()
+    if not items:
+        typer.echo("No snapshots recorded yet.")
+        return
+    typer.echo(
+        f"{'SNAPSHOT ID':<26}  {'BACKEND':<18}  {'CALIBRATED (UTC)':<19}  "
+        f"{'FIRST CAPTURE (UTC)':<19}  {'LAST CAPTURE (UTC)':<19}  CAPTURES"
+    )
+    fmt = "%Y-%m-%d %H:%M:%S"
+    for item in items:
+        calibrated = item.calibrated_at.strftime(fmt) if item.calibrated_at else "-"
+        typer.echo(
+            f"{item.snapshot_id:<26}  {item.backend_name[:18]:<18}  {calibrated:<19}  "
+            f"{item.first_captured_at.strftime(fmt):<19}  "
+            f"{item.last_captured_at.strftime(fmt):<19}  {item.capture_count}"
+        )
+
+
+def render_snapshot(
+    snap: CalibrationSnapshot, captures: list[SnapshotCapture], measurement_count: int
+) -> str:
+    raw = ", ".join(k for k, v in snap.provider_raw.items() if v is not None) or "none"
+    lines = [
+        f"Snapshot {snap.snapshot_id}",
+        f"  backend:        {snap.provider}/{snap.backend_name} "
+        f"version={snap.backend_version or '-'}",
+        f"  source:         {snap.source.value}",
+        f"  calibrated at:  {snap.calibrated_at.isoformat() if snap.calibrated_at else 'unknown'}",
+        f"  first captured: {snap.captured_at.isoformat()}",
+        f"  captures:       {len(captures)}"
+        + (f" (last {captures[-1].captured_at.isoformat()})" if captures else ""),
+        f"  content hash:   {snap.content_hash}",
+        f"  capture options: {snap.capture_options}",
+        f"  measurements:   {measurement_count} "
+        f"[{snap.extraction_method} v{snap.extraction_method_version}]",
+        f"  redacted paths: {len(snap.redactions)}",
+        "  environment:    " + ", ".join(f"{k}={v}" for k, v in snap.environment.items()),
+        f"  raw provider payloads: {raw}",
+    ]
+    return "\n".join(lines)
+
+
+@snapshot_app.command("show")
+def snapshot_show(
+    snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID.")],
+    as_json: Annotated[bool, typer.Option("--json", help="Print the full record as JSON.")] = False,
+) -> None:
+    """Display a stored calibration snapshot."""
+    repository = _snapshot_repository()
+    try:
+        snap = repository.get(snapshot_id)
+        captures = repository.captures(snapshot_id)
+        measurement_count = len(repository.measurements(snapshot_id))
+    except SnapshotNotFoundError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        repository.close()
+    typer.echo(
+        snap.model_dump_json(indent=2)
+        if as_json
+        else render_snapshot(snap, captures, measurement_count)
+    )
+
+
+@snapshot_app.command("export")
+def snapshot_export(
+    snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID.")],
+    fixture: Annotated[Path, typer.Option(help="Path of the fixture JSON file to write.")],
+    account: AccountOption = ibm_live.DEFAULT_ACCOUNT,
+) -> None:
+    """Write a sanitized test fixture. Offline (developer use).
+
+    Redacts again, replaces local IDs with placeholders, and aborts without writing if the
+    output contains the saved account's token, instance or URL verbatim.
+    """
+    from qci.adapters.qiskit_ibm.redact import redact_payload
+
+    try:
+        secrets = ibm_live.load_account_secrets(account)
+    except Exception as exc:
+        typer.echo(
+            f"error: cannot read the saved account for the export scan ({type(exc).__name__}). "
+            "Nothing was written.",
+            err=True,
+        )
+        raise typer.Exit(code=1) from exc
+    repository = _snapshot_repository()
+    try:
+        text = SnapshotService(repository).export_fixture(
+            snapshot_id, redact=redact_payload, secrets=secrets
+        )
+    except (SnapshotNotFoundError, FixtureExportError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        repository.close()
+    fixture.parent.mkdir(parents=True, exist_ok=True)
+    fixture.write_text(text, encoding="utf-8")
+    typer.echo(f"wrote {fixture}", err=True)
 
 
 def main() -> None:

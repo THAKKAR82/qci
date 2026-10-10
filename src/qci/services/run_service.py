@@ -27,13 +27,22 @@ from qci.provenance.git import collect_git
 
 MAX_ERROR_MESSAGE = 2000
 _URL_CREDENTIALS = re.compile(r"(?P<scheme>[a-zA-Z][a-zA-Z0-9+.-]*://)[^/\s@]+@")
+_CRN = re.compile(r"crn:[^\s\"',;)}\]]*", re.IGNORECASE)
+_BEARER = re.compile(r"\b(bearer)\s+[^\s\"',;]+", re.IGNORECASE)
+_JWT = re.compile(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
 
 METRICS_METHOD_VERSION = "1"
 
 
 def sanitize_error_message(message: str) -> str:
-    """Strip URL credentials and truncate. Error text may be shown and stored long-term."""
+    """Strip URL credentials, CRNs, bearer tokens and JWTs, then truncate.
+
+    Error text may be shown and stored long-term.
+    """
     cleaned = _URL_CREDENTIALS.sub(r"\g<scheme>", message)
+    cleaned = _JWT.sub("[redacted jwt]", cleaned)
+    cleaned = _BEARER.sub(r"\1 [redacted]", cleaned)
+    cleaned = _CRN.sub("[redacted crn]", cleaned)
     if len(cleaned) > MAX_ERROR_MESSAGE:
         cleaned = cleaned[:MAX_ERROR_MESSAGE] + "... [truncated]"
     return cleaned

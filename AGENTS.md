@@ -18,7 +18,7 @@ python -m venv .venv && .venv/Scripts/python.exe -m pip install -e '.[dev]'
 
 .venv/Scripts/ruff.exe check .
 .venv/Scripts/ruff.exe format --check .
-.venv/Scripts/python.exe -m mypy --strict src tests
+.venv/Scripts/python.exe -m mypy --strict src tests scripts
 MYPYPATH='src;experiments/repeated_sampling' .venv/Scripts/python.exe -m mypy --strict experiments
 .venv/Scripts/python.exe -m pytest -q --basetemp="$TEMP/qci-pytest"
 git diff main...HEAD -U0 -- src docs README.md | grep -E '^\+' | grep -v '^+++' | grep -n -i -E 'better|worse|regress|improv|degrad|\bpass|fail|significan|verdict|caus' || echo "neutral-wording check: no hits"

@@ -6,15 +6,24 @@ handles. A handle must only be passed back to ports of the adapter that produced
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
-from qci.domain.backend import Backend, BackendSnapshot
+from pydantic import JsonValue
+
+from qci.domain.backend import Backend, BackendSnapshot, SnapshotSource
 from qci.domain.circuit import CircuitSummary, CompilationRecord, CompileConfig
 from qci.domain.comparison import FootprintCalibration
 from qci.domain.execution import ExecutionConfig, ExecutionResult
 from qci.domain.provenance import WorkloadSource
 from qci.domain.run import Run, RunListItem
+from qci.domain.snapshot import (
+    CalibrationSnapshot,
+    Measurement,
+    SnapshotCapture,
+    SnapshotListItem,
+)
 
 
 @dataclass(frozen=True)
@@ -124,3 +133,63 @@ class CalibrationReader(Protocol):
         qubits: Sequence[int],
         operations: Sequence[tuple[str, tuple[int, ...]]],
     ) -> FootprintCalibration: ...
+
+
+@dataclass(frozen=True)
+class CapturedCalibration:
+    """What a calibration source read, already redacted, with datetimes normalized to UTC."""
+
+    provider: str
+    backend_name: str
+    backend_version: str | None
+    source: SnapshotSource
+    captured_at: datetime
+    calibrated_at: datetime | None
+    capture_options: dict[str, JsonValue]
+    provider_raw: dict[str, JsonValue]
+    redactions: list[str]
+    measurements: list[Measurement]
+    extraction_method: str
+    extraction_method_version: str
+    environment: dict[str, str]
+
+
+class CalibrationSource(Protocol):
+    def capture(self, backend_name: str) -> CapturedCalibration:
+        """Read published calibration once. Raises ``CaptureRejectedError`` for a fake or a
+        simulator. Never retries or polls."""
+        ...
+
+
+class SnapshotRepository(Protocol):
+    """Insert-only snapshot persistence. There is deliberately no update or delete."""
+
+    def save(
+        self,
+        snapshot: CalibrationSnapshot,
+        measurements: Sequence[Measurement],
+        capture: SnapshotCapture,
+    ) -> tuple[CalibrationSnapshot, bool]:
+        """Record a capture. If a snapshot with the same content hash exists, only the capture
+        row is inserted, pointing at it. Returns the stored snapshot and whether it is new."""
+        ...
+
+    def get(self, snapshot_id: str) -> CalibrationSnapshot:
+        """Raises ``SnapshotNotFoundError`` if absent."""
+        ...
+
+    def get_by_hash(self, content_hash: str) -> CalibrationSnapshot | None: ...
+
+    def list_snapshots(
+        self, backend_name: str | None = None, limit: int | None = None
+    ) -> list[SnapshotListItem]:
+        """Newest first capture first."""
+        ...
+
+    def measurements(self, snapshot_id: str) -> list[Measurement]:
+        """In extraction order."""
+        ...
+
+    def captures(self, snapshot_id: str) -> list[SnapshotCapture]:
+        """Oldest first."""
+        ...

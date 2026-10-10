@@ -27,3 +27,15 @@ class SchemaVersionError(QCIError):
 
 class InvalidObservableError(QCIError):
     """A requested observable does not fit the runs being compared."""
+
+
+class SnapshotNotFoundError(QCIError):
+    """No calibration snapshot with the given ID exists."""
+
+
+class CaptureRejectedError(QCIError):
+    """The backend cannot be captured as live calibration, e.g. a fake or a simulator."""
+
+
+class FixtureExportError(QCIError):
+    """A fixture could not be exported safely. Nothing was written."""

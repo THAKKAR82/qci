@@ -12,7 +12,7 @@ website in site/ is outside the product and its gates.
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
-.venv/bin/mypy --strict src tests
+.venv/bin/mypy --strict src tests scripts
 MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
 .venv/bin/pytest -q
 .venv/bin/qci run examples/bell.py --backend fake_sherbrooke --seed 7
@@ -65,11 +65,12 @@ Work is delivered in small, reviewed steps. For every step:
    ```bash
    .venv/bin/ruff check .
    .venv/bin/ruff format --check .
-   .venv/bin/mypy --strict src tests
+   .venv/bin/mypy --strict src tests scripts
    MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
    .venv/bin/pytest -q
    ```
-   When a new experiment directory is added, append it to `MYPYPATH`.
+   When a new experiment directory is added, append it to `MYPYPATH`. Scripts in `scripts/` are
+   type-checked by the first mypy gate and never run by pytest.
    Also run the neutral-wording check over the lines the branch adds in `src/`, `docs/` and
    `README.md` (rule 8 words plus `significan`, `verdict`, `caus`, `degrad`), paste its output,
    and justify every hit in the report:

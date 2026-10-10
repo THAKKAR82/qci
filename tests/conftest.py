@@ -1,5 +1,10 @@
-"""Shared, provider-free test fixtures. Nothing here imports Qiskit."""
+"""Shared, provider-free test fixtures.
 
+Only the session guard below imports ``qiskit_ibm_runtime``, to make sure no test constructs
+the live client, reads a saved account, or opens a network connection (ADR 0005, section 4).
+"""
+
+import socket
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,6 +29,38 @@ from qci.domain.run import Run, RunStatus
 from qci.storage.sqlite import SqliteRunRepository
 
 T0 = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+
+
+class ForbiddenInTestsError(AssertionError):
+    """A test tried to reach a live service, a saved account or the network."""
+
+
+def _forbidden(*args: object, **kwargs: object) -> Any:
+    raise ForbiddenInTestsError("tests must not use the network, a live client or an account")
+
+
+_real_connect = socket.socket.connect
+
+
+def _guarded_connect(self: socket.socket, address: Any) -> None:
+    if self.family == getattr(socket, "AF_UNIX", None):
+        _real_connect(self, address)
+        return
+    _forbidden()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _no_live_client_account_or_network() -> Iterator[None]:
+    import qiskit_ibm_runtime
+    from qiskit_ibm_runtime.accounts import AccountManager
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(qiskit_ibm_runtime, "QiskitRuntimeService", _forbidden)
+        mp.setattr(AccountManager, "get", _forbidden)
+        mp.setattr(socket.socket, "connect", _guarded_connect)
+        mp.setattr(socket, "create_connection", _forbidden)
+        yield
+
 
 RAW_PROPERTIES: dict[str, Any] = {
     "backend_name": "stub",
