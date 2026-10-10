@@ -141,6 +141,47 @@ time-sortable.
 - The first planned bump is M0.5, which moves `provider_raw` and QASM text to content-addressed
   blobs referenced by `ContentRef`.
 
+## M1.3 calibration snapshots (insert-only, separate from runs)
+
+A calibration snapshot is not a run. It is the calibration a provider published for a backend,
+read by `qci snapshot capture`, and stored insert-only beside the runs table. The design is
+in [ADR 0005](adr/0005-live-calibration-snapshots.md). Models live in
+`qci/domain/snapshot.py`.
+
+- **`CalibrationSnapshot`** (`schema_version` 1): `snapshot_id`, `content_hash`, `provider`,
+  `backend_name`, `backend_version`, `source` (`live_calibration` for captures),
+  `captured_at`, `calibrated_at`, `capture_options`, `extraction_method` and its version,
+  `redactions`, `environment` and `provider_raw` (`{"properties", "configuration"}`). It has no
+  git provenance, host, user path, account name, token or instance.
+- **`SnapshotCapture`**: one row per successful capture command. Capturing identical content
+  again adds only a capture row, so the capture log is the history. History is forward-only:
+  QCI never requests a past datetime (D21).
+- **`Measurement`**: the generic projection of a snapshot, one row per reported (resource,
+  parameter), in extraction order with duplicates kept. `resource_kind` and `resource` are
+  adapter-defined and opaque to core, so a neutral-atom site or a logical patch needs no
+  schema change (ADR 0006). The IBM adapter writes `qubit/<i>`, `gate/<name>/<q0,q1>` and
+  `general`.
+
+Semantics:
+
+- **`captured_at`** is when QCI first read this content. **`calibrated_at`** is the provider's
+  document-level timestamp, for IBM the properties' top-level `last_update_date`, converted
+  to UTC. It is neither the newest nor the oldest parameter date: on `ibm_fez`, some parameters
+  carry later dates and many carry earlier ones. Per-parameter dates are kept as
+  `Measurement.measured_at`.
+- **Unavailable is null, never 0.** A reported value that cannot be represented (non-finite,
+  complex or redacted) has `value=None`. An unreported parameter has no row.
+- **Content hash:** `sha256` over canonical JSON of `{provider, backend_name,
+  capture_options, provider_raw}`, after redaction and UTC normalization. It excludes
+  `captured_at` and the environment, so it does not depend on the capturing machine's
+  timezone.
+- **Redaction:** credential-like values are replaced with `{"$redacted": "<rule>"}` and their
+  JSON paths are listed in `redactions`. The values are never kept. This is the one exception
+  to "keep raw data".
+- **Fixtures:** `qci snapshot export` writes a `SnapshotFixture`: `fixture_format`,
+  `fixture_origin` (`live_capture` or `synthetic`), `fixture_note`, the snapshot with
+  placeholder IDs, its measurements and its captures.
+
 ## Deferred concepts (not modeled in M0)
 
 These appear in the product vision. They will be modeled when a milestone needs them, with an

@@ -193,3 +193,51 @@ def captured(
         extraction_method_version="1",
         environment={"qci": "0.0.1"},
     )
+
+
+SYNTHETIC_CAPTURED_AT = datetime(2026, 10, 9, tzinfo=UTC)
+
+
+def synthetic_fake_fez_fixture_text() -> str:
+    """The SYNTHETIC fixture: FakeFez's frozen configuration and properties, passed through the
+    same path as a live capture (UTC normalization, lossless conversion, redaction, measurement
+    extraction, storage, export). Its source is ``static_fake`` and its backend ``fake_fez``.
+    Generated per test session (about a second); never committed.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from qiskit_ibm_runtime.fake_provider import FakeFez
+
+    from qci.adapters.qiskit_ibm.live import build_captured_calibration, capture_environment
+    from qci.adapters.qiskit_ibm.redact import redact_payload
+    from qci.services.snapshot_service import SnapshotService
+    from qci.storage.snapshots import SqliteSnapshotRepository
+
+    fake = FakeFez()
+    configuration = fake.configuration()
+    environment = capture_environment()
+    result = build_captured_calibration(
+        backend_name=fake.name,
+        backend_version=str(configuration.backend_version),
+        source=SnapshotSource.STATIC_FAKE,
+        properties=fake.properties().to_dict(),
+        configuration=configuration.to_dict(),
+        capture_options={"use_fractional_gates": False},
+        captured_at=SYNTHETIC_CAPTURED_AT,
+        environment=environment,
+    )
+    note = (
+        "SYNTHETIC: derived from the frozen FakeFez configuration and properties shipped with "
+        f"qiskit-ibm-runtime {environment['qiskit-ibm-runtime']}. Not a live capture."
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        repository = SqliteSnapshotRepository(Path(tmp) / "qci.db")
+        try:
+            service = SnapshotService(repository)
+            outcome = service.record(result)
+            return service.export_fixture(
+                outcome.snapshot.snapshot_id, redact=redact_payload, secrets=[], note=note
+            )
+        finally:
+            repository.close()

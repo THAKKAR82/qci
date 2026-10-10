@@ -76,6 +76,42 @@ never observed counts as 0. Bitstrings of the wrong width, or with characters ot
 No IBM account or network access is needed. `fake_sherbrooke` is a local simulator that uses
 a frozen IBM calibration snapshot as its noise model.
 
+## Calibration snapshots (live IBM hardware, read-only)
+
+QCI can read the calibration an IBM backend currently publishes and store it as an immutable
+snapshot. It executes nothing on hardware and costs no QPU time. This is the only QCI command
+that uses the network.
+
+**Prerequisite: a saved IBM account.** Save it once with Qiskit's own API. QCI never asks for,
+stores, logs or prints a token, and it never reads credentials from environment variables:
+
+```python
+from qiskit_ibm_runtime import QiskitRuntimeService
+
+QiskitRuntimeService.save_account(token="...", instance="...", name="default-ibm-quantum-platform")
+```
+
+```bash
+qci snapshot capture --backend ibm_fez [--account default-ibm-quantum-platform]
+qci snapshots [--backend ibm_fez] [--limit N]
+qci snapshot show <SNAPSHOT_ID> [--json]
+qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]   # developers: test fixture
+```
+
+- `capture` reads once and exits. It does no polling, scheduling or retries. Run it again to
+  record another point in time. Content identical to an existing snapshot is stored once, and
+  the repeat is recorded as another capture.
+- Fake backends (`fake_*`) and simulators are rejected with exit code 2, because frozen fake
+  calibration must never be stored as live data. On any other error nothing is stored and the
+  exit code is 1.
+- Credential-like values in the payload (tokens, instance CRNs, URLs, emails and similar) are
+  replaced with `{"$redacted": "<rule>"}` before storage, and their paths are listed.
+- History is forward-only: it starts at your first capture.
+- `calibrated_at` is the provider's own `last_update_date` for the properties document.
+  Individual parameters carry their own dates.
+
+Snapshots are stored in the same `qci.db` as runs, in separate tables.
+
 ## What a run captures (M0)
 
 - Git commit, branch, dirty state and remote, plus the Python and Qiskit versions.
@@ -111,7 +147,8 @@ Use `--entrypoint NAME` to call a different function.
 - [PLAN.md](PLAN.md): milestones, acceptance criteria and open decisions.
 - [docs/product.md](docs/product.md): product vision and V1 scope.
 - [docs/architecture.md](docs/architecture.md): module boundaries and ports.
-- [docs/data-model.md](docs/data-model.md): the Run record, identity and schema versioning.
+- [docs/data-model.md](docs/data-model.md): the Run record, calibration snapshots, identity and
+  schema versioning.
 - [docs/research.md](docs/research.md): research hypotheses and what data supports them.
 - [docs/adr/](docs/adr/): architecture decision records.
 

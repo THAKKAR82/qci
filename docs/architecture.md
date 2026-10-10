@@ -11,7 +11,7 @@ only the physical level today, and new code must respect the constraints in
 ```
 cli/            Typer commands: argument parsing and rendering only
   │
-services/       Use-case orchestration (RunService, CompareService)
+services/       Use-case orchestration (RunService, CompareService, SnapshotService)
   │  depends on ports, never on adapters directly
 compare/        Pure comparison logic over stored runs: provider-neutral
   │
@@ -19,7 +19,7 @@ core/           ports.py (Protocols), hashing.py, ids.py: pure Python
 domain/         Pydantic models: pure data, no I/O, no provider SDKs
   ▲
 adapters/       Provider implementations of the ports (qiskit_ibm/ first)
-storage/        RunRepository implementations (sqlite first)
+storage/        Run and snapshot repository implementations (sqlite first)
 provenance/     Git and environment collectors: plain Python
 ```
 
@@ -29,7 +29,9 @@ provenance/     Git and environment collectors: plain Python
 and `provenance`. Adapters, storage and provenance implement or supply `core` interfaces and
 depend only on `core` and `domain`. The CLI wires concrete implementations together: it
 imports `services` and `storage`, and imports adapters lazily inside the command that needs
-them.
+them. The exception is `adapters/qiskit_ibm/live.py`, which the CLI imports at module level
+for the default account name. That module imports `qiskit_ibm_runtime` only when it builds
+the client, and `tests/test_architecture.py` checks that importing it loads no provider SDK.
 
 `tests/test_architecture.py` enforces that `qci.domain` and `qci.core` never import a provider
 SDK.
@@ -46,6 +48,8 @@ All ports are `typing.Protocol` classes in `qci/core/ports.py`.
 | `Executor` | Execute a compiled native circuit under an `ExecutionConfig`. Returns a normalized `ExecutionResult`. |
 | `ProviderAdapter` | Bundles the four ports above for one provider, keyed by provider ID such as `qiskit_ibm`. |
 | `RunRepository` | Insert-only persistence with `save`, `get` and `list`. It has no update or delete. |
+| `CalibrationSource` (M1.3b) | Read a backend's published calibration once. Returns a `CapturedCalibration`: redacted raw payload, UTC-normalized dates, measurements and capture options. |
+| `SnapshotRepository` (M1.3b) | Insert-only snapshot persistence with `save` (deduplicates by content hash and always adds a capture row), `get`, `get_by_hash`, `list_snapshots`, `measurements` and `captures`. It has no update or delete. |
 
 ### Why opaque handles
 
@@ -70,7 +74,8 @@ qci run PATH --backend NAME [--seed S] [--seed-transpiler T] [--seed-simulator U
 
 If any step from 3 onward raises, the service still persists a Run with `status=failed`. That
 run records the failing stage, the error type and a sanitized message, and everything captured
-before the failure. Sanitizing strips URL credentials and truncates to 2000 characters. The
+before the failure. Sanitizing strips URL credentials, CRNs, bearer tokens and JWTs, and truncates to
+2000 characters. The
 failing stage is one of `resolve_backend`, `snapshot`, `compile`, `execute` or `metrics`. The
 CLI prints the run ID and the error, then exits with code 1.
 
@@ -91,10 +96,15 @@ The exit codes are a contract.
 | `qci run` | 2 | The workload could not be loaded. **Nothing was persisted.** |
 | `qci show`, `qci compare` | 1 | A run ID was not found. |
 | `qci compare` | 2 | An `--observable` argument is invalid. |
+| `qci snapshot capture` | 0 | A snapshot was stored, or identical content was recorded as one more capture. |
+| `qci snapshot capture` | 1 | Capture failed. **Nothing was persisted.** The message is sanitized. |
+| `qci snapshot capture` | 2 | The backend is a fake (`fake_*` or a fake object) or a simulator. **Nothing was persisted.** |
+| `qci snapshot show`, `qci snapshot export` | 1 | A snapshot ID was not found, the saved account could not be read for the export scan, or the export was unsafe. Export writes nothing. |
 | any | 1 | Any other `QCIError` that reaches `main()`. |
 | any | 2 | A usage error reported by Typer. |
 
-`qci run` prints the run ID to stdout before the error, which goes to stderr.
+`qci run` prints the run ID to stdout before the error, which goes to stderr. `qci snapshot
+capture` prints the snapshot ID to stdout and its details to stderr.
 
 ## Qiskit/IBM adapter notes (M0)
 
@@ -159,6 +169,32 @@ qci compare BASELINE CANDIDATE [--json]
   for exactly the requested physical resources. Missing data is returned as unavailable, never
   as zero.
 
+## M1.3b snapshot capture flow
+
+Read-only. QCI executes nothing on hardware. See [ADR 0005](adr/0005-live-calibration-snapshots.md).
+
+```
+qci snapshot capture --backend NAME [--account ACCOUNT]
+  1. reject fake_* names                                → exit 2, no client built
+  2. QiskitRuntimeService(name=ACCOUNT)                 → saved account only, never env vars
+  3. service.backend(NAME, use_fractional_gates=False)  → reject fakes and simulators (exit 2)
+  4. configuration(); properties(refresh=True)          → client logging disabled meanwhile
+  5. datetimes → UTC; to_jsonable; redact_payload       → provider_raw + redaction paths
+  6. extract_measurements(properties)                   → generic measurement rows
+  7. open the store; SnapshotService.record             → hash, dedupe, insert in one transaction
+```
+
+Any error in steps 2 to 6 persists nothing, does not create the database, prints a sanitized
+message without the account name, and exits 1. `qiskit_ibm_runtime` is imported lazily in
+`adapters/qiskit_ibm/live.py`. The service factory is injectable, and tests never construct
+the real client: a session guard in `tests/conftest.py` blocks `QiskitRuntimeService`,
+`AccountManager.get` and network connections.
+
+`qci snapshot export ID --fixture PATH [--account ACCOUNT]` is offline. It redacts again,
+replaces local IDs with placeholders, writes sorted plain JSON, and aborts without writing if
+the text contains the saved account's token, instance or URL verbatim, or if anything outside
+the provider payload matches a redaction rule.
+
 ## Storage (M0)
 
 - SQLite through SQLAlchemy 2 Core, at `./.qci/qci.db` or `$QCI_HOME/qci.db`.
@@ -167,6 +203,10 @@ qci compare BASELINE CANDIDATE [--json]
   serialized Run.
 - The `schema_meta` table records the database schema version.
 - Insert-only. See [ADR 0003](adr/0003-immutable-run-records.md).
+- Calibration snapshots (M1.3b) live in the same file, in `calibration_snapshots`,
+  `snapshot_captures` and `calibration_measurements`, owned by `SqliteSnapshotRepository`.
+  They record `snapshot_db_schema = 1` in `schema_meta`. The `runs` table and
+  `DB_SCHEMA_VERSION` are untouched. See [ADR 0005](adr/0005-live-calibration-snapshots.md).
 
 The document-plus-index-columns design keeps the Run model free to evolve. Columns are added
 only for things the CLI needs to filter or sort on.

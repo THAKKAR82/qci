@@ -1,8 +1,8 @@
 # PLAN
 
-**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3b.
-M1.3a is done (ADR 0005 accepted 2026-10-09). M1.1 (including M1.1v-addendum) and M1.2 are
-complete.**
+**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3c.
+M1.3b is done (capture and storage, branch `feat/m1.3b-snapshot-capture`). M1.3a is done
+(ADR 0005 accepted 2026-10-09). M1.1 (including M1.1v-addendum) and M1.2 are complete.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
 complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
@@ -435,7 +435,7 @@ parity and expectation-value observables.
       Newcombe difference interval and no unavailable reason.
 - [x] All gates pass.
 
-## M1.3: Read-only live calibration snapshots (CURRENT)
+## M1.3: Read-only live calibration snapshots (CURRENT: M1.3c)
 
 **Goal:** real drift evidence for a fixed footprint at zero QPU cost. No hardware execution.
 
@@ -456,12 +456,14 @@ Sub-steps, each reviewed separately:
     identifier, parameter, value, unit and timestamp), with the raw provider payload kept
     alongside. The ADR must show how a non-qubit resource, such as a neutral-atom site or a
     logical error-correction patch, would be stored without a schema change (ADR 0006).
-- **M1.3b: capture and storage,** with offline tests on sanitized recorded fixtures.
+- **M1.3b: capture and storage (DONE),** with offline tests on sanitized recorded fixtures.
 - **M1.3c: footprint-scoped snapshot-to-snapshot comparison,** reusing the existing hardware
   comparison logic. Existing compare outputs stay unchanged. Live capture is run manually by
   the user.
 
 **Acceptance:** defined in ADR 0005, approved on 2026-10-09 with amendments, and copied here.
+Two M1.3c criteria (error parameters equal to 1, and re-measured versus not re-measured
+parameters) were added at the M1.3b review on 2026-10-10.
 
 M1.3a findings that shape these criteria: the installed qiskit-ibm-runtime 0.50.0 forwards a
 `datetime` to the server, but its own docstrings say this is not implemented, so capture is
@@ -470,45 +472,45 @@ used, never environment variables.
 
 ### M1.3b acceptance criteria (approved)
 
-- [ ] `qci/domain/snapshot.py` defines `Measurement` and `CalibrationSnapshot` as in ADR 0005
+- [x] `qci/domain/snapshot.py` defines `Measurement` and `CalibrationSnapshot` as in ADR 0005
       section 2: frozen, `extra="forbid"`, with no provider SDK import (the architecture test
       covers the module).
-- [ ] `CalibrationSource` port in `qci/core/ports.py`. `SqliteSnapshotRepository` with the
+- [x] `CalibrationSource` port in `qci/core/ports.py`. `SqliteSnapshotRepository` with the
       three tables in ADR 0005 section 1 and `snapshot_db_schema = 1`. It has `save`, `get`,
       `get_by_hash`, `list` and `measurements`, and no update or delete method. A test
       asserts that the class has no attribute named `update*` or `delete*`.
-- [ ] An existing M0/M1 database opens unchanged. The `runs` table and `DB_SCHEMA_VERSION`
+- [x] An existing M0/M1 database opens unchanged. The `runs` table and `DB_SCHEMA_VERSION`
       are untouched, and the snapshot tables are created beside them.
-- [ ] Capturing identical content twice creates one snapshot and two capture rows. Changed
+- [x] Capturing identical content twice creates one snapshot and two capture rows. Changed
       content creates a second snapshot. Content hashes do not depend on the local timezone:
       a test captures the same stub payload under two `TZ` settings and gets one snapshot.
-- [ ] Measurements: one row per reported (resource, parameter). A non-finite or complex value
+- [x] Measurements: one row per reported (resource, parameter). A non-finite or complex value
       is stored with both value columns null. An unreported parameter has no row. No
       unavailable value is stored as 0.
-- [ ] A test stores rows with `resource_kind` values `site` and `logical_patch` through the
+- [x] A test stores rows with `resource_kind` values `site` and `logical_patch` through the
       repository, reads them back unchanged, and runs no migration.
-- [ ] `qci snapshot capture --backend NAME [--account ACCOUNT]` constructs the client only as
+- [x] `qci snapshot capture --backend NAME [--account ACCOUNT]` constructs the client only as
       `QiskitRuntimeService(name=ACCOUNT)`. A test asserts the exact keyword arguments
       through the injected factory. It rejects `fake_*` names and simulators with exit code 2,
       and on any error persists nothing and exits 1.
-- [ ] `qci snapshots`, `qci snapshot show ID [--json]` and
+- [x] `qci snapshots`, `qci snapshot show ID [--json]` and
       `qci snapshot export ID --fixture PATH` work offline. `--json` output
       validates as `CalibrationSnapshot`.
-- [ ] `redact_payload` and the six sanitization tests in ADR 0005 section 5 exist and pass.
+- [x] `redact_payload` and the six sanitization tests in ADR 0005 section 5 exist and pass.
       `sanitize_error_message` redacts CRNs, bearer tokens and JWTs.
-- [ ] One real sanitized capture is committed under `tests/fixtures/snapshots/` as plain
+- [x] One real sanitized capture is committed under `tests/fixtures/snapshots/` as plain
       JSON with sorted keys and 2-space indentation, not gzip, checked by
       `test_fixture_is_plain_sorted_json`. A test shows the reader and the measurement rows
       agree on every selected value.
-- [ ] Manual live verification includes the single historical attempt in ADR 0005's Findings,
+- [x] Manual live verification includes the single historical attempt in ADR 0005's Findings,
       `properties(datetime=...)` for 24 hours earlier. The result (honored, ignored, raises or
       inconclusive), the backend and the date are recorded in ADR 0005's Findings. Capture
       stays forward-only regardless.
-- [ ] No test constructs `QiskitRuntimeService`, enforced by a guard. No test opens a
+- [x] No test constructs `QiskitRuntimeService`, enforced by a guard. No test opens a
       network connection.
-- [ ] `docs/architecture.md` and `docs/data-model.md` describe the snapshot store, and README
+- [x] `docs/architecture.md` and `docs/data-model.md` describe the snapshot store, and README
       documents the capture command and the saved-account prerequisite.
-- [ ] All gates pass.
+- [x] All gates pass.
 
 ### M1.3c acceptance criteria (approved)
 
@@ -549,6 +551,12 @@ used, never environment variables.
       `relevant_hardware_changed = null`, never 0.
 - [ ] Identical snapshots (same content hash) give `unchanged` and
       `global_snapshot_changed = false`.
+- [ ] For the footprint's resources, the output lists every error-type parameter (a parameter
+      name containing `error`) whose value is exactly 1, stated as the provider's value with no
+      interpretation.
+- [ ] When a parameter's value is unchanged between the two snapshots, the output distinguishes
+      "re-measured, same value" (its measurement date changed) from "not re-measured" (same
+      measurement date), and never presents the second as evidence of stability.
 - [ ] `--json` output is byte-identical across repeated invocations. The comparison is never
       persisted: the database bytes are unchanged after the command.
 - [ ] Rendered and JSON output contain none of the rule 8 words.
@@ -632,3 +640,5 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D18 | Where are observables declared? | Compare-time now (M1.2). Workload-declared intent in the run record later, which requires schema v2. Open. |
 | D19 | How should standalone calibration snapshots be stored, and how is their history kept? | **Resolved by [ADR 0005](docs/adr/0005-live-calibration-snapshots.md).** An insert-only snapshot store beside the runs table, deduplicated by content hash. History is a forward-only capture log. Measurements are stored as generic rows with adapter-defined resource identifiers, and the raw payload is kept. |
 | D20 | Run comparison does not check that baseline and candidate units agree. | Open. Fix at the next policy bump. Snapshot comparison (M1.3c) will report a unit mismatch as `not_comparable` for that parameter and never converts units (ADR 0005 section 7). |
+| D21 | Historical calibration backfill. | `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). Before relying on it: test multiple dates and devices, find how far back it works, and check IBM's terms and rate limits. Capture stays forward-only until then. |
+| D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |

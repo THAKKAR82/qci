@@ -102,7 +102,21 @@ result is one of:
   calibration was published in the last 24 hours, so the two cases cannot be told apart. The
   result is recorded as inconclusive, not repeated in a loop.
 
-Result: *pending M1.3b* (backend, date of the attempt, outcome).
+Result: **honored (single observation).** Backend `ibm_fez`, attempted 2026-10-10 (UTC), run
+by the user with `scripts/check_historical_calibration.py` minutes after the fixture capture.
+Output: `requested_before: 2026-10-09T01:15:31.662478+00:00`, `now_last_update:
+2026-10-10T00:58:58+00:00`, `past_last_update: 2026-10-09T00:55:18+00:00`, `match: no`. The
+server returned a different payload whose `last_update_date` is before the requested time, so
+`updated_before` appears to be honored despite the two client docstrings. This is one
+observation on one device. Capture stays forward-only. Relying on backfill is open as D21 in
+`PLAN.md`.
+
+Note on the dates: the fixture captured at 2026-10-10T01:12:12Z has `last_update_date`
+2026-10-10T00:19:17Z, while this check, run minutes later, read 2026-10-10T00:58:58Z as the
+current value. Both are the same field (the properties document's top-level
+`last_update_date`, parsed by the client without computation) read from two server responses,
+so the server published a newer properties document between the two requests. Its
+`last_update_date` was earlier than the capture time, so publication can lag the stamped date.
 
 ### Account resolution
 
@@ -289,6 +303,15 @@ measurements and the capture options. The IBM implementation lives in
 The service depends only on the port, so tests pass a stub source built from the committed
 fixture.
 
+**Implementation notes (M1.3b).** The repository's listing method is `list_snapshots`, since a
+method named `list` shadows the builtin inside the class body; it also has a read-only
+`captures(snapshot_id)`, used by export. `snapshot export` takes `--account` (default
+`default-ibm-quantum-platform`) for the exact-match scan in section 5. While the client runs,
+capture calls `logging.disable(CRITICAL)` and restores the previous level afterwards, because
+client log messages interpolate instance names and CRNs and reach the client's own stderr
+handler. The content hash covers `capture_options`, which is exactly
+`{"use_fractional_gates": false}`.
+
 ### 4. Credentials
 
 - **Saved account only.** QCI builds the client as `QiskitRuntimeService(name=ACCOUNT)`, where
@@ -396,6 +419,28 @@ cited above:
 | `properties()` can return `None`. | `IBMBackend.properties`. | The snapshot is stored with `properties: null`, no measurement rows and a note. The reader reports every resource as unavailable. |
 | Pairwise `general` entries (`jq_*`, `zz_*`). | Both fakes. | Stored as measurements with `resource_kind="general"`. In comparison they stay excluded, as now (D14). |
 
+**Observed in the committed `ibm_fez` capture (M1.3b, 2026-10-10).** Pinned by tests in
+`tests/test_snapshot_fixtures.py`:
+
+- Every CZ connection is listed in both directions: 352 ordered pairs (176 connections) in the
+  `cz` entry's `coupling_map`, the top-level `coupling_map` and the properties `cz` entries,
+  which all agree. No connection is listed in one direction only.
+- The configuration has no `rx` or `rzz` gates (filtered), but the properties keep 156 `rx` and
+  352 `rzz` entries, confirming that the client's properties filter does not match gate names.
+- The properties have gate entries for `measure`, `measure_2`, `reset`, `reset_2`,
+  `measure_reset` and `measure_reset_2`. `measure` reports `gate_error`, `gate_length` and
+  `threshold`. The reader does not select these, because it reports `measure` as readout under
+  the measured qubit. They are stored as measurement rows.
+- Qubit parameter sets differ per qubit: `T2` on 155 of 156 qubits, `init_error` on 116.
+  Unreported parameters have no row.
+- `xslow` appears as a basis gate. There are no duplicate (gate, ordered qubits) entries.
+- Some entries report `gate_error` exactly 1: 8 of 352 `cz` entries and 0 of 156 `measure`
+  entries. Others with that value: 12 `rzz`, 1 each of `id`, `rx`, `sx`, `x` and `xslow`. No
+  qubit error parameter is exactly 1. QCI stores the provider's value as given and does not
+  interpret it.
+- 50 parameter dates are later than the document's `last_update_date`, so `calibrated_at` is
+  not the newest parameter date.
+
 **`CalibrationReader` reports these as unavailable, never zero.** M1.3c reuses
 `IbmPropertiesCalibrationReader` unchanged. Its existing rules already cover every row of the
 table: an absent qubit or empty entry list gives `available=False`, an absent or ambiguous gate
@@ -487,6 +532,13 @@ path:
     snapshot without a configuration payload makes every resource missing.
   - Presence is about the device. Calibration can still be unavailable for a present
     resource, and that is reported as unavailable, as now.
+  - **Considered, not adopted (M1.3b review, 2026-10-10):** treat a known-symmetric gate
+    (`cz`, `rzz`) as present if either order of the pair is in its `coupling_map`, while
+    calibration lookup stays exact-ordered, so a reversed pair would be present with
+    unavailable calibration and never borrow the other direction's values. The strict
+    exact-ordered rule stays, because the committed `ibm_fez` capture lists every CZ
+    connection in both directions. Revisit if a device lists a symmetric gate in one
+    direction only.
 - Without a mismatch, no presence check runs. A missing resource is reported as unavailable by
   the reader, as now.
 - It returns a new `SnapshotComparison` model: snapshot IDs, `calibrated_at` and
@@ -599,6 +651,12 @@ path:
       `relevant_hardware_changed = null`, never 0.
 - [ ] Identical snapshots (same content hash) give `unchanged` and
       `global_snapshot_changed = false`.
+- [ ] For the footprint's resources, the output lists every error-type parameter (a parameter
+      name containing `error`) whose value is exactly 1, stated as the provider's value with no
+      interpretation.
+- [ ] When a parameter's value is unchanged between the two snapshots, the output distinguishes
+      "re-measured, same value" (its measurement date changed) from "not re-measured" (same
+      measurement date), and never presents the second as evidence of stability.
 - [ ] `--json` output is byte-identical across repeated invocations. The comparison is never
       persisted: the database bytes are unchanged after the command.
 - [ ] Rendered and JSON output contain none of the rule 8 words.
@@ -611,8 +669,9 @@ path:
   capture, and storage that admits non-qubit resources without a migration.
 - **Good:** comparison reuses the existing reader and calibration logic through one
   extraction. Existing outputs are protected by golden files written before the refactor.
-- **Cost:** raw payloads stay inline, which for a 156-qubit device is several hundred KB per
-  distinct snapshot. Deduplication limits growth, and M0.5 blobs remove the rest (D4).
+- **Cost:** raw payloads stay inline, which for a 156-qubit device is about 0.9 MB of compact
+  JSON per distinct snapshot, plus about 6,650 measurement rows (measured on `ibm_fez`,
+  2026-10-10). Deduplication limits growth, and M0.5 blobs remove the rest (D4).
 - **Cost:** history is forward-only. Calibration published before the first capture is not
   available to QCI.
 - **Cost:** the measurement projection duplicates data held in the raw payload. It exists for
@@ -622,7 +681,9 @@ path:
   baseline and candidate units agree. Changing that is a comparison-rule change, so it waits
   for the next policy bump. Snapshot comparison checks units from the start, through
   `require_matching_units`.
-- **Cost:** the fixture is stored uncompressed, several hundred KB of plain JSON, so its
-  sanitization can be reviewed in diffs.
+- **Cost:** the fixture is stored uncompressed so its sanitization can be reviewed in diffs.
+  The committed `ibm_fez` fixture is 3.6 MB of plain JSON (2-space indentation inflates the
+  nested coupling maps), not several hundred KB as first estimated. The synthetic FakeFez
+  fixture is generated per test session instead of committed.
 - **Revisit when:** historical capture is confirmed against the server, a second provider
   arrives, or an encoding layer arrives (ADR 0006).
