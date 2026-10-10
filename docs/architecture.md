@@ -11,8 +11,10 @@ only the physical level today, and new code must respect the constraints in
 ```
 cli/            Typer commands: argument parsing and rendering only
   │
-services/       Use-case orchestration (RunService; later CompareService)
+services/       Use-case orchestration (RunService, CompareService)
   │  depends on ports, never on adapters directly
+compare/        Pure comparison logic over stored runs: provider-neutral
+  │
 core/           ports.py (Protocols), hashing.py, ids.py: pure Python
 domain/         Pydantic models: pure data, no I/O, no provider SDKs
   ▲
@@ -21,9 +23,13 @@ storage/        RunRepository implementations (sqlite first)
 provenance/     Git and environment collectors: plain Python
 ```
 
-**Dependency rule:** `domain` depends on nothing in QCI. `core` depends only on `domain`.
-`services` depends on `core` and `domain`. Adapters, storage and provenance implement or
-supply `core` interfaces. The CLI wires concrete implementations together.
+**Dependency rule:** the layers form a strict DAG: `domain` ← `core` ← `compare` ←
+`services` ← `cli`. `domain` depends on nothing in QCI. `core` depends only on `domain`.
+`compare` depends on `core` and `domain`. `services` depends on `compare`, `core`, `domain`
+and `provenance`. Adapters, storage and provenance implement or supply `core` interfaces and
+depend only on `core` and `domain`. The CLI wires concrete implementations together: it
+imports `services` and `storage`, and imports adapters lazily inside the command that needs
+them.
 
 `tests/test_architecture.py` enforces that `qci.domain` and `qci.core` never import a provider
 SDK.
@@ -74,10 +80,28 @@ exits with code 2. Whether load failures should also become runs is open as D11 
 Provenance is collected after the workload loads. Git state is read from the directory that
 contains the workload file, not from the current working directory.
 
+### CLI exit codes
+
+The exit codes are a contract.
+
+| Command | Code | Meaning |
+|---|---|---|
+| `qci run` | 0 | The run succeeded and was persisted. |
+| `qci run` | 1 | The run failed and **was persisted** with `status=failed` and the failing stage. |
+| `qci run` | 2 | The workload could not be loaded. **Nothing was persisted.** |
+| `qci show`, `qci compare` | 1 | A run ID was not found. |
+| `qci compare` | 2 | An `--observable` argument is invalid. |
+| any | 1 | Any other `QCIError` that reaches `main()`. |
+| any | 2 | A usage error reported by Typer. |
+
+`qci run` prints the run ID to stdout before the error, which goes to stderr.
+
 ## Qiskit/IBM adapter notes (M0)
 
 - **Backend lookup.** Fake backends are looked up by their class's `backend_name`, so only the
   requested backend is instantiated.
+- **Simulation.** QCI executes workloads on fake backends using the provider's local
+  simulator and that backend's noise model; QCI does not construct noise models of its own.
 - **Execution.** `qiskit.primitives.BackendSamplerV2` runs the circuit with `default_shots`
   and `seed_simulator`. `qiskit_ibm_runtime.SamplerV2` is deprecated as of 0.50. Its local
   testing mode wraps the same class, with identical counts, and it silently ignores
@@ -87,6 +111,11 @@ contains the workload file, not from the current working directory.
   types.
 - **Circuit summaries.** Summaries cover top-level instructions only. Control-flow bodies are
   not descended into in M0.
+- **Edges versus operands.** `summarize.py` normalizes two-qubit edges to undirected
+  `(min, max)` pairs for the circuit summary. `compare/footprint.py` keeps the ordered qubit
+  operands of each operation. The order matters: IBM may calibrate `ecr(104,103)` and not
+  `ecr(103,104)`, so calibration is looked up by exact ordered operands. The two
+  representations serve different purposes and must stay separate.
 
 ## M1 compare flow
 
@@ -117,7 +146,15 @@ qci compare BASELINE CANDIDATE [--json]
   enforces it. `openqasm3` is the vendor-neutral OpenQASM reference parser, used only inside
   `compare/footprint.py`.
 - **Lazy adapter import.** `qci.adapters.qiskit_ibm` imports `QiskitIbmAdapter` lazily, so
-  `qci compare` never imports Qiskit.
+  `qci compare` never imports Qiskit. The package `__init__.py` uses a PEP 562 module
+  `__getattr__`, with the real import behind `TYPE_CHECKING` for type checkers. Qiskit-free
+  modules in the package, such as the calibration reader, can then be imported without
+  Qiskit. A new adapter should copy this pattern.
+- **Footprint-parity canary.** `tests/test_footprint_parity.py` transpiles real circuits at
+  optimization levels 0, 1 and 3, plus a scheduled `delay`, and asserts that the
+  QASM3-derived footprint equals the native circuit's operations. It is the canary for
+  `openqasm3` and `qiskit` upgrades: under ADR 0004, an AST change must be absorbed in
+  `compare/footprint.py` and pass this test.
 - **New port.** `CalibrationReader.select(snapshot, qubits, operations)` returns calibration
   for exactly the requested physical resources. Missing data is returned as unavailable, never
   as zero.

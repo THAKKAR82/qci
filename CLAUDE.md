@@ -4,6 +4,9 @@ QCI is a vendor-neutral reliability and execution-intelligence layer for quantum
 V1 is "Quantum CI": instrument quantum runs, persist immutable records, and compare them.
 Read `PLAN.md` for the current milestone and `docs/architecture.md` before changing structure.
 
+AGENTS.md adds Windows and environment notes for other agents; this file is authoritative. The
+website in site/ is outside the product and its gates.
+
 ## Commands
 
 ```bash

@@ -1,13 +1,13 @@
 # QCI
 
-QCI records exactly what happened when a quantum workload ran, so that you can later tell
-whether it got better or worse and why.
+QCI records exactly what happened when a quantum workload ran, so that you can later see
+precisely what differed between two executions.
 
 Long term, QCI aims to be a vendor-neutral reliability and execution-intelligence layer for
 quantum computing. Today it is the first building block: an instrumented runner that captures
 an immutable, inspectable record of each execution.
 
-**Status:** pre-alpha, milestone M1. IBM/Qiskit fake backends only.
+**Status:** pre-alpha. See [PLAN.md](PLAN.md) for the current milestone and step.
 
 ## Quick start
 
@@ -115,12 +115,17 @@ Use `--entrypoint NAME` to call a different function.
 - [docs/research.md](docs/research.md): research hypotheses and what data supports them.
 - [docs/adr/](docs/adr/): architecture decision records.
 
-## Landing page
+## Website
 
-The static marketing page is `index.html` with `styles.css`, `script.js`, and synthetic examples in `demo-fixtures.js`. It has no frontend build step. Preview it locally with:
+The static marketing page lives in `site/`: `site/index.html` with `styles.css`, `script.js`,
+`bloch-sphere.js`, and synthetic examples in `demo-fixtures.js`. It is independent of the Python
+package, has no build step, and is not covered by the product gates. Preview it locally from
+the repository root with:
 
 ```bash
-python -m http.server 4173
+python -m http.server 4173 --directory site
 ```
 
-The contact section is deliberately unconfigured in the draft. Set a monitored email address or a form endpoint in `site-config.js` before publishing. A form endpoint must acknowledge receipt with JSON `{"received": true}`; the page shows success only after that response.
+The contact section is deliberately unconfigured in the draft. Set a monitored email address or
+a form endpoint in `site/site-config.js` before publishing. A form endpoint must acknowledge
+receipt with JSON `{"received": true}`; the page shows success only after that response.
