@@ -1,0 +1,714 @@
+{
+  "schema_version": 1,
+  "comparison_id": "sha256:82a881800ef7eaf78c4e910e75fa60284fdd47bc68d1ffd10ca93214fc261694",
+  "engine_version": "qci.compare.engine.4",
+  "policy": {
+    "version": "qci.compare.v3",
+    "distribution_requires_identical_logical_qasm3": true,
+    "distribution_requires_same_provider": true,
+    "distribution_max_classical_registers": 1,
+    "dynamic_circuits_supported": false,
+    "distribution_null_resamples": 2000,
+    "sampling_floor_requires_distinct_simulator_seeds": true,
+    "hardware_delta_scope": "identical_physical_resources_only"
+  },
+  "policy_hash": "sha256:fd22c4464e3fa205c3605fbee7fb5dd0199fb7358761bdc624ed3b248c9b36ff",
+  "baseline_run_id": "BASE",
+  "candidate_run_id": "CAND",
+  "status": "partially_comparable",
+  "source": {
+    "status": "unchanged",
+    "source_sha256": {
+      "status": "unchanged",
+      "baseline": "abababababababababababababababababababababababababababababababab",
+      "candidate": "abababababababababababababababababababababababababababababababab",
+      "delta": null
+    },
+    "source_path": {
+      "status": "unchanged",
+      "baseline": "/tmp/bell.py",
+      "candidate": "/tmp/bell.py",
+      "delta": null
+    },
+    "entrypoint": {
+      "status": "unchanged",
+      "baseline": "build",
+      "candidate": "build",
+      "delta": null
+    },
+    "workload_name": {
+      "status": "unchanged",
+      "baseline": "bell",
+      "candidate": "bell",
+      "delta": null
+    },
+    "git_commit": {
+      "status": "unchanged",
+      "baseline": "c0ffee",
+      "candidate": "c0ffee",
+      "delta": null
+    },
+    "git_branch": {
+      "status": "unchanged",
+      "baseline": "main",
+      "candidate": "main",
+      "delta": null
+    },
+    "git_dirty": {
+      "status": "unchanged",
+      "baseline": false,
+      "candidate": false,
+      "delta": null
+    },
+    "git_remote": {
+      "status": "unchanged",
+      "baseline": null,
+      "candidate": null,
+      "delta": null
+    }
+  },
+  "environment": {
+    "status": "unchanged",
+    "python_version": {
+      "status": "unchanged",
+      "baseline": "3.13.0",
+      "candidate": "3.13.0",
+      "delta": null
+    },
+    "python_implementation": {
+      "status": "unchanged",
+      "baseline": "CPython",
+      "candidate": "CPython",
+      "delta": null
+    },
+    "platform": {
+      "status": "unchanged",
+      "baseline": "test",
+      "candidate": "test",
+      "delta": null
+    },
+    "packages": {
+      "status": "unchanged",
+      "baseline_only": [],
+      "candidate_only": [],
+      "changed": []
+    },
+    "environment_hash": {
+      "status": "unchanged",
+      "baseline": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "candidate": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "delta": null
+    }
+  },
+  "logical_circuit": {
+    "status": "unchanged",
+    "structure": {
+      "num_qubits": {
+        "status": "unchanged",
+        "baseline": 2,
+        "candidate": 2,
+        "delta": 0
+      },
+      "num_clbits": {
+        "status": "unchanged",
+        "baseline": 2,
+        "candidate": 2,
+        "delta": 0
+      },
+      "depth": {
+        "status": "unchanged",
+        "baseline": 3,
+        "candidate": 3,
+        "delta": 0
+      },
+      "size": {
+        "status": "unchanged",
+        "baseline": 4,
+        "candidate": 4,
+        "delta": 0
+      },
+      "two_qubit_gate_count": {
+        "status": "unchanged",
+        "baseline": 1,
+        "candidate": 1,
+        "delta": 0
+      },
+      "op_counts": {
+        "status": "unchanged",
+        "changed": []
+      },
+      "qasm3_sha256": {
+        "status": "unchanged",
+        "baseline": "9bb22cb4e9dfee89afa77e87040341a539ffe9935cb5945e1882ccfa56af22af",
+        "candidate": "9bb22cb4e9dfee89afa77e87040341a539ffe9935cb5945e1882ccfa56af22af",
+        "delta": null
+      },
+      "qasm3_exporter": {
+        "status": "unchanged",
+        "baseline": "stub 0",
+        "candidate": "stub 0",
+        "delta": null
+      }
+    },
+    "two_qubit_edges": {
+      "status": "unchanged",
+      "common": [
+        [
+          0,
+          1
+        ]
+      ],
+      "baseline_only": [],
+      "candidate_only": []
+    }
+  },
+  "compilation": {
+    "status": "changed",
+    "note": null,
+    "compiler": {
+      "status": "unchanged",
+      "baseline": "stub 0",
+      "candidate": "stub 0",
+      "delta": null
+    },
+    "optimization_level": {
+      "status": "unchanged",
+      "baseline": 1,
+      "candidate": 1,
+      "delta": 0
+    },
+    "seed_transpiler": {
+      "status": "unchanged",
+      "baseline": 7,
+      "candidate": 7,
+      "delta": null
+    },
+    "initial_layout": {
+      "status": "changed",
+      "baseline": [
+        1,
+        0
+      ],
+      "candidate": [
+        2,
+        1
+      ],
+      "delta": null
+    },
+    "final_layout": {
+      "status": "changed",
+      "baseline": [
+        1,
+        0
+      ],
+      "candidate": [
+        2,
+        1
+      ],
+      "delta": null
+    },
+    "transpiled": {
+      "num_qubits": {
+        "status": "unchanged",
+        "baseline": 2,
+        "candidate": 2,
+        "delta": 0
+      },
+      "num_clbits": {
+        "status": "unchanged",
+        "baseline": 2,
+        "candidate": 2,
+        "delta": 0
+      },
+      "depth": {
+        "status": "unchanged",
+        "baseline": 3,
+        "candidate": 3,
+        "delta": 0
+      },
+      "size": {
+        "status": "unchanged",
+        "baseline": 4,
+        "candidate": 4,
+        "delta": 0
+      },
+      "two_qubit_gate_count": {
+        "status": "unchanged",
+        "baseline": 1,
+        "candidate": 1,
+        "delta": 0
+      },
+      "op_counts": {
+        "status": "unchanged",
+        "changed": []
+      },
+      "qasm3_sha256": {
+        "status": "changed",
+        "baseline": "c3c3251fcaae68df62bec9cfd60680aedde7c1d17747419e0cf2fef4c84086ab",
+        "candidate": "6e197ac6f91f2bd3852d7ea4b764c61cdccb3a3b09ffd9a55da3b99e47a32cad",
+        "delta": null
+      },
+      "qasm3_exporter": {
+        "status": "unchanged",
+        "baseline": "stub 0",
+        "candidate": "stub 0",
+        "delta": null
+      }
+    }
+  },
+  "execution": {
+    "status": "unchanged",
+    "note": null,
+    "shots": {
+      "status": "unchanged",
+      "baseline": 100,
+      "candidate": 100,
+      "delta": 0
+    },
+    "seed_simulator": {
+      "status": "unchanged",
+      "baseline": 7,
+      "candidate": 7,
+      "delta": null
+    },
+    "primitive": {
+      "status": "unchanged",
+      "baseline": "stub.sampler",
+      "candidate": "stub.sampler",
+      "delta": null
+    }
+  },
+  "backend": {
+    "status": "unchanged",
+    "note": null,
+    "provider": {
+      "status": "unchanged",
+      "baseline": "qiskit_ibm",
+      "candidate": "qiskit_ibm",
+      "delta": null
+    },
+    "name": {
+      "status": "unchanged",
+      "baseline": "stub_backend",
+      "candidate": "stub_backend",
+      "delta": null
+    },
+    "version": {
+      "status": "unchanged",
+      "baseline": "1",
+      "candidate": "1",
+      "delta": null
+    },
+    "num_qubits": {
+      "status": "unchanged",
+      "baseline": 2,
+      "candidate": 2,
+      "delta": 0
+    },
+    "is_simulator": {
+      "status": "unchanged",
+      "baseline": true,
+      "candidate": true,
+      "delta": null
+    },
+    "snapshot_source": {
+      "status": "unchanged",
+      "baseline": "static_fake",
+      "candidate": "static_fake",
+      "delta": null
+    },
+    "calibrated_at": {
+      "status": "unchanged",
+      "baseline": "2025-02-26T00:00:00+00:00",
+      "candidate": "2025-02-26T00:00:00+00:00",
+      "delta": null
+    },
+    "basis_gates": {
+      "status": "unchanged",
+      "common": [
+        "cx",
+        "h"
+      ],
+      "baseline_only": [],
+      "candidate_only": []
+    },
+    "coupling_edges": {
+      "status": "unchanged",
+      "common": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "baseline_only": [],
+      "candidate_only": []
+    }
+  },
+  "baseline_footprint": {
+    "status": "available",
+    "reason": null,
+    "qubits": [
+      0,
+      1
+    ],
+    "measured_qubits": [
+      0,
+      1
+    ],
+    "operations": [
+      {
+        "name": "ecr",
+        "qubits": [
+          1,
+          0
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          0
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "rz",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "x",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      }
+    ],
+    "initial_layout": [
+      1,
+      0
+    ],
+    "final_layout": [
+      1,
+      0
+    ],
+    "method": "openqasm3.toplevel",
+    "method_version": "1"
+  },
+  "candidate_footprint": {
+    "status": "available",
+    "reason": null,
+    "qubits": [
+      1,
+      2
+    ],
+    "measured_qubits": [
+      1,
+      2
+    ],
+    "operations": [
+      {
+        "name": "ecr",
+        "qubits": [
+          2,
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          2
+        ],
+        "count": 1
+      },
+      {
+        "name": "rz",
+        "qubits": [
+          2
+        ],
+        "count": 1
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          2
+        ],
+        "count": 1
+      },
+      {
+        "name": "x",
+        "qubits": [
+          2
+        ],
+        "count": 1
+      }
+    ],
+    "initial_layout": [
+      2,
+      1
+    ],
+    "final_layout": [
+      2,
+      1
+    ],
+    "method": "openqasm3.toplevel",
+    "method_version": "1"
+  },
+  "footprint": {
+    "status": "changed",
+    "reason": "physical footprints use different resources",
+    "resources_identical": false,
+    "qubits": {
+      "status": "changed",
+      "common": [
+        1
+      ],
+      "baseline_only": [
+        0
+      ],
+      "candidate_only": [
+        2
+      ]
+    },
+    "measured_qubits": {
+      "status": "changed",
+      "common": [
+        1
+      ],
+      "baseline_only": [
+        0
+      ],
+      "candidate_only": [
+        2
+      ]
+    },
+    "common_operations": [
+      {
+        "name": "measure",
+        "qubits": [
+          1
+        ]
+      }
+    ],
+    "baseline_only_operations": [
+      {
+        "name": "ecr",
+        "qubits": [
+          1,
+          0
+        ]
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          0
+        ]
+      },
+      {
+        "name": "rz",
+        "qubits": [
+          1
+        ]
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          1
+        ]
+      },
+      {
+        "name": "x",
+        "qubits": [
+          1
+        ]
+      }
+    ],
+    "candidate_only_operations": [
+      {
+        "name": "ecr",
+        "qubits": [
+          2,
+          1
+        ]
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          2
+        ]
+      },
+      {
+        "name": "rz",
+        "qubits": [
+          2
+        ]
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          2
+        ]
+      },
+      {
+        "name": "x",
+        "qubits": [
+          2
+        ]
+      }
+    ],
+    "operation_count_changes": [],
+    "initial_layout": {
+      "status": "changed",
+      "baseline": [
+        1,
+        0
+      ],
+      "candidate": [
+        2,
+        1
+      ],
+      "delta": null
+    },
+    "final_layout": {
+      "status": "changed",
+      "baseline": [
+        1,
+        0
+      ],
+      "candidate": [
+        2,
+        1
+      ],
+      "delta": null
+    }
+  },
+  "hardware": {
+    "status": "partially_comparable",
+    "reason": "physical footprints differ: relevant_hardware_changed is undetermined; calibration is compared only for physical resources present on both sides",
+    "global_snapshot_changed": true,
+    "baseline_snapshot_source": "static_fake",
+    "candidate_snapshot_source": "static_fake",
+    "relevant_hardware_changed": null,
+    "shared_resource_parameters": [
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "T1",
+        "unit": "us",
+        "status": "changed",
+        "baseline": 100.0,
+        "candidate": 90.0,
+        "delta": -10.0,
+        "baseline_calibrated_at": "2025-02-26T07:00:00Z",
+        "candidate_calibrated_at": "2025-02-26T07:00:00Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "readout_error",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.01,
+        "candidate": 0.01,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2025-02-26T07:00:00Z",
+        "candidate_calibrated_at": "2025-02-26T07:00:00Z"
+      }
+    ],
+    "calibration_date_changes": [],
+    "unavailable": [],
+    "excluded": [
+      "general: pairwise/global parameters (e.g. jq_6272, zz_6272) use an ambiguous qubit-pair encoding and are not scoped to physical resources"
+    ]
+  },
+  "baseline_counts": {
+    "c": {
+      "00": 52,
+      "11": 48
+    }
+  },
+  "candidate_counts": {
+    "c": {
+      "00": 52,
+      "11": 48
+    }
+  },
+  "distribution": {
+    "status": "unchanged",
+    "reasons": [],
+    "classical_register": "c",
+    "baseline_shots": 100,
+    "candidate_shots": 100,
+    "tvd": {
+      "name": "tvd",
+      "value": 0.0,
+      "unit": null,
+      "kind": "calculated",
+      "method": "total variation distance between normalized counts; empirical point estimate; no sampling uncertainty or significance test",
+      "method_version": "1",
+      "uncertainty": null
+    },
+    "hellinger_distance": {
+      "name": "hellinger_distance",
+      "value": 0.0,
+      "unit": null,
+      "kind": "calculated",
+      "method": "Hellinger distance between normalized counts; empirical point estimate; no sampling uncertainty or significance test",
+      "method_version": "1",
+      "uncertainty": null
+    },
+    "sampling_floor": null,
+    "sampling_floor_unavailable_reason": "both samples were drawn with the same simulator seed (7), so they are not independent; the sampling floor assumes independent samples"
+  },
+  "observables": [],
+  "limitations": [
+    "This comparison reports what differs between the baseline and candidate runs.",
+    "It makes no regression, improvement, better/worse or pass/fail judgment.",
+    "It makes no causal attribution: a difference listed in one section is not evidence that it caused a difference in another.",
+    "TVD and Hellinger distance are empirical point estimates; seeded or repeated runs can differ by sampling noise alone.",
+    "TVD has a sampling floor when the distributions are comparable: null TVD quantiles and a Monte Carlo p-value under H0 that both runs sampled one shared distribution, at the observed shot counts. Hellinger distance still has no sampling floor.",
+    "Sampling floor caveat: It tests only whether the two observed samples are consistent with one shared distribution at these shot counts. It makes no causal claim.",
+    "Sampling floor caveat: The pooled plug-in estimate cannot resample outcomes never observed, so the floor is slightly underestimated for sparse distributions.",
+    "Sampling floor caveat: It assumes shots within each run are independent and identically distributed. Drift within a job on real hardware violates this.",
+    "Sampling floor caveat: No multiple-comparison correction is applied.",
+    "The TVD sampling floor is not computed when both runs were simulated with the same simulator seed: their samples are not independent, and the floor assumes independent samples.",
+    "A changed result distribution means the observed empirical (sampled) distributions differ. It does not establish that the underlying probability distribution changed, nor that the difference is statistically significant.",
+    "Relevant hardware means calibration data for the physical resources the workload actually used. It does not mean a parameter is known to affect workload performance, nor that a calibration change caused any result change.",
+    "Hardware calibration is compared only for physical resources identical on both sides.",
+    "Observable intervals (Wilson for each run, Newcombe for the difference) describe sampling uncertainty at the observed shot counts, assuming independent shots. They are not verdicts, and no multiple-comparison correction is applied across observables. The Newcombe interval is not computed when both runs were simulated with the same simulator seed, because the samples are then not independent."
+  ]
+}
