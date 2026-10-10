@@ -49,6 +49,9 @@ strict = true
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 
+[tool.pydantic-mypy]
+init_typed = true
+
 [[tool.mypy.overrides]]
 module = ["qiskit.*", "qiskit_ibm_runtime.*", "qiskit_aer.*"]
 ignore_missing_imports = true

@@ -2,12 +2,14 @@
 
 from datetime import UTC, datetime
 
+from pydantic import JsonValue
+
 from conftest import T0, ibm_properties
 from qci.adapters.qiskit_ibm.calibration import IbmPropertiesCalibrationReader
 from qci.domain.backend import BackendSnapshot, SnapshotSource
 
 
-def snapshot(properties: object) -> BackendSnapshot:
+def snapshot(properties: JsonValue) -> BackendSnapshot:
     return BackendSnapshot(
         source=SnapshotSource.STATIC_FAKE,
         captured_at=T0,

@@ -14,10 +14,12 @@ Rules (unchanged since policy qci.compare.v1):
 """
 
 from collections.abc import Callable
+from typing import Literal, TypedDict
 
 from qci.compare.values import compare_set, compare_value
 from qci.core.hashing import hash_json
 from qci.core.ports import CalibrationReader
+from qci.domain.backend import SnapshotSource
 from qci.domain.comparison import (
     CalibrationValue,
     ComparisonStatus,
@@ -34,6 +36,15 @@ from qci.domain.comparison import (
 from qci.domain.run import Run
 
 OpKey = tuple[str, tuple[int, ...]]
+ParameterStatus = Literal["unchanged", "changed", "unavailable"]
+
+
+class _SnapshotFields(TypedDict):
+    """Fields every ``HardwareComparison`` with two snapshots carries."""
+
+    global_snapshot_changed: bool
+    baseline_snapshot_source: SnapshotSource
+    candidate_snapshot_source: SnapshotSource
 
 
 def _op_counts(footprint: PhysicalFootprint) -> dict[OpKey, int]:
@@ -137,6 +148,7 @@ def _compare_parameters(
         b_value = b.value if b else None
         c_value = c.value if c else None
         unit = (b.unit if b else None) or (c.unit if c else None)
+        status: ParameterStatus
         if b_value is None or c_value is None:
             status = "unavailable"
             unavailable.append(f"{label} {name}: unavailable")
@@ -198,7 +210,7 @@ def compare_hardware(
             candidate_snapshot_source=cs.source if cs else None,
         )
 
-    common = {
+    common: _SnapshotFields = {
         "global_snapshot_changed": hash_json(bs.provider_raw) != hash_json(cs.provider_raw),
         "baseline_snapshot_source": bs.source,
         "candidate_snapshot_source": cs.source,

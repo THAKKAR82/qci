@@ -121,27 +121,28 @@ def compare_compilation(baseline: Run, candidate: Run) -> CompilationComparison:
         return CompilationComparison(
             status=ComparisonStatus.UNAVAILABLE, note=_missing(b, c, "compilation record")
         )
-    fields = {
-        "compiler": compare_value(
-            f"{b.compiler.name} {b.compiler.version}", f"{c.compiler.name} {c.compiler.version}"
-        ),
-        "optimization_level": compare_number(
-            b.config.optimization_level, c.config.optimization_level
-        ),
-        "seed_transpiler": compare_value(b.config.seed_transpiler, c.config.seed_transpiler),
-        "initial_layout": compare_value(
-            b.layout.initial if b.layout else None, c.layout.initial if c.layout else None
-        ),
-        "final_layout": compare_value(
-            b.layout.final if b.layout else None, c.layout.final if c.layout else None
-        ),
-    }
+    compiler = compare_value(
+        f"{b.compiler.name} {b.compiler.version}", f"{c.compiler.name} {c.compiler.version}"
+    )
+    optimization_level = compare_number(b.config.optimization_level, c.config.optimization_level)
+    seed_transpiler = compare_value(b.config.seed_transpiler, c.config.seed_transpiler)
+    initial_layout = compare_value(
+        b.layout.initial if b.layout else None, c.layout.initial if c.layout else None
+    )
+    final_layout = compare_value(
+        b.layout.final if b.layout else None, c.layout.final if c.layout else None
+    )
+    fields = [compiler, optimization_level, seed_transpiler, initial_layout, final_layout]
     transpiled = compare_circuit_structure(b.output, c.output)
-    statuses = [f.status for f in fields.values()] + _structure_status(transpiled)
+    statuses = [f.status for f in fields] + _structure_status(transpiled)
     return CompilationComparison(
         status=fields_status(statuses),
         transpiled=transpiled,
-        **fields,
+        compiler=compiler,
+        optimization_level=optimization_level,
+        seed_transpiler=seed_transpiler,
+        initial_layout=initial_layout,
+        final_layout=final_layout,
     )
 
 
@@ -168,24 +169,29 @@ def compare_backend(baseline: Run, candidate: Run) -> BackendComparison:
     if b is None or c is None or bs is None or cs is None:
         note = _missing(b, c, "backend") or _missing(bs, cs, "backend snapshot")
         return BackendComparison(status=ComparisonStatus.UNAVAILABLE, note=note)
-    fields = {
-        "provider": compare_value(b.provider, c.provider),
-        "name": compare_value(b.name, c.name),
-        "version": compare_value(b.version, c.version),
-        "num_qubits": compare_number(b.num_qubits, c.num_qubits),
-        "is_simulator": compare_value(b.is_simulator, c.is_simulator),
-        "snapshot_source": compare_value(bs.source.value, cs.source.value),
-        "calibrated_at": compare_value(
-            bs.calibrated_at.isoformat() if bs.calibrated_at else None,
-            cs.calibrated_at.isoformat() if cs.calibrated_at else None,
-        ),
-    }
+    provider = compare_value(b.provider, c.provider)
+    name = compare_value(b.name, c.name)
+    version = compare_value(b.version, c.version)
+    num_qubits = compare_number(b.num_qubits, c.num_qubits)
+    is_simulator = compare_value(b.is_simulator, c.is_simulator)
+    snapshot_source = compare_value(bs.source.value, cs.source.value)
+    calibrated_at = compare_value(
+        bs.calibrated_at.isoformat() if bs.calibrated_at else None,
+        cs.calibrated_at.isoformat() if cs.calibrated_at else None,
+    )
+    fields = [provider, name, version, num_qubits, is_simulator, snapshot_source, calibrated_at]
     basis = compare_set(bs.basis_gates, cs.basis_gates)
     coupling = compare_set(bs.coupling_edges, cs.coupling_edges)
-    statuses = [f.status for f in fields.values()] + [basis.status, coupling.status]
+    statuses = [f.status for f in fields] + [basis.status, coupling.status]
     return BackendComparison(
         status=fields_status(statuses),
         basis_gates=basis,
         coupling_edges=coupling,
-        **fields,
+        provider=provider,
+        name=name,
+        version=version,
+        num_qubits=num_qubits,
+        is_simulator=is_simulator,
+        snapshot_source=snapshot_source,
+        calibrated_at=calibrated_at,
     )

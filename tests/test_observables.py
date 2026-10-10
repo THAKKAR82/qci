@@ -26,8 +26,8 @@ from qci.storage.sqlite import SqliteRunRepository
 READERS = {"qiskit_ibm": IbmPropertiesCalibrationReader()}
 
 
-def spec(name: str, *bits: str, **kwargs: str) -> ObservableSpec:
-    return ObservableSpec(name=name, bitstrings=list(bits), **kwargs)
+def spec(name: str, *bits: str, classical_register: str | None = None) -> ObservableSpec:
+    return ObservableSpec(name=name, bitstrings=list(bits), classical_register=classical_register)
 
 
 @pytest.fixture

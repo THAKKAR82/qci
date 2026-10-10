@@ -420,7 +420,7 @@ def compare_calibration(
     candidate_footprint: PhysicalFootprint,
     reader: CalibrationReader,
     notes: list[str],
-    common: dict[str, Any],
+    common: _SnapshotFields,  # the TypedDict compare_hardware already builds
     *,
     require_matching_units: bool = False,
 ) -> HardwareComparison:
