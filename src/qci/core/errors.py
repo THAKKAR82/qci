@@ -39,3 +39,7 @@ class CaptureRejectedError(QCIError):
 
 class FixtureExportError(QCIError):
     """A fixture could not be exported safely. Nothing was written."""
+
+
+class ReadOnlyStoreError(QCIError):
+    """A write was attempted through a repository opened read-only."""

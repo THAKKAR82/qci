@@ -12,6 +12,7 @@ from pathlib import Path
 from sqlalchemy import (
     Column,
     Connection,
+    Engine,
     Float,
     Index,
     Integer,
@@ -25,14 +26,14 @@ from sqlalchemy import (
     select,
 )
 
-from qci.core.errors import SchemaVersionError, SnapshotNotFoundError
+from qci.core.errors import ReadOnlyStoreError, SchemaVersionError, SnapshotNotFoundError
 from qci.domain.snapshot import (
     CalibrationSnapshot,
     Measurement,
     SnapshotCapture,
     SnapshotListItem,
 )
-from qci.storage.sqlite import schema_meta_table
+from qci.storage.sqlite import check_schema, open_read_only, schema_meta_table
 
 SNAPSHOT_DB_SCHEMA_VERSION = 1
 _SCHEMA_KEY = "snapshot_db_schema"
@@ -99,13 +100,24 @@ def _measurement_row(snapshot_id: str, seq: int, m: Measurement) -> dict[str, ob
     }
 
 
+_TABLES = {"calibration_snapshots", "snapshot_captures", "calibration_measurements"}
+
+
 class SqliteSnapshotRepository:
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, *, read_only: bool = False) -> None:
+        """``read_only`` never creates or writes the store. A store without the snapshot
+        tables has no snapshots."""
+        self._read_only = read_only
+        if read_only:
+            self._engine: Engine | None = open_read_only(db_path, _TABLES)
+            if self._engine is not None:
+                check_schema(self._engine, _SCHEMA_KEY, SNAPSHOT_DB_SCHEMA_VERSION, db_path)
+            return
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._engine = create_engine(f"sqlite:///{db_path}")
-        schema_meta_table.create(self._engine, checkfirst=True)
-        _metadata.create_all(self._engine)
-        with self._engine.begin() as conn:
+        self._engine = engine = create_engine(f"sqlite:///{db_path}")
+        schema_meta_table.create(engine, checkfirst=True)
+        _metadata.create_all(engine)
+        with engine.begin() as conn:
             row = conn.execute(
                 select(schema_meta_table.c.value).where(schema_meta_table.c.key == _SCHEMA_KEY)
             ).first()
@@ -136,6 +148,8 @@ class SqliteSnapshotRepository:
         measurements: Sequence[Measurement],
         capture: SnapshotCapture,
     ) -> tuple[CalibrationSnapshot, bool]:
+        if self._read_only or self._engine is None:
+            raise ReadOnlyStoreError("this snapshot repository was opened read-only")
         with self._engine.begin() as conn:
             existing = self._by_hash(conn, snapshot.content_hash)
             if existing is None:
@@ -173,23 +187,29 @@ class SqliteSnapshotRepository:
         return stored, existing is None
 
     def get(self, snapshot_id: str) -> CalibrationSnapshot:
-        with self._engine.connect() as conn:
-            row = conn.execute(
-                select(snapshots_table.c.record_json).where(
-                    snapshots_table.c.snapshot_id == snapshot_id
-                )
-            ).first()
+        row = None
+        if self._engine is not None:
+            with self._engine.connect() as conn:
+                row = conn.execute(
+                    select(snapshots_table.c.record_json).where(
+                        snapshots_table.c.snapshot_id == snapshot_id
+                    )
+                ).first()
         if row is None:
             raise SnapshotNotFoundError(f"no snapshot with id {snapshot_id!r}")
         return CalibrationSnapshot.model_validate_json(row.record_json)
 
     def get_by_hash(self, content_hash: str) -> CalibrationSnapshot | None:
+        if self._engine is None:
+            return None
         with self._engine.connect() as conn:
             return self._by_hash(conn, content_hash)
 
     def list_snapshots(
         self, backend_name: str | None = None, limit: int | None = None
     ) -> list[SnapshotListItem]:
+        if self._engine is None:
+            return []
         s, c = snapshots_table.c, captures_table.c
         query = (
             select(
@@ -214,6 +234,8 @@ class SqliteSnapshotRepository:
         return [SnapshotListItem.model_validate(row._asdict()) for row in rows]
 
     def measurements(self, snapshot_id: str) -> list[Measurement]:
+        if self._engine is None:
+            return []
         m = measurements_table.c
         with self._engine.connect() as conn:
             rows = conn.execute(
@@ -232,6 +254,8 @@ class SqliteSnapshotRepository:
         ]
 
     def captures(self, snapshot_id: str) -> list[SnapshotCapture]:
+        if self._engine is None:
+            return []
         c = captures_table.c
         with self._engine.connect() as conn:
             rows = conn.execute(
@@ -242,4 +266,5 @@ class SqliteSnapshotRepository:
         return [SnapshotCapture.model_validate(row._asdict()) for row in rows]
 
     def close(self) -> None:
-        self._engine.dispose()
+        if self._engine is not None:
+            self._engine.dispose()

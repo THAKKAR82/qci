@@ -43,12 +43,13 @@ def store_dir() -> Path:
     return Path(home) if home else Path.cwd() / ".qci"
 
 
-def _repository() -> SqliteRunRepository:
-    return SqliteRunRepository(store_dir() / DB_FILENAME)
+def _repository(*, read_only: bool = False) -> SqliteRunRepository:
+    return SqliteRunRepository(store_dir() / DB_FILENAME, read_only=read_only)
 
 
-def _snapshot_repository() -> SqliteSnapshotRepository:
-    return SqliteSnapshotRepository(store_dir() / DB_FILENAME)
+def _snapshot_repository(*, read_only: bool = False) -> SqliteSnapshotRepository:
+    """``read_only`` for commands that only read: they never create or write the store."""
+    return SqliteSnapshotRepository(store_dir() / DB_FILENAME, read_only=read_only)
 
 
 snapshot_app = typer.Typer(
@@ -429,7 +430,7 @@ def snapshots(
     limit: Annotated[int, typer.Option(min=1, help="Maximum number of snapshots.")] = 20,
 ) -> None:
     """List calibration snapshots, newest first capture first."""
-    repository = _snapshot_repository()
+    repository = _snapshot_repository(read_only=True)
     try:
         items = repository.list_snapshots(backend_name=backend, limit=limit)
     finally:
@@ -481,7 +482,7 @@ def snapshot_show(
     as_json: Annotated[bool, typer.Option("--json", help="Print the full record as JSON.")] = False,
 ) -> None:
     """Display a stored calibration snapshot."""
-    repository = _snapshot_repository()
+    repository = _snapshot_repository(read_only=True)
     try:
         snap = repository.get(snapshot_id)
         captures = repository.captures(snapshot_id)
@@ -520,7 +521,7 @@ def snapshot_export(
             err=True,
         )
         raise typer.Exit(code=1) from exc
-    repository = _snapshot_repository()
+    repository = _snapshot_repository(read_only=True)
     try:
         text = SnapshotService(repository).export_fixture(
             snapshot_id, redact=redact_payload, secrets=secrets
@@ -567,8 +568,8 @@ def snapshot_compare(
     from qci.cli.render_snapshot_compare import render_snapshot_comparison
     from qci.services.snapshot_compare_service import SnapshotCompareService
 
-    runs = _repository()
-    snapshots_repo = _snapshot_repository()
+    runs = _repository(read_only=True)
+    snapshots_repo = _snapshot_repository(read_only=True)
     try:
         result = SnapshotCompareService(
             runs, snapshots_repo, {PROVIDER_ID: snapshot_comparison_support()}
