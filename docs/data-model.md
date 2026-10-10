@@ -182,6 +182,27 @@ Semantics:
   `fixture_origin` (`live_capture` or `synthetic`), `fixture_note`, the snapshot with
   placeholder IDs, its measurements and its captures.
 
+### Snapshot comparison (M1.3c)
+
+`SnapshotComparison` (`qci/domain/snapshot.py`, method version `qci.compare.snapshot.1`) is
+directional, baseline to candidate, and never persisted. It holds both `SnapshotSide`s (ID,
+provider, backend, content hash, source, `captured_at`, `calibrated_at`), the elapsed time
+between captures as a `calculated` metric, the footprint run ID and backend, whether a
+footprint backend mismatch was allowed, the footprint, and a `HardwareComparison`.
+
+- `snapshot_comparison_id` is deterministic: a hash of both snapshot IDs, the footprint run
+  ID, the mismatch flag and the method version.
+- `global_snapshot_changed` compares content hashes.
+- A parameter whose unit differs has `status="not_comparable"`, both raw values, `delta=None`
+  and `unit=None`. The reason names the resource, the parameter and both units. Run
+  comparison never produces this status (D20).
+- `unchanged_values` labels each unchanged parameter `re_measured_same_value` (measurement
+  dates differ), `not_re_measured` (equal dates: one measurement reported twice) or
+  `measurement_date_unavailable`. Run comparison does not make this distinction (D23).
+- `error_parameters` is the provider's explicit list of error-type names (IBM: `gate_error`,
+  `readout_error`, `init_error`). `error_values_at_one` lists each footprint resource's listed
+  parameter whose value is exactly 1, per side, as given.
+
 ## Deferred concepts (not modeled in M0)
 
 These appear in the product vision. They will be modeled when a milestone needs them, with an

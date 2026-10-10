@@ -1,7 +1,8 @@
 # PLAN
 
-**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3c.
-M1.3b is done (capture and storage, branch `feat/m1.3b-snapshot-capture`). M1.3a is done
+**Current milestone: M1.3, read-only live calibration snapshots. Current sub-step: M1.3c,
+implemented on branch `feat/m1.3c-snapshot-diff` and awaiting the user's manual live check
+and review. No later step is scheduled. M1.3b is done (capture and storage, branch `feat/m1.3b-snapshot-capture`). M1.3a is done
 (ADR 0005 accepted 2026-10-09). M1.1 (including M1.1v-addendum) and M1.2 are complete.**
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
@@ -463,7 +464,9 @@ Sub-steps, each reviewed separately:
 
 **Acceptance:** defined in ADR 0005, approved on 2026-10-09 with amendments, and copied here.
 Two M1.3c criteria (error parameters equal to 1, and re-measured versus not re-measured
-parameters) were added at the M1.3b review on 2026-10-10.
+parameters) were added at the M1.3b review on 2026-10-10. At the start of M1.3c the error-type
+parameters became an explicit list, and the re-measured distinction was limited to snapshot
+comparison (D23).
 
 M1.3a findings that shape these criteria: the installed qiskit-ibm-runtime 0.50.0 forwards a
 `datetime` to the server, but its own docstrings say this is not implemented, so capture is
@@ -514,54 +517,58 @@ used, never environment variables.
 
 ### M1.3c acceptance criteria (approved)
 
-- [ ] The first commit adds golden compare JSON for every `compare_hardware` exit listed in
+- [x] The first commit adds golden compare JSON for every `compare_hardware` exit listed in
       ADR 0005 section 7 and passes on unmodified `src/`.
-- [ ] The second commit extracts `compare_calibration` and changes no golden file. Its golden
+- [x] The second commit extracts `compare_calibration` and changes no golden file. Its golden
       test, and all existing compare tests, pass unchanged. `ComparisonPolicy.version`
       stays `qci.compare.v3` and `ENGINE_VERSION` stays `qci.compare.engine.4`.
-- [ ] `qci snapshot compare BASE CAND --footprint-run RUN
+- [x] `qci snapshot compare BASE CAND --footprint-run RUN
       [--allow-footprint-backend-mismatch] [--json]` compares only the
       calibration of the run's physical footprint, using `IbmPropertiesCalibrationReader`
       unchanged.
-- [ ] Snapshots from different providers or backends give `not_comparable` with a reason, and
+- [x] Snapshots from different providers or backends give `not_comparable` with a reason, and
       no parameter comparisons.
-- [ ] `compare_calibration` takes `require_matching_units`, defaulting to `False`.
+- [x] `compare_calibration` takes `require_matching_units`, defaulting to `False`.
       `compare_hardware` does not pass it, and the golden files are unchanged. The snapshot
       path passes `True`.
-- [ ] In the snapshot path, a parameter whose unit differs between the captures, including
+- [x] In the snapshot path, a parameter whose unit differs between the captures, including
       `None` against a unit, has `status="not_comparable"`, both raw values, `delta=None` and
       a reason in `HardwareComparison.reason` naming the resource, the parameter and both
       units. No unit is converted. With no other `changed` parameter, the status is
       `partially_comparable` and `relevant_hardware_changed` is null.
-- [ ] A test feeds the same unit mismatch through run comparison and gets the current
+- [x] A test feeds the same unit mismatch through run comparison and gets the current
       behavior: no `not_comparable` parameter and output identical to before.
-- [ ] A footprint run whose backend name differs from the snapshots' gives `not_comparable`,
+- [x] A footprint run whose backend name differs from the snapshots' gives `not_comparable`,
       with a reason naming both backends, unless `--allow-footprint-backend-mismatch` is set.
-- [ ] With the flag, the output always has a note naming both backends. If any footprint
+- [x] With the flag, the output always has a note naming both backends. If any footprint
       resource is missing from either snapshot, the result is `not_comparable`, with a reason
       listing every missing resource, and no parameter comparisons. Tests cover a qubit at or
       above `n_qubits`, a two-qubit gate on an ordered pair not in its `coupling_map`, and a
       `measure` on a present qubit (present).
-- [ ] Without a backend mismatch, no presence check runs, and a footprint qubit outside a
+- [x] Without a backend mismatch, no presence check runs, and a footprint qubit outside a
       snapshot's range is unavailable, as now.
-- [ ] On the committed real fixture against a synthetic second snapshot derived from it:
+- [x] On the committed real fixture against a synthetic second snapshot derived from it:
       a changed footprint value gives `changed`, with delta = candidate minus baseline; a
       change outside the footprint sets only `global_snapshot_changed`; a removed parameter or
       a gate name absent from the payload gives `unavailable` and
       `relevant_hardware_changed = null`, never 0.
-- [ ] Identical snapshots (same content hash) give `unchanged` and
+- [x] Identical snapshots (same content hash) give `unchanged` and
       `global_snapshot_changed = false`.
-- [ ] For the footprint's resources, the output lists every error-type parameter (a parameter
-      name containing `error`) whose value is exactly 1, stated as the provider's value with no
-      interpretation.
-- [ ] When a parameter's value is unchanged between the two snapshots, the output distinguishes
-      "re-measured, same value" (its measurement date changed) from "not re-measured" (same
-      measurement date), and never presents the second as evidence of stability.
-- [ ] `--json` output is byte-identical across repeated invocations. The comparison is never
+- [x] For the footprint's resources, the output lists every error-type parameter whose value
+      is exactly 1, stated as the provider's value with no interpretation. Error-type
+      parameters are an explicit, documented list in the IBM adapter: `gate_error`,
+      `readout_error` and `init_error`. Names are never matched by substring, and an unlisted
+      parameter is never listed.
+- [x] In snapshot comparison, when a parameter's value is unchanged between the two snapshots,
+      the output distinguishes "re-measured, same value" (its measurement date changed) from
+      "not re-measured" (same measurement date), and never presents the second as evidence of
+      stability. Run comparison output is unchanged (D23).
+- [x] `--json` output is byte-identical across repeated invocations. The comparison is never
       persisted: the database bytes are unchanged after the command.
-- [ ] Rendered and JSON output contain none of the rule 8 words.
+- [x] Rendered and JSON output contain none of the rule 8 words.
 - [ ] Docs updated, all gates pass, and the live capture is run manually by the user. No
-      test performs one.
+      test performs one. (Docs and gates done on `feat/m1.3c-snapshot-diff`; the user's manual
+      live check is pending.)
 
 ## Deferred backlog (unplanned order)
 
@@ -642,3 +649,4 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D20 | Run comparison does not check that baseline and candidate units agree. | Open. Fix at the next policy bump. Snapshot comparison (M1.3c) will report a unit mismatch as `not_comparable` for that parameter and never converts units (ADR 0005 section 7). |
 | D21 | Historical calibration backfill. | `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). Before relying on it: test multiple dates and devices, find how far back it works, and check IBM's terms and rate limits. Capture stays forward-only until then. |
 | D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |
+| D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |

@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
+from qci.core.ports import SnapshotComparisonSupport
 from qci.domain.backend import BackendSnapshot
 from qci.domain.comparison import (
     CalibrationValue,
@@ -15,7 +16,14 @@ from qci.domain.comparison import (
     OperationCalibration,
     QubitCalibration,
 )
-from qci.domain.snapshot import Measurement
+from qci.domain.snapshot import CalibrationSnapshot, Measurement
+
+ERROR_PARAMETERS = ("gate_error", "readout_error", "init_error")
+"""IBM parameters that snapshot comparison treats as error-type, as an explicit list. Names
+are never matched by substring; an unlisted parameter is never reported as an error value."""
+
+PRESENCE_INSTRUCTIONS = ("measure", "reset", "delay")
+"""Present on a device if listed in ``supported_instructions`` and all their qubits exist."""
 
 EXTRACTION_METHOD = "qiskit_ibm.properties"
 EXTRACTION_METHOD_VERSION = "1"
@@ -186,3 +194,101 @@ def extract_measurements(properties: Any) -> list[Measurement]:
         )
     rows += _entry_measurements("general", "general", properties.get("general"))
     return rows
+
+
+def _label(name: str | None, qubits: Sequence[int]) -> str:
+    if name is None:
+        return f"qubit {qubits[0]}"
+    return f"{name}({','.join(str(q) for q in qubits)})"
+
+
+def _int_tuple(raw: Any) -> tuple[int, ...] | None:
+    if isinstance(raw, list) and all(isinstance(x, int) and not isinstance(x, bool) for x in raw):
+        return tuple(raw)
+    return None
+
+
+def missing_resources(
+    provider_raw: Mapping[str, Any],
+    qubits: Sequence[int],
+    operations: Sequence[tuple[str, tuple[int, ...]]],
+) -> list[str]:
+    """Labels of the physical resources a stored IBM configuration does not have.
+
+    A qubit is present if it is below ``n_qubits``. ``measure``, ``reset`` and ``delay`` are
+    present if listed in ``supported_instructions`` and all their qubits are present. Another
+    operation is present if its ``gates`` entry's ``coupling_map`` holds the exact ordered
+    qubits. Anything else is missing, and so is every resource when there is no configuration.
+    """
+    config = provider_raw.get("configuration")
+    if not isinstance(config, Mapping):
+        return [_label(None, (q,)) for q in qubits] + [_label(n, qa) for n, qa in operations]
+    raw_n = config.get("n_qubits")
+    n_qubits = raw_n if isinstance(raw_n, int) and not isinstance(raw_n, bool) else 0
+    raw_supported = config.get("supported_instructions")
+    supported = set(raw_supported) if isinstance(raw_supported, list) else set()
+    coupling: dict[str, set[tuple[int, ...]]] = {}
+    raw_gates = config.get("gates")
+    for gate in raw_gates if isinstance(raw_gates, list) else []:
+        if not isinstance(gate, Mapping) or not isinstance(gate.get("name"), str):
+            continue
+        entries = gate.get("coupling_map")
+        pairs = coupling.setdefault(gate["name"], set())
+        for entry in entries if isinstance(entries, list) else []:
+            ordered = _int_tuple(entry)
+            if ordered is not None:
+                pairs.add(ordered)
+
+    def present(q: int) -> bool:
+        return 0 <= q < n_qubits
+
+    missing = [_label(None, (q,)) for q in qubits if not present(q)]
+    for name, qargs in operations:
+        if name in PRESENCE_INSTRUCTIONS:
+            found = name in supported and all(present(q) for q in qargs)
+        else:
+            found = qargs in coupling.get(name, set())
+        if not found:
+            missing.append(_label(name, qargs))
+    return missing
+
+
+class IbmSnapshotResourceIndex:
+    """``SnapshotResourceIndex`` for stored IBM snapshots."""
+
+    def backend_snapshot(self, snapshot: CalibrationSnapshot) -> BackendSnapshot:
+        config: Any = snapshot.provider_raw.get("configuration")
+        config = config if isinstance(config, Mapping) else {}
+        raw_basis = config.get("basis_gates")
+        raw_coupling = config.get("coupling_map")
+        edges = [
+            (pair[0], pair[1])
+            for pair in (_int_tuple(e) for e in (raw_coupling or []))
+            if pair is not None and len(pair) == 2
+        ]
+        return BackendSnapshot(
+            source=snapshot.source,
+            captured_at=snapshot.captured_at,
+            calibrated_at=snapshot.calibrated_at,
+            basis_gates=[g for g in raw_basis if isinstance(g, str)]
+            if isinstance(raw_basis, list)
+            else [],
+            coupling_edges=edges if isinstance(raw_coupling, list) else [],
+            provider_raw=snapshot.provider_raw,
+        )
+
+    def missing_resources(
+        self,
+        snapshot: CalibrationSnapshot,
+        qubits: Sequence[int],
+        operations: Sequence[tuple[str, tuple[int, ...]]],
+    ) -> list[str]:
+        return missing_resources(snapshot.provider_raw, qubits, operations)
+
+
+def snapshot_comparison_support() -> SnapshotComparisonSupport:
+    return SnapshotComparisonSupport(
+        reader=IbmPropertiesCalibrationReader(),
+        resources=IbmSnapshotResourceIndex(),
+        error_parameters=ERROR_PARAMETERS,
+    )

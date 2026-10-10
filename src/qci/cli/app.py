@@ -535,6 +535,58 @@ def snapshot_export(
     typer.echo(f"wrote {fixture}", err=True)
 
 
+@snapshot_app.command("compare")
+def snapshot_compare(
+    baseline: Annotated[str, typer.Argument(help="Baseline snapshot ID (the reference).")],
+    candidate: Annotated[str, typer.Argument(help="Candidate snapshot ID.")],
+    footprint_run: Annotated[
+        str,
+        typer.Option(
+            help="Run whose physical footprint selects the resources to compare. The run is "
+            "not compared with either snapshot."
+        ),
+    ],
+    allow_footprint_backend_mismatch: Annotated[
+        bool,
+        typer.Option(
+            "--allow-footprint-backend-mismatch",
+            help="Use a footprint run from another backend, such as fake_fez for ibm_fez "
+            "snapshots. Every footprint resource must then exist in both snapshots.",
+        ),
+    ] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Print the full comparison as JSON.")
+    ] = False,
+) -> None:
+    """Report what differs from BASELINE to CANDIDATE snapshot, for one run's footprint.
+
+    Offline and read-only; nothing is stored. Deltas are candidate minus baseline.
+    """
+    from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
+    from qci.adapters.qiskit_ibm.calibration import snapshot_comparison_support
+    from qci.cli.render_snapshot_compare import render_snapshot_comparison
+    from qci.services.snapshot_compare_service import SnapshotCompareService
+
+    runs = _repository()
+    snapshots_repo = _snapshot_repository()
+    try:
+        result = SnapshotCompareService(
+            runs, snapshots_repo, {PROVIDER_ID: snapshot_comparison_support()}
+        ).compare(
+            baseline,
+            candidate,
+            footprint_run,
+            allow_footprint_backend_mismatch=allow_footprint_backend_mismatch,
+        )
+    except (SnapshotNotFoundError, RunNotFoundError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        snapshots_repo.close()
+        runs.close()
+    typer.echo(result.model_dump_json(indent=2) if as_json else render_snapshot_comparison(result))
+
+
 def main() -> None:
     try:
         app()

@@ -11,7 +11,8 @@ only the physical level today, and new code must respect the constraints in
 ```
 cli/            Typer commands: argument parsing and rendering only
   │
-services/       Use-case orchestration (RunService, CompareService, SnapshotService)
+services/       Use-case orchestration (RunService, CompareService, SnapshotService,
+                SnapshotCompareService)
   │  depends on ports, never on adapters directly
 compare/        Pure comparison logic over stored runs: provider-neutral
   │
@@ -49,6 +50,8 @@ All ports are `typing.Protocol` classes in `qci/core/ports.py`.
 | `ProviderAdapter` | Bundles the four ports above for one provider, keyed by provider ID such as `qiskit_ibm`. |
 | `RunRepository` | Insert-only persistence with `save`, `get` and `list`. It has no update or delete. |
 | `CalibrationSource` (M1.3b) | Read a backend's published calibration once. Returns a `CapturedCalibration`: redacted raw payload, UTC-normalized dates, measurements and capture options. |
+| `SnapshotResourceIndex` (M1.3c) | For one provider's stored snapshots: build a `BackendSnapshot` view from the stored configuration, and list the footprint resources a snapshot's device does not have. |
+| `SnapshotComparisonSupport` (M1.3c) | A dataclass bundling one provider's `CalibrationReader`, `SnapshotResourceIndex` and explicit error-type parameter list. |
 | `SnapshotRepository` (M1.3b) | Insert-only snapshot persistence with `save` (deduplicates by content hash and always adds a capture row), `get`, `get_by_hash`, `list_snapshots`, `measurements` and `captures`. It has no update or delete. |
 
 ### Why opaque handles
@@ -99,6 +102,7 @@ The exit codes are a contract.
 | `qci snapshot capture` | 0 | A snapshot was stored, or identical content was recorded as one more capture. |
 | `qci snapshot capture` | 1 | Capture failed. **Nothing was persisted.** The message is sanitized. |
 | `qci snapshot capture` | 2 | The backend is a fake (`fake_*` or a fake object) or a simulator. **Nothing was persisted.** |
+| `qci snapshot compare` | 1 | A snapshot ID or the footprint run ID was not found. Nothing is stored. |
 | `qci snapshot show`, `qci snapshot export` | 1 | A snapshot ID was not found, the saved account could not be read for the export scan, or the export was unsafe. Export writes nothing. |
 | any | 1 | Any other `QCIError` that reaches `main()`. |
 | any | 2 | A usage error reported by Typer. |
@@ -194,6 +198,26 @@ the real client: a session guard in `tests/conftest.py` blocks `QiskitRuntimeSer
 replaces local IDs with placeholders, writes sorted plain JSON, and aborts without writing if
 the text contains the saved account's token, instance or URL verbatim, or if anything outside
 the provider payload matches a redaction rule.
+
+## M1.3c snapshot comparison flow
+
+Offline and read-only. See ADR 0005, section 7.
+
+```
+qci snapshot compare BASE CAND --footprint-run RUN [--allow-footprint-backend-mismatch] [--json]
+  1. load both snapshots and the run                     → exit 1 if an ID is unknown
+  2. different provider or backend                       → not_comparable, no parameters
+  3. footprint_for_run(RUN) not available                → not_comparable (dynamic) or unavailable
+  4. run backend != snapshot backend, no flag            → not_comparable, both backends named
+  5. with the flag: SnapshotResourceIndex.missing_resources on each snapshot
+                                                         → not_comparable if anything is missing
+  6. compare_calibration(..., require_matching_units=True)
+  7. label unchanged values by measurement date; list error-type values equal to 1
+```
+
+`compare_calibration` is the calibration core shared with run comparison. `compare_hardware`
+calls it without `require_matching_units`, so run comparison output is unchanged, which the
+golden files in `tests/golden/compare/` pin byte for byte.
 
 ## Storage (M0)
 

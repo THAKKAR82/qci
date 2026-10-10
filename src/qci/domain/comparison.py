@@ -266,7 +266,8 @@ class ParameterComparison(DomainModel):
     qubits: tuple[int, ...]
     parameter: str
     unit: str | None
-    status: Literal["unchanged", "changed", "unavailable"]
+    status: Literal["unchanged", "changed", "unavailable", "not_comparable"]
+    """``not_comparable`` only in snapshot comparison: the two units differ (ADR 0005)."""
     baseline: float | str | None
     candidate: float | str | None
     delta: float | None = None

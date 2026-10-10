@@ -120,6 +120,26 @@ class RunRepository(Protocol):
         ...
 
 
+class SnapshotResourceIndex(Protocol):
+    """Reads one provider's stored snapshot configuration (ADR 0005, section 7)."""
+
+    def backend_snapshot(self, snapshot: CalibrationSnapshot) -> BackendSnapshot:
+        """A ``BackendSnapshot`` view of a stored snapshot, for a ``CalibrationReader``."""
+        ...
+
+    def missing_resources(
+        self,
+        snapshot: CalibrationSnapshot,
+        qubits: Sequence[int],
+        operations: Sequence[tuple[str, tuple[int, ...]]],
+    ) -> list[str]:
+        """Labels of the given physical resources the snapshot's device does not have.
+
+        Presence is about the device, not about calibration: a present resource can still
+        have unavailable calibration."""
+        ...
+
+
 class CalibrationReader(Protocol):
     """Selects provider calibration for specific physical resources from a stored snapshot.
 
@@ -152,6 +172,17 @@ class CapturedCalibration:
     extraction_method: str
     extraction_method_version: str
     environment: dict[str, str]
+
+
+@dataclass(frozen=True)
+class SnapshotComparisonSupport:
+    """What snapshot comparison needs from one provider's adapter."""
+
+    reader: CalibrationReader
+    resources: SnapshotResourceIndex
+    error_parameters: tuple[str, ...]
+    """The provider's error-type parameter names, as an explicit list. A parameter not listed
+    is never reported as an error value."""
 
 
 class CalibrationSource(Protocol):

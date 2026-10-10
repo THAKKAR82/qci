@@ -19,7 +19,7 @@ from typing import Literal, TypedDict
 from qci.compare.values import compare_set, compare_value
 from qci.core.hashing import hash_json
 from qci.core.ports import CalibrationReader
-from qci.domain.backend import SnapshotSource
+from qci.domain.backend import BackendSnapshot, SnapshotSource
 from qci.domain.comparison import (
     CalibrationValue,
     ComparisonStatus,
@@ -36,10 +36,10 @@ from qci.domain.comparison import (
 from qci.domain.run import Run
 
 OpKey = tuple[str, tuple[int, ...]]
-ParameterStatus = Literal["unchanged", "changed", "unavailable"]
+ParameterStatus = Literal["unchanged", "changed", "unavailable", "not_comparable"]
 
 
-class _SnapshotFields(TypedDict):
+class SnapshotFields(TypedDict):
     """Fields every ``HardwareComparison`` with two snapshots carries."""
 
     global_snapshot_changed: bool
@@ -135,7 +135,9 @@ def _compare_parameters(
     out: list[ParameterComparison],
     date_changes: list[str],
     unavailable: list[str],
+    mismatched: list[str] | None = None,
 ) -> None:
+    """``mismatched`` is given only when units must match; it collects their reasons."""
     label = _resource_label(kind, operation, qubits)
     if baseline is None or candidate is None:
         side = "baseline" if baseline is None else "candidate"
@@ -148,18 +150,29 @@ def _compare_parameters(
         b_value = b.value if b else None
         c_value = c.value if c else None
         unit = (b.unit if b else None) or (c.unit if c else None)
+        b_unit, c_unit = (b.unit if b else None), (c.unit if c else None)
         status: ParameterStatus
         if b_value is None or c_value is None:
             status = "unavailable"
             unavailable.append(f"{label} {name}: unavailable")
+        elif mismatched is not None and b_unit != c_unit:
+            status, unit = "not_comparable", None
+            mismatched.append(
+                f"{label} {name}: units differ (baseline {b_unit}, candidate {c_unit}); "
+                "not compared"
+            )
         else:
             status = "changed" if b_value != c_value else "unchanged"
         delta = None
-        if isinstance(b_value, float | int) and isinstance(c_value, float | int):
+        if (
+            status != "not_comparable"
+            and isinstance(b_value, float | int)
+            and isinstance(c_value, float | int)
+        ):
             delta = float(c_value - b_value)
         b_date = b.calibrated_at if b else None
         c_date = c.calibrated_at if c else None
-        if status != "unavailable" and b_date != c_date:
+        if status in ("changed", "unchanged") and b_date != c_date:
             date_changes.append(f"{label} {name}: calibration date {b_date} -> {c_date}")
         out.append(
             ParameterComparison(
@@ -210,7 +223,7 @@ def compare_hardware(
             candidate_snapshot_source=cs.source if cs else None,
         )
 
-    common: _SnapshotFields = {
+    common: SnapshotFields = {
         "global_snapshot_changed": hash_json(bs.provider_raw) != hash_json(cs.provider_raw),
         "baseline_snapshot_source": bs.source,
         "candidate_snapshot_source": cs.source,
@@ -239,7 +252,29 @@ def compare_hardware(
             reason=f"no calibration reader for provider {baseline.backend.provider!r}",
             **common,
         )
+    return compare_calibration(
+        bs, cs, baseline_footprint, candidate_footprint, reader, notes, common
+    )
 
+
+def compare_calibration(
+    baseline_snapshot: BackendSnapshot,
+    candidate_snapshot: BackendSnapshot,
+    baseline_footprint: PhysicalFootprint,
+    candidate_footprint: PhysicalFootprint,
+    reader: CalibrationReader,
+    notes: list[str],
+    common: SnapshotFields,
+    *,
+    require_matching_units: bool = False,
+) -> HardwareComparison:
+    """Compare the calibration of the physical resources both footprints use.
+
+    Both footprints must be available. ``notes`` are prepended to the reason. With
+    ``require_matching_units``, a parameter whose unit differs between the snapshots is
+    ``not_comparable`` and never converted (ADR 0005, section 7). Run comparison leaves it off.
+    """
+    bs, cs = baseline_snapshot, candidate_snapshot
     shared_qubits = sorted(set(baseline_footprint.qubits) & set(candidate_footprint.qubits))
     shared_ops = sorted(set(_op_counts(baseline_footprint)) & set(_op_counts(candidate_footprint)))
     b_cal = reader.select(bs, shared_qubits, shared_ops)
@@ -250,6 +285,7 @@ def compare_hardware(
     parameters: list[ParameterComparison] = []
     date_changes: list[str] = []
     unavailable: list[str] = []
+    mismatched: list[str] = []
     for q in shared_qubits:
         _compare_parameters(
             ResourceKind.QUBIT,
@@ -260,6 +296,7 @@ def compare_hardware(
             parameters,
             date_changes,
             unavailable,
+            mismatched if require_matching_units else None,
         )
     for name, qargs in shared_ops:
         _compare_parameters(
@@ -271,8 +308,10 @@ def compare_hardware(
             parameters,
             date_changes,
             unavailable,
+            mismatched if require_matching_units else None,
         )
     excluded = sorted(set(b_cal.excluded) | set(c_cal.excluded))
+    notes = [*notes, *mismatched]
     any_changed = any(p.status == "changed" for p in parameters)
 
     if not resources_identical(baseline_footprint, candidate_footprint):
@@ -286,6 +325,8 @@ def compare_hardware(
         relevant, status = True, ComparisonStatus.CHANGED
     elif unavailable:
         notes.append("some relevant calibration data is unavailable")
+        relevant, status = None, ComparisonStatus.PARTIALLY_COMPARABLE
+    elif mismatched:
         relevant, status = None, ComparisonStatus.PARTIALLY_COMPARABLE
     else:
         relevant, status = False, ComparisonStatus.UNCHANGED

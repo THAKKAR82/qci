@@ -96,6 +96,8 @@ qci snapshot capture --backend ibm_fez [--account default-ibm-quantum-platform]
 qci snapshots [--backend ibm_fez] [--limit N]
 qci snapshot show <SNAPSHOT_ID> [--json]
 qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]   # developers: test fixture
+qci snapshot compare <BASELINE_ID> <CANDIDATE_ID> --footprint-run <RUN_ID> \
+    [--allow-footprint-backend-mismatch] [--json]
 ```
 
 - `capture` reads once and exits. It does no polling, scheduling or retries. Run it again to
@@ -111,6 +113,27 @@ qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]   # developers
   Individual parameters carry their own dates.
 
 Snapshots are stored in the same `qci.db` as runs, in separate tables.
+
+### Comparing two snapshots
+
+`qci snapshot compare` is offline. It reports what differs in the calibration of one stored
+run's physical footprint, from the baseline snapshot to the candidate snapshot. The run only
+selects which physical qubits and operations are read. It is not compared with either
+snapshot. Nothing is stored.
+
+- Both snapshots must be of the same provider and backend. Otherwise the result is
+  `not_comparable`.
+- The footprint run must be on the snapshots' backend. To scope `ibm_fez` snapshots by a run
+  compiled for `fake_fez`, pass `--allow-footprint-backend-mismatch`. The output then names
+  both backends, and every footprint qubit and operation must exist in both snapshots, or the
+  result is `not_comparable` and lists what is missing.
+- A parameter whose unit differs between the snapshots is not compared, and units are never
+  converted.
+- Unchanged values are labeled by their measurement dates: re-measured with the same value,
+  or not re-measured. A value that was not re-measured is one measurement reported twice. It
+  is not evidence that the value held constant between the captures.
+- `gate_error`, `readout_error` and `init_error` values of exactly 1 on footprint resources
+  are listed as the provider reported them. QCI does not interpret them.
 
 ## What a run captures (M0)
 
