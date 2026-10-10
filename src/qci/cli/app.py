@@ -178,7 +178,7 @@ def runs(
     limit: Annotated[int, typer.Option(min=1, help="Maximum number of runs to list.")] = 20,
 ) -> None:
     """List persisted runs, newest first."""
-    repository = _repository()
+    repository = _repository(read_only=True)
     try:
         items = repository.list_runs(limit=limit)
     finally:
@@ -332,7 +332,7 @@ def compare(
     from qci.cli.render_compare import render_comparison
     from qci.services.compare_service import CompareService
 
-    repository = _repository()
+    repository = _repository(read_only=True)
     try:
         result = CompareService(
             repository, {PROVIDER_ID: IbmPropertiesCalibrationReader()}
@@ -354,7 +354,7 @@ def show(
     as_json: Annotated[bool, typer.Option("--json", help="Print the full record as JSON.")] = False,
 ) -> None:
     """Display a persisted run."""
-    repository = _repository()
+    repository = _repository(read_only=True)
     try:
         record = repository.get(run_id)
     except RunNotFoundError as exc:

@@ -231,11 +231,12 @@ golden files in `tests/golden/compare/` pin byte for byte.
   `snapshot_captures` and `calibration_measurements`, owned by `SqliteSnapshotRepository`.
   They record `snapshot_db_schema = 1` in `schema_meta`. The `runs` table and
   `DB_SCHEMA_VERSION` are untouched. See [ADR 0005](adr/0005-live-calibration-snapshots.md).
-- Read-only snapshot commands (`qci snapshots`, `qci snapshot show`, `qci snapshot export` and
-  `qci snapshot compare`) open both repositories with `read_only=True`. SQLite then opens the
-  file with `mode=ro`, so these commands never create the file, a table or a `schema_meta`
-  row. A missing file or missing tables read as an empty store, so the result is "No
-  snapshots recorded yet." or an unknown-ID error. A write through a read-only repository
+- Commands that only read (`qci runs`, `qci show`, `qci compare`, `qci snapshots`,
+  `qci snapshot show`, `qci snapshot export` and `qci snapshot compare`) open their
+  repositories with `read_only=True`. SQLite then opens the file with `mode=ro`, so these
+  commands never create the file, a table or a `schema_meta` row. A missing file or missing
+  tables read as an empty store, so the result is "No runs recorded yet.", "No snapshots
+  recorded yet." or an unknown-ID error. A write through a read-only repository
   raises `ReadOnlyStoreError`.
 
 The document-plus-index-columns design keeps the Run model free to evolve. Columns are added

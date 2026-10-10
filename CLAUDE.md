@@ -57,6 +57,8 @@ Work is delivered in small, reviewed steps. For every step:
 
 1. Read CLAUDE.md and PLAN.md first. Implement only the step named in the prompt.
 2. Start from a clean tree on up-to-date `main`. Create the branch named in the prompt.
+   "No network" in a step prompt means no IBM or other service calls; git fetch to stay
+   current with main is allowed.
 3. Before writing code, print a short design: files to touch, models and functions to add, and
    tests to add. If anything in PLAN.md is ambiguous, contradictory, or wrong given the actual
    code, stop and ask instead of guessing.
@@ -99,6 +101,8 @@ Never start the next step without explicit approval.
 
 - Python >= 3.12, fully typed, `mypy --strict` clean, Ruff for lint and format.
 - Pydantic v2 domain models: `frozen=True`, `extra="forbid"`.
+- Commands that only read (list, show, compare, export) open the store read-only (SQLite
+  mode=ro) and never create or modify it.
 - Ports are `typing.Protocol`s in `qci/core/ports.py`; native SDK objects cross the service
   layer only as opaque `object` handles owned by the adapter.
 - `openqasm3` is the vendor-neutral OpenQASM parser, not a provider SDK. It may be used outside

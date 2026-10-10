@@ -1,4 +1,8 @@
-"""Read-only commands never write to the store: no file, table or schema row is created."""
+"""Read-only commands never write to the store: no file, table or schema row is created.
+
+Covers the run commands (runs, show, compare) and the snapshot commands (snapshots, snapshot
+show, export and compare).
+"""
 
 import sqlite3
 from pathlib import Path
@@ -113,6 +117,67 @@ def _save_snapshot(db: Path, snapshot_id: str = "SNAP") -> CalibrationSnapshot:
     finally:
         repository.close()
     return stored
+
+
+# Each read-only run command, with its expected exit code against a store without runs.
+RUN_COMMANDS: list[tuple[list[str], int]] = [
+    (["runs"], 0),
+    (["show", "NOPE"], 1),
+    (["show", "NOPE", "--json"], 1),
+    (["compare", "NOPE", "NOPE2"], 1),
+    (["compare", "NOPE", "NOPE2", "--json"], 1),
+]
+
+
+@pytest.mark.parametrize(("args", "code"), RUN_COMMANDS, ids=lambda v: str(v))
+def test_read_only_run_commands_leave_a_snapshots_only_store_byte_identical(
+    home: Path, tmp_path: Path, args: list[str], code: int
+) -> None:
+    db = home / "qci.db"
+    _save_snapshot(db)
+    before = db.read_bytes()
+
+    exit_code, out, err = _invoke(args, tmp_path)
+
+    assert exit_code == code, err
+    assert db.read_bytes() == before
+    assert "runs" not in _tables(db)
+    assert sorted(p.name for p in home.iterdir()) == ["qci.db"]
+    if args[0] == "runs":
+        assert out.strip() == "No runs recorded yet."
+    else:
+        assert "error: no run with id 'NOPE'" in err
+
+
+@pytest.mark.parametrize(("args", "code"), RUN_COMMANDS, ids=lambda v: str(v))
+def test_read_only_run_commands_never_create_a_store(
+    home: Path, tmp_path: Path, args: list[str], code: int
+) -> None:
+    exit_code, _, err = _invoke(args, tmp_path)
+    assert exit_code == code, err
+    assert not home.exists()
+
+
+def test_read_only_run_commands_on_stored_runs_leave_the_store_byte_identical(
+    home: Path, tmp_path: Path
+) -> None:
+    repository = SqliteRunRepository(home / "qci.db")
+    repository.save(make_run("RUNA"))
+    repository.save(make_run("RUNB"))
+    repository.close()
+    db = home / "qci.db"
+    before = db.read_bytes()
+    for args in (
+        ["runs"],
+        ["show", "RUNA"],
+        ["show", "RUNA", "--json"],
+        ["compare", "RUNA", "RUNB"],
+        ["compare", "RUNA", "RUNB", "--json"],
+    ):
+        exit_code, out, err = _invoke(args, tmp_path)
+        assert exit_code == 0, (args, err)
+        assert out
+        assert db.read_bytes() == before, args
 
 
 def test_snapshot_compare_on_a_snapshots_only_store_reports_the_unknown_run(
