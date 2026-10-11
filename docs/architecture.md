@@ -180,6 +180,7 @@ Read-only. QCI executes nothing on hardware. See [ADR 0005](adr/0005-live-calibr
 
 ```
 qci snapshot capture --backend NAME [--account ACCOUNT]
+  0. check the snapshot store read-only                 → exit 1 if damaged or another version
   1. reject fake_* names                                → exit 2, no client built
   2. QiskitRuntimeService(name=ACCOUNT)                 → saved account only, never env vars
   3. service.backend(NAME, use_fractional_gates=False)  → reject fakes and simulators (exit 2)
@@ -240,7 +241,15 @@ golden files in `tests/golden/compare/` pin byte for byte.
   yet.", "No snapshots recorded yet." or an unknown-ID error. A damaged store is an error,
   never empty: some but not all of a store's tables, or its tables without the `schema_meta`
   table or its version row (`db_schema` for runs, `snapshot_db_schema` for snapshots), raise
-  `DamagedStoreError` naming what is missing, and the command exits 1. Detection only reads. A write through a read-only repository
+  `DamagedStoreError` naming what is missing, and the command exits 1. Detection only reads.
+- Write commands use the same check before writing anything. Opening a writable repository
+  first inspects the store read-only: an empty store gets its tables and version row as
+  before, while a damaged or other-version store raises with nothing written. `qci run` opens
+  its repository before `RunService.run`, so the check precedes loading the workload and
+  creating any run record, succeeded or failed. `qci snapshot capture` checks the snapshot
+  store read-only before building the client, and again when it opens the store to save.
+  The check is per store: damage to the snapshot store does not block `qci run`, and damage
+  to the run store does not block capture. A write through a read-only repository
   raises `ReadOnlyStoreError`.
 
 The document-plus-index-columns design keeps the Run model free to evolve. Columns are added

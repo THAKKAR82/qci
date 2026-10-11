@@ -161,6 +161,8 @@ def run(
         execution_config=ExecutionConfig(shots=shots, seed_simulator=seeds.simulator),
         tags=_parse_tags(tag or []),
     )
+    # Opening checks the store first: a damaged or other-version store exits 1 here, before
+    # the workload is loaded and before any run record, succeeded or failed, exists.
     repository = _repository()
     try:
         result = RunService(QiskitIbmAdapter(), repository).run(request)
@@ -402,6 +404,9 @@ def snapshot_capture(
     Uses the network. Runs once: no retries, polling or scheduling. Content identical to an
     existing snapshot adds only a capture record. On any error nothing is stored.
     """
+    # Check the store before the network read: a damaged or other-version store exits 1
+    # with no client built. Read-only, so an absent store is not created here.
+    _snapshot_repository(read_only=True).close()
     source = ibm_live.IbmLiveCalibrationSource(account=account)
     try:
         captured = source.capture(backend)

@@ -109,13 +109,19 @@ def open_read_only(
 class SqliteRunRepository:
     def __init__(self, db_path: Path, *, read_only: bool = False) -> None:
         """``read_only`` never creates or writes the store. A missing or empty store has no
-        runs; a damaged one raises ``DamagedStoreError``."""
+        runs. In either mode, a damaged store raises ``DamagedStoreError`` and another version
+        raises ``SchemaVersionError`` before anything is written."""
         self._read_only = read_only
         if read_only:
             self._engine: Engine | None = open_read_only(
                 db_path, "run", {"runs"}, "db_schema", DB_SCHEMA_VERSION
             )
             return
+        # Check before writing anything: a damaged or other-version store raises here, with
+        # nothing created. Only an empty store gets tables and a version row below.
+        probe = open_read_only(db_path, "run", {"runs"}, "db_schema", DB_SCHEMA_VERSION)
+        if probe is not None:
+            probe.dispose()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._engine = engine = create_engine(f"sqlite:///{db_path}")
         _metadata.create_all(engine)

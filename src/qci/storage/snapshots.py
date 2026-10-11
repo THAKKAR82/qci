@@ -106,13 +106,21 @@ _TABLES = {"calibration_snapshots", "snapshot_captures", "calibration_measuremen
 class SqliteSnapshotRepository:
     def __init__(self, db_path: Path, *, read_only: bool = False) -> None:
         """``read_only`` never creates or writes the store. A store with none of the snapshot
-        tables has no snapshots; a damaged one raises ``DamagedStoreError``."""
+        tables has no snapshots. In either mode, a damaged store raises ``DamagedStoreError``
+        and another version raises ``SchemaVersionError`` before anything is written."""
         self._read_only = read_only
         if read_only:
             self._engine: Engine | None = open_read_only(
                 db_path, "snapshot", _TABLES, _SCHEMA_KEY, SNAPSHOT_DB_SCHEMA_VERSION
             )
             return
+        # Check before writing anything: a damaged or other-version store raises here, with
+        # nothing created. Only an empty store gets tables and a version row below.
+        probe = open_read_only(
+            db_path, "snapshot", _TABLES, _SCHEMA_KEY, SNAPSHOT_DB_SCHEMA_VERSION
+        )
+        if probe is not None:
+            probe.dispose()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._engine = engine = create_engine(f"sqlite:///{db_path}")
         schema_meta_table.create(engine, checkfirst=True)
