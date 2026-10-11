@@ -4,6 +4,7 @@ Covers the run commands (runs, show, compare) and the snapshot commands (snapsho
 show, export and compare).
 """
 
+import re
 import sqlite3
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from conftest import make_run
 from qci.adapters.qiskit_ibm import live
 from qci.cli.app import app
 from qci.core.errors import (
+    DamagedStoreError,
     ReadOnlyStoreError,
     RunNotFoundError,
     SchemaVersionError,
@@ -247,3 +249,128 @@ def test_read_only_open_checks_the_snapshot_schema_version(tmp_path: Path) -> No
     with pytest.raises(SchemaVersionError):
         SqliteSnapshotRepository(db, read_only=True)
     assert db.read_bytes() == before
+
+
+# --- damaged stores: reported as errors, never as empty, and never written ----------------
+
+# (shape, SQL that damages a store holding one run and one snapshot, damaged stores, message)
+DAMAGE: list[tuple[str, list[str], set[str], str]] = [
+    (
+        "snapshot_captures_dropped",
+        ["drop table snapshot_captures"],
+        {"snapshots"},
+        "the snapshot store is damaged: tables calibration_measurements, calibration_snapshots "
+        "exist but snapshot_captures is missing",
+    ),
+    (
+        "only_calibration_snapshots_left",
+        ["drop table snapshot_captures", "drop table calibration_measurements"],
+        {"snapshots"},
+        "the snapshot store is damaged: tables calibration_snapshots exist but "
+        "calibration_measurements, snapshot_captures are missing",
+    ),
+    (
+        "snapshot_schema_row_deleted",
+        ["delete from schema_meta where key = 'snapshot_db_schema'"],
+        {"snapshots"},
+        "the snapshot store is damaged: its tables exist but schema_meta has no "
+        "'snapshot_db_schema' row",
+    ),
+    (
+        "run_schema_row_deleted",
+        ["delete from schema_meta where key = 'db_schema'"],
+        {"runs"},
+        "the run store is damaged: its tables exist but schema_meta has no 'db_schema' row",
+    ),
+    (
+        "schema_meta_dropped",
+        ["drop table schema_meta"],
+        {"runs", "snapshots"},
+        "store is damaged: its tables exist but the schema_meta table is missing",
+    ),
+]
+
+# Each read-only command and the stores it opens.
+READ_ONLY_COMMANDS: list[tuple[list[str], set[str]]] = [
+    (["runs"], {"runs"}),
+    (["show", "RUN"], {"runs"}),
+    (["show", "RUN", "--json"], {"runs"}),
+    (["compare", "RUN", "RUN"], {"runs"}),
+    (["compare", "RUN", "RUN", "--json"], {"runs"}),
+    (["snapshots"], {"snapshots"}),
+    (["snapshot", "show", "SNAP"], {"snapshots"}),
+    (["snapshot", "show", "SNAP", "--json"], {"snapshots"}),
+    (["snapshot", "export", "SNAP", "--fixture", "OUT"], {"snapshots"}),
+    (["snapshot", "compare", "SNAP", "SNAP", "--footprint-run", "RUN"], {"runs", "snapshots"}),
+    (
+        ["snapshot", "compare", "SNAP", "SNAP", "--footprint-run", "RUN", "--json"],
+        {"runs", "snapshots"},
+    ),
+]
+
+
+def _damaged_store(db: Path, statements: list[str]) -> None:
+    _save_snapshot(db)
+    repository = SqliteRunRepository(db)
+    repository.save(make_run("RUN"))
+    repository.close()
+    conn = sqlite3.connect(db)
+    try:
+        for statement in statements:
+            conn.execute(statement)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize(
+    ("shape", "statements", "damaged", "message"), DAMAGE, ids=[d[0] for d in DAMAGE]
+)
+@pytest.mark.parametrize(
+    ("args", "stores"), READ_ONLY_COMMANDS, ids=[" ".join(c[0]) for c in READ_ONLY_COMMANDS]
+)
+def test_damaged_store_is_an_error_never_empty_and_is_not_written(
+    home: Path,
+    tmp_path: Path,
+    shape: str,
+    statements: list[str],
+    damaged: set[str],
+    message: str,
+    args: list[str],
+    stores: set[str],
+) -> None:
+    db = home / "qci.db"
+    _damaged_store(db, statements)
+    before = db.read_bytes()
+
+    exit_code, out, err = _invoke(args, tmp_path)
+
+    assert db.read_bytes() == before
+    assert sorted(p.name for p in home.iterdir()) == ["qci.db"]
+    if stores & damaged:
+        assert exit_code == 1, (shape, out)
+        assert "error: " in err and message in err
+        assert "recorded yet" not in out
+        assert not (tmp_path / "fixture.json").exists()
+    else:
+        assert exit_code == 0, (shape, err)
+        # export writes its fixture file and reports on stderr; the others print to stdout.
+        assert (tmp_path / "fixture.json").exists() if "export" in args else out.strip()
+
+
+def test_damaged_store_raises_from_the_repository(tmp_path: Path) -> None:
+    for shape, statements, damaged, message in DAMAGE:
+        db = tmp_path / shape / "qci.db"
+        db.parent.mkdir()
+        _damaged_store(db, statements)
+        before = db.read_bytes()
+        for store, repository_class in (
+            ("runs", SqliteRunRepository),
+            ("snapshots", SqliteSnapshotRepository),
+        ):
+            if store in damaged:
+                with pytest.raises(DamagedStoreError, match=re.escape(message)):
+                    repository_class(db, read_only=True)
+            else:
+                repository_class(db, read_only=True).close()
+        assert db.read_bytes() == before, shape

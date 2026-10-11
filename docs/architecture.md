@@ -104,6 +104,7 @@ The exit codes are a contract.
 | `qci snapshot capture` | 2 | The backend is a fake (`fake_*` or a fake object) or a simulator. **Nothing was persisted.** |
 | `qci snapshot compare` | 1 | A snapshot ID or the footprint run ID was not found. Nothing is stored. |
 | `qci snapshot show`, `qci snapshot export` | 1 | A snapshot ID was not found, the saved account could not be read for the export scan, or the export was unsafe. Export writes nothing. |
+| `qci runs`, `qci show`, `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot export`, `qci snapshot compare` | 1 | The store is damaged (`DamagedStoreError`) or has another schema version. Nothing is written. |
 | any | 1 | Any other `QCIError` that reaches `main()`. |
 | any | 2 | A usage error reported by Typer. |
 
@@ -234,9 +235,12 @@ golden files in `tests/golden/compare/` pin byte for byte.
 - Commands that only read (`qci runs`, `qci show`, `qci compare`, `qci snapshots`,
   `qci snapshot show`, `qci snapshot export` and `qci snapshot compare`) open their
   repositories with `read_only=True`. SQLite then opens the file with `mode=ro`, so these
-  commands never create the file, a table or a `schema_meta` row. A missing file or missing
-  tables read as an empty store, so the result is "No runs recorded yet.", "No snapshots
-  recorded yet." or an unknown-ID error. A write through a read-only repository
+  commands never create the file, a table or a `schema_meta` row. A missing file, or a file
+  with none of a store's tables, reads as an empty store, so the result is "No runs recorded
+  yet.", "No snapshots recorded yet." or an unknown-ID error. A damaged store is an error,
+  never empty: some but not all of a store's tables, or its tables without the `schema_meta`
+  table or its version row (`db_schema` for runs, `snapshot_db_schema` for snapshots), raise
+  `DamagedStoreError` naming what is missing, and the command exits 1. Detection only reads. A write through a read-only repository
   raises `ReadOnlyStoreError`.
 
 The document-plus-index-columns design keeps the Run model free to evolve. Columns are added

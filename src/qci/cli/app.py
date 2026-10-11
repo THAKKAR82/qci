@@ -1,6 +1,7 @@
 """QCI command-line interface: run, runs, show, compare, and calibration snapshots."""
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
@@ -11,10 +12,12 @@ from pydantic import ValidationError
 from qci.adapters.qiskit_ibm import live as ibm_live
 from qci.core.errors import (
     CaptureRejectedError,
+    DamagedStoreError,
     FixtureExportError,
     InvalidObservableError,
     QCIError,
     RunNotFoundError,
+    SchemaVersionError,
     SnapshotNotFoundError,
     WorkloadLoadError,
 )
@@ -43,13 +46,22 @@ def store_dir() -> Path:
     return Path(home) if home else Path.cwd() / ".qci"
 
 
+def _open[T](open_store: Callable[[], T]) -> T:
+    """Open a repository, turning a damaged or unsupported store into an error and exit 1."""
+    try:
+        return open_store()
+    except (DamagedStoreError, SchemaVersionError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
 def _repository(*, read_only: bool = False) -> SqliteRunRepository:
-    return SqliteRunRepository(store_dir() / DB_FILENAME, read_only=read_only)
+    return _open(lambda: SqliteRunRepository(store_dir() / DB_FILENAME, read_only=read_only))
 
 
 def _snapshot_repository(*, read_only: bool = False) -> SqliteSnapshotRepository:
     """``read_only`` for commands that only read: they never create or write the store."""
-    return SqliteSnapshotRepository(store_dir() / DB_FILENAME, read_only=read_only)
+    return _open(lambda: SqliteSnapshotRepository(store_dir() / DB_FILENAME, read_only=read_only))
 
 
 snapshot_app = typer.Typer(
@@ -569,7 +581,11 @@ def snapshot_compare(
     from qci.services.snapshot_compare_service import SnapshotCompareService
 
     runs = _repository(read_only=True)
-    snapshots_repo = _snapshot_repository(read_only=True)
+    try:
+        snapshots_repo = _snapshot_repository(read_only=True)
+    except typer.Exit:
+        runs.close()
+        raise
     try:
         result = SnapshotCompareService(
             runs, snapshots_repo, {PROVIDER_ID: snapshot_comparison_support()}

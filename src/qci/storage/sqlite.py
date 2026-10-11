@@ -23,6 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 
 from qci.core.errors import (
+    DamagedStoreError,
     DuplicateRunError,
     ReadOnlyStoreError,
     RunNotFoundError,
@@ -56,42 +57,64 @@ schema_meta_table = Table(
 )
 
 
-def open_read_only(db_path: Path, tables: set[str]) -> Engine | None:
-    """A read-only engine on an existing store that has all of ``tables``, else None.
+def open_read_only(
+    db_path: Path, label: str, tables: set[str], schema_key: str, supported: int
+) -> Engine | None:
+    """A read-only engine on the ``label`` store in ``db_path``, or None if it is empty.
 
-    SQLite opens the file with ``mode=ro``, so nothing can be written: the file, its tables and
-    ``schema_meta`` are never created. A missing file or table means an empty store.
+    SQLite opens the file with ``mode=ro``, so nothing is ever written: the file, its tables
+    and ``schema_meta`` are never created. A missing file, or a file with none of ``tables``,
+    is an empty store. Some but not all of ``tables``, or all of them without a ``schema_key``
+    row in ``schema_meta``, raises ``DamagedStoreError``. Another version raises
+    ``SchemaVersionError``.
     """
     if not db_path.is_file():
         return None
     engine = create_engine(f"sqlite:///{db_path.resolve().as_uri()}?mode=ro&uri=true")
-    if not tables <= set(inspect(engine).get_table_names()):
+    try:
+        present = set(inspect(engine).get_table_names())
+        found, missing = sorted(tables & present), sorted(tables - present)
+        if not found:
+            engine.dispose()
+            return None
+        if missing:
+            raise DamagedStoreError(
+                f"{db_path}: the {label} store is damaged: tables {', '.join(found)} exist but "
+                f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} missing"
+            )
+        if "schema_meta" not in present:
+            raise DamagedStoreError(
+                f"{db_path}: the {label} store is damaged: its tables exist but the "
+                "schema_meta table is missing"
+            )
+        with engine.connect() as conn:
+            row = conn.execute(
+                select(schema_meta_table.c.value).where(schema_meta_table.c.key == schema_key)
+            ).first()
+        if row is None:
+            raise DamagedStoreError(
+                f"{db_path}: the {label} store is damaged: its tables exist but schema_meta has "
+                f"no {schema_key!r} row"
+            )
+        if int(row.value) != supported:
+            raise SchemaVersionError(
+                f"{db_path} has {schema_key} {row.value}; this QCI supports {supported}"
+            )
+    except Exception:
         engine.dispose()
-        return None
+        raise
     return engine
-
-
-def check_schema(engine: Engine, key: str, supported: int, db_path: Path) -> None:
-    """Raise ``SchemaVersionError`` if ``schema_meta`` records another version under ``key``."""
-    if "schema_meta" not in inspect(engine).get_table_names():
-        return
-    with engine.connect() as conn:
-        row = conn.execute(
-            select(schema_meta_table.c.value).where(schema_meta_table.c.key == key)
-        ).first()
-    if row is not None and int(row.value) != supported:
-        engine.dispose()
-        raise SchemaVersionError(f"{db_path} has {key} {row.value}; this QCI supports {supported}")
 
 
 class SqliteRunRepository:
     def __init__(self, db_path: Path, *, read_only: bool = False) -> None:
-        """``read_only`` never creates or writes the store; a missing store has no runs."""
+        """``read_only`` never creates or writes the store. A missing or empty store has no
+        runs; a damaged one raises ``DamagedStoreError``."""
         self._read_only = read_only
         if read_only:
-            self._engine: Engine | None = open_read_only(db_path, {"runs"})
-            if self._engine is not None:
-                check_schema(self._engine, "db_schema", DB_SCHEMA_VERSION, db_path)
+            self._engine: Engine | None = open_read_only(
+                db_path, "run", {"runs"}, "db_schema", DB_SCHEMA_VERSION
+            )
             return
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._engine = engine = create_engine(f"sqlite:///{db_path}")

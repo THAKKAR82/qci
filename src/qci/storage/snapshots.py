@@ -33,7 +33,7 @@ from qci.domain.snapshot import (
     SnapshotCapture,
     SnapshotListItem,
 )
-from qci.storage.sqlite import check_schema, open_read_only, schema_meta_table
+from qci.storage.sqlite import open_read_only, schema_meta_table
 
 SNAPSHOT_DB_SCHEMA_VERSION = 1
 _SCHEMA_KEY = "snapshot_db_schema"
@@ -105,13 +105,13 @@ _TABLES = {"calibration_snapshots", "snapshot_captures", "calibration_measuremen
 
 class SqliteSnapshotRepository:
     def __init__(self, db_path: Path, *, read_only: bool = False) -> None:
-        """``read_only`` never creates or writes the store. A store without the snapshot
-        tables has no snapshots."""
+        """``read_only`` never creates or writes the store. A store with none of the snapshot
+        tables has no snapshots; a damaged one raises ``DamagedStoreError``."""
         self._read_only = read_only
         if read_only:
-            self._engine: Engine | None = open_read_only(db_path, _TABLES)
-            if self._engine is not None:
-                check_schema(self._engine, _SCHEMA_KEY, SNAPSHOT_DB_SCHEMA_VERSION, db_path)
+            self._engine: Engine | None = open_read_only(
+                db_path, "snapshot", _TABLES, _SCHEMA_KEY, SNAPSHOT_DB_SCHEMA_VERSION
+            )
             return
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._engine = engine = create_engine(f"sqlite:///{db_path}")

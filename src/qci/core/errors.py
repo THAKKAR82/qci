@@ -43,3 +43,7 @@ class FixtureExportError(QCIError):
 
 class ReadOnlyStoreError(QCIError):
     """A write was attempted through a repository opened read-only."""
+
+
+class DamagedStoreError(QCIError):
+    """A store has some of its tables but not all, or lacks its schema version row."""
