@@ -178,3 +178,119 @@ class SnapshotComparison(DomainModel):
     """The provider's explicit list of error-type parameter names that were checked."""
     error_values_at_one: list[ErrorValueAtOne] = Field(default_factory=list)
     limitations: list[str]
+
+
+# --- fake-backend run against a live snapshot (M1.4b, ADR 0007) ------------------------------
+
+
+class FakeRunSide(DomainModel):
+    """The baseline: the calibration frozen into a fake backend, as stored in one run."""
+
+    run_id: str
+    provider: str | None
+    backend_name: str | None
+    backend_version: str | None
+    snapshot_source: SnapshotSource | None
+    calibrated_at: AwareDatetime | None
+    """The fake calibration document's own timestamp. The run's ``captured_at`` (when QCI read
+    the fake) is not a calibration date and is never used."""
+    recorded_device: str | None
+    """The device name the run's stored calibration payload records."""
+    recorded_device_version: str | None
+    qiskit_ibm_runtime_version: str | None
+    """From the run's environment provenance: the package the frozen calibration came from."""
+
+
+class LiveSnapshotSide(DomainModel):
+    """The candidate: one stored live calibration snapshot."""
+
+    snapshot_id: str
+    provider: str
+    backend_name: str
+    backend_version: str | None
+    content_hash: str
+    source: SnapshotSource
+    captured_at: AwareDatetime
+    calibrated_at: AwareDatetime | None
+
+
+class DeviceMapping(DomainModel):
+    """The explicit fake-to-device entry that paired the two sides."""
+
+    fake: str
+    device: str
+    source: str
+    """Where the entry is listed, such as ``qiskit_ibm FAKE_DEVICE_SOURCES``."""
+
+
+class ParameterOnOneSide(DomainModel):
+    """A footprint parameter that only ``side`` reports. The other side has no entry for it;
+    its value there is null, never 0."""
+
+    side: Literal["baseline", "candidate"]
+    resource_kind: ResourceKind
+    operation: str | None
+    qubits: tuple[int, ...]
+    parameter: str
+
+
+class UnitDifference(DomainModel):
+    """A footprint parameter whose unit differs between the sides. It is not compared, and no
+    unit is converted."""
+
+    resource_kind: ResourceKind
+    operation: str | None
+    qubits: tuple[int, ...]
+    parameter: str
+    baseline_unit: str | None
+    candidate_unit: str | None
+
+
+class MeasurementDateDifference(DomainModel):
+    """Both provider dates of one compared parameter, as given, and their difference."""
+
+    resource_kind: ResourceKind
+    operation: str | None
+    qubits: tuple[int, ...]
+    parameter: str
+    baseline_measured_at: AwareDatetime | None
+    candidate_measured_at: AwareDatetime | None
+    live_minus_fake: Metric | None
+    """Calculated, in seconds. Null when either date is missing, never 0."""
+
+
+RUN_SNAPSHOT_COMPARISON_METHOD_VERSION = "qci.compare.run_snapshot.1"
+
+
+class RunSnapshotComparison(DomainModel):
+    """Directional comparison of a fake backend's frozen calibration, as stored in one run
+    (baseline), with one live snapshot of the device the fake was built from (candidate),
+    scoped to the run's physical footprint. Never persisted.
+
+    Deltas and date differences are live minus fake.
+    """
+
+    schema_version: Literal[1] = 1
+    run_snapshot_comparison_id: str
+    """Deterministic: derived from the run ID, the snapshot ID and ``method_version``."""
+    method_version: Literal["qci.compare.run_snapshot.1"] = "qci.compare.run_snapshot.1"
+    status: ComparisonStatus
+    """Equal to ``hardware.status``."""
+    baseline: FakeRunSide
+    candidate: LiveSnapshotSide
+    device_mapping: DeviceMapping | None
+    """Null when the run's backend has no mapping entry, or the check stopped earlier."""
+    footprint: PhysicalFootprint
+    hardware: HardwareComparison
+    parameters_on_one_side: list[ParameterOnOneSide] = Field(default_factory=list)
+    unit_differences: list[UnitDifference] = Field(default_factory=list)
+    error_parameters: list[str]
+    """The provider's explicit list of error-type parameter names that were checked."""
+    error_values_at_one: list[ErrorValueAtOne] = Field(default_factory=list)
+    calibrated_at_difference: Metric | None
+    """Live ``calibrated_at`` minus fake ``calibrated_at``, in seconds (calculated)."""
+    measurement_dates: list[MeasurementDateDifference] = Field(default_factory=list)
+    """One entry per compared parameter."""
+    live_minus_fake_min: Metric | None
+    live_minus_fake_max: Metric | None
+    limitations: list[str]

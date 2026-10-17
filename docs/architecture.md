@@ -12,7 +12,7 @@ only the physical level today, and new code must respect the constraints in
 cli/            Typer commands: argument parsing and rendering only
   │
 services/       Use-case orchestration (RunService, CompareService, SnapshotService,
-                SnapshotCompareService)
+                SnapshotCompareService, RunSnapshotCompareService)
   │  depends on ports, never on adapters directly
 compare/        Pure comparison logic over stored runs: provider-neutral
   │
@@ -52,6 +52,8 @@ All ports are `typing.Protocol` classes in `qci/core/ports.py`.
 | `CalibrationSource` (M1.3b) | Read a backend's published calibration once. Returns a `CapturedCalibration`: redacted raw payload, UTC-normalized dates, measurements and capture options. |
 | `SnapshotResourceIndex` (M1.3c) | For one provider's stored snapshots: build a `BackendSnapshot` view from the stored configuration, and list the footprint resources a snapshot's device does not have. |
 | `SnapshotComparisonSupport` (M1.3c) | A dataclass bundling one provider's `CalibrationReader`, `SnapshotResourceIndex` and explicit error-type parameter list. |
+| `FakeDeviceIndex` (M1.4b) | For one provider's fake backends: the device a fake was built from, from an explicit list (IBM: `FAKE_DEVICE_SOURCES`), never derived from the fake's name; the device name and version a run's stored payload records; and the footprint resources a run's stored configuration does not have. |
+| `RunSnapshotComparisonSupport` (M1.4b) | A dataclass bundling one provider's `SnapshotComparisonSupport`, its `FakeDeviceIndex`, the name of the mapping list, and the package whose fakes hold the frozen calibration. |
 | `SnapshotRepository` (M1.3b) | Insert-only snapshot persistence with `save` (deduplicates by content hash and always adds a capture row), `get`, `get_by_hash`, `list_snapshots`, `measurements` and `captures`. It has no update or delete. |
 
 ### Why opaque handles
@@ -103,8 +105,9 @@ The exit codes are a contract.
 | `qci snapshot capture` | 1 | Capture failed. **Nothing was persisted.** The message is sanitized. |
 | `qci snapshot capture` | 2 | The backend is a fake (`fake_*` or a fake object) or a simulator. **Nothing was persisted.** |
 | `qci snapshot compare` | 1 | A snapshot ID or the footprint run ID was not found. Nothing is stored. |
+| `qci snapshot compare-run` | 1 | The run ID or the snapshot ID was not found. Nothing is stored. |
 | `qci snapshot show`, `qci snapshot export` | 1 | A snapshot ID was not found, the saved account could not be read for the export scan, or the export was unsafe. Export writes nothing. |
-| `qci runs`, `qci show`, `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot export`, `qci snapshot compare` | 1 | The store is damaged (`DamagedStoreError`) or has another schema version. Nothing is written. |
+| `qci runs`, `qci show`, `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot export`, `qci snapshot compare`, `qci snapshot compare-run` | 1 | The store is damaged (`DamagedStoreError`) or has another schema version. Nothing is written. |
 | any | 1 | Any other `QCIError` that reaches `main()`. |
 | any | 2 | A usage error reported by Typer. |
 
@@ -221,6 +224,36 @@ qci snapshot compare BASE CAND --footprint-run RUN [--allow-footprint-backend-mi
 calls it without `require_matching_units`, so run comparison output is unchanged, which the
 golden files in `tests/golden/compare/` pin byte for byte.
 
+## M1.4b run-to-snapshot comparison flow
+
+Offline and read-only. See ADR 0007. The baseline is a stored run on a fake backend, and its
+stored `BackendSnapshot` is the baseline calibration. The candidate is a stored live snapshot.
+
+```
+qci snapshot compare-run RUN_ID SNAPSHOT_ID [--json]
+  1. load the run and the snapshot                       → exit 1 if an ID is unknown
+  2. ordered exits, none with parameter comparisons:
+     run has no backend or backend snapshot              → unavailable
+     run snapshot source not static_fake                 → not_comparable
+     snapshot source not live_calibration                → not_comparable
+     providers differ                                    → not_comparable
+     no RunSnapshotComparisonSupport for the provider    → unavailable
+     FakeDeviceIndex.device_for(run backend) is None     → not_comparable (no name is derived)
+     snapshot backend != mapped device                   → not_comparable
+     run's recorded payload device != mapped device      → not_comparable
+     footprint_for_run(RUN) not available                → not_comparable (dynamic) or unavailable
+     footprint resource missing on either side           → not_comparable, listed per side
+  3. compare_calibration(run snapshot, snapshot view, footprint, footprint,
+                         require_matching_units=True)
+  4. parameters on one side, unit differences, error-type values equal to 1, and
+     measurement dates with live-minus-fake differences (calculated)
+```
+
+`compare_calibration`, `missing_resources` and `error_values_at_one` are reused unchanged, so
+`qci compare` and `qci snapshot compare` output is unchanged. The run's
+`backend_snapshot.captured_at` is when QCI read the fake, not a calibration date, and is never
+used.
+
 ## Storage (M0)
 
 - SQLite through SQLAlchemy 2 Core, at `./.qci/qci.db` or `$QCI_HOME/qci.db`.
@@ -234,7 +267,8 @@ golden files in `tests/golden/compare/` pin byte for byte.
   They record `snapshot_db_schema = 1` in `schema_meta`. The `runs` table and
   `DB_SCHEMA_VERSION` are untouched. See [ADR 0005](adr/0005-live-calibration-snapshots.md).
 - Commands that only read (`qci runs`, `qci show`, `qci compare`, `qci snapshots`,
-  `qci snapshot show`, `qci snapshot export` and `qci snapshot compare`) open their
+  `qci snapshot show`, `qci snapshot export`, `qci snapshot compare` and
+  `qci snapshot compare-run`) open their
   repositories with `read_only=True`. SQLite then opens the file with `mode=ro`, so these
   commands never create the file, a table or a `schema_meta` row. A missing file, or a file
   with none of a store's tables, reads as an empty store, so the result is "No runs recorded

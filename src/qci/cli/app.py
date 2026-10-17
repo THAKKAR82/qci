@@ -609,6 +609,53 @@ def snapshot_compare(
     typer.echo(result.model_dump_json(indent=2) if as_json else render_snapshot_comparison(result))
 
 
+@snapshot_app.command("compare-run")
+def snapshot_compare_run(
+    run_id: Annotated[
+        str, typer.Argument(help="Baseline: a stored run on a fake backend (the reference).")
+    ],
+    snapshot_id: Annotated[
+        str,
+        typer.Argument(
+            help="Candidate: a stored live snapshot of the device the fake was built from."
+        ),
+    ],
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Print the full comparison as JSON.")
+    ] = False,
+) -> None:
+    """Report what differs from the calibration stored in RUN_ID's fake backend to SNAPSHOT_ID,
+    for the run's footprint.
+
+    The fake-to-device pairing comes from an explicit list in the provider adapter. Offline and
+    read-only; nothing is stored. Deltas and date differences are live minus fake.
+    """
+    from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
+    from qci.adapters.qiskit_ibm.calibration import run_snapshot_comparison_support
+    from qci.cli.render_run_snapshot_compare import render_run_snapshot_comparison
+    from qci.services.run_snapshot_compare_service import RunSnapshotCompareService
+
+    runs = _repository(read_only=True)
+    try:
+        snapshots_repo = _snapshot_repository(read_only=True)
+    except typer.Exit:
+        runs.close()
+        raise
+    try:
+        result = RunSnapshotCompareService(
+            runs, snapshots_repo, {PROVIDER_ID: run_snapshot_comparison_support()}
+        ).compare(run_id, snapshot_id)
+    except (SnapshotNotFoundError, RunNotFoundError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        snapshots_repo.close()
+        runs.close()
+    typer.echo(
+        result.model_dump_json(indent=2) if as_json else render_run_snapshot_comparison(result)
+    )
+
+
 def main() -> None:
     try:
         app()

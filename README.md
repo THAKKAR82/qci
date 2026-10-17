@@ -98,6 +98,7 @@ qci snapshot show <SNAPSHOT_ID> [--json]
 qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]   # developers: test fixture
 qci snapshot compare <BASELINE_ID> <CANDIDATE_ID> --footprint-run <RUN_ID> \
     [--allow-footprint-backend-mismatch] [--json]
+qci snapshot compare-run <RUN_ID> <SNAPSHOT_ID> [--json]
 ```
 
 - `capture` reads once and exits. It does no polling, scheduling or retries. Run it again to
@@ -134,6 +135,28 @@ snapshot. Nothing is stored.
   is not evidence that the value held constant between the captures.
 - `gate_error`, `readout_error` and `init_error` values of exactly 1 on footprint resources
   are listed as the provider reported them. QCI does not interpret them.
+
+### Comparing a fake-backend run with a live snapshot
+
+`qci snapshot compare-run RUN_ID SNAPSHOT_ID` is offline and read-only. It reports what
+differs between the calibration frozen into the fake backend of one stored run (the baseline)
+and one stored live snapshot (the candidate), for that run's physical footprint. Deltas and
+date differences are live minus fake. Nothing is simulated and nothing is stored.
+
+- The run must be on a fake backend listed in the IBM adapter's `FAKE_DEVICE_SOURCES`:
+  `fake_fez -> ibm_fez`, `fake_kingston -> ibm_kingston` and `fake_marrakesh -> ibm_marrakesh`.
+  The snapshot must be of that device, and the device named in the run's stored calibration
+  must match too. Otherwise the result is `not_comparable`. Device names are never derived
+  from fake names.
+- Every footprint qubit and operation must exist on both sides, or the result is
+  `not_comparable` and lists what is missing on each side.
+- Parameters reported by one side only (for `fake_fez` against `ibm_fez`: `init_error`, live
+  only), unit differences, and `gate_error`, `readout_error` and `init_error` values of
+  exactly 1 are each listed. A parameter whose unit differs is not compared.
+- Both provider dates are shown for every parameter, with their difference in seconds. The
+  run's capture time is when QCI read the fake, not a calibration date, and is not used.
+- It compares calibration data, not the noise model a simulator builds from it, and it says
+  nothing about how a workload would behave on the device.
 
 ## What a run captures (M0)
 

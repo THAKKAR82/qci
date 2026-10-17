@@ -185,6 +185,43 @@ class SnapshotComparisonSupport:
     is never reported as an error value."""
 
 
+class FakeDeviceIndex(Protocol):
+    """One provider's explicit fake-to-device correspondence (ADR 0007, section 2)."""
+
+    def device_for(self, backend_name: str) -> str | None:
+        """The real device whose calibration the named fake was built from, from an explicit
+        list. None when the fake is not listed. A device name is never derived from a fake's
+        name."""
+        ...
+
+    def recorded_device(self, snapshot: BackendSnapshot) -> tuple[str | None, str | None]:
+        """The device name and version that a run's stored calibration payload records."""
+        ...
+
+    def missing_resources(
+        self,
+        snapshot: BackendSnapshot,
+        qubits: Sequence[int],
+        operations: Sequence[tuple[str, tuple[int, ...]]],
+    ) -> list[str]:
+        """Labels of the given physical resources a run's stored configuration does not
+        have."""
+        ...
+
+
+@dataclass(frozen=True)
+class RunSnapshotComparisonSupport:
+    """What run-to-snapshot comparison needs from one provider's adapter."""
+
+    snapshot: SnapshotComparisonSupport
+    devices: FakeDeviceIndex
+    mapping_source: str
+    """Names the explicit list ``devices`` reads, for the output."""
+    fake_package: str
+    """The distribution whose installed fakes hold the frozen calibration. Its version is read
+    from the run's environment provenance."""
+
+
 class CalibrationSource(Protocol):
     def capture(self, backend_name: str) -> CapturedCalibration:
         """Read published calibration once. Raises ``CaptureRejectedError`` for a fake or a

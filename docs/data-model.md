@@ -203,6 +203,41 @@ footprint backend mismatch was allowed, the footprint, and a `HardwareComparison
   `readout_error`, `init_error`). `error_values_at_one` lists each footprint resource's listed
   parameter whose value is exactly 1, per side, as given.
 
+### Fake-run calibration against a live snapshot (M1.4b)
+
+`RunSnapshotComparison` (`qci/domain/snapshot.py`, method version
+`qci.compare.run_snapshot.1`, ADR 0007) is directional, from a stored fake-backend run
+(baseline) to one stored live snapshot (candidate), and never persisted. Deltas and date
+differences are live minus fake.
+
+- `baseline` (`FakeRunSide`): run ID, provider, fake backend name and version, snapshot source,
+  the fake calibration's `calibrated_at`, the device name and version recorded in the run's
+  stored properties payload, and the run's `qiskit-ibm-runtime` version from its environment
+  provenance. The run's `captured_at` is not included and not used.
+- `candidate` (`LiveSnapshotSide`): snapshot ID, provider, backend name and version, content
+  hash, source, `captured_at` and `calibrated_at`.
+- `device_mapping` (`DeviceMapping`): the explicit entry that paired the two sides, such as
+  `fake_fez -> ibm_fez` from `qiskit_ibm FAKE_DEVICE_SOURCES`. Null when the fake has no
+  entry. The IBM list has exactly three entries (`fake_fez`, `fake_kingston`,
+  `fake_marrakesh`), each tested against the installed fake's payload.
+- `footprint` and `hardware`: the run's physical footprint and the `HardwareComparison` from
+  `compare_calibration` with matching units required. `global_snapshot_changed` compares the
+  hashes of both raw payloads, which always differ between a fake and a live device.
+- `parameters_on_one_side` (`ParameterOnOneSide`): a parameter reported by `side` only, for a
+  resource both sides have. Its value on the other side is null, never 0, and its
+  `ParameterComparison` is `unavailable`. A reported but unrepresentable value is not listed.
+- `unit_differences` (`UnitDifference`): both units of every `not_comparable` parameter.
+- `error_parameters` and `error_values_at_one`: as in snapshot comparison, per side.
+- `measurement_dates` (`MeasurementDateDifference`): one entry per compared parameter, with both
+  provider dates as given and `live_minus_fake`, a `calculated` `Metric` in seconds, null when
+  either date is missing. `live_minus_fake_min`, `live_minus_fake_max` and
+  `calibrated_at_difference` are `calculated` `Metric`s in seconds, or null.
+- `run_snapshot_comparison_id` is a hash of the run ID, the snapshot ID and the method version.
+  Lists are sorted by resource kind, operation, qubits and parameter, with `side` first where
+  present.
+- There are no device-wide gate-set, parameter-set or qubit-count fields: only the footprint
+  is compared.
+
 ## Deferred concepts (not modeled in M0)
 
 These appear in the product vision. They will be modeled when a milestone needs them, with an

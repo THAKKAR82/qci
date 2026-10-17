@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from qci.core.ports import SnapshotComparisonSupport
+from qci.core.ports import RunSnapshotComparisonSupport, SnapshotComparisonSupport
 from qci.domain.backend import BackendSnapshot
 from qci.domain.comparison import (
     CalibrationValue,
@@ -21,6 +21,18 @@ from qci.domain.snapshot import CalibrationSnapshot, Measurement
 ERROR_PARAMETERS = ("gate_error", "readout_error", "init_error")
 """IBM parameters that snapshot comparison treats as error-type, as an explicit list. Names
 are never matched by substring; an unlisted parameter is never reported as an error value."""
+
+FAKE_DEVICE_SOURCES: Mapping[str, str] = {
+    "fake_fez": "ibm_fez",
+    "fake_kingston": "ibm_kingston",
+    "fake_marrakesh": "ibm_marrakesh",
+}
+"""Fake backend name -> the real device whose calibration the fake was built from. Explicit
+and exact. A fake not listed here is not compared with any live snapshot. Entries are added
+only when verified (see the test below); device names are never derived from fake names."""
+
+FAKE_DEVICE_SOURCES_NAME = "qiskit_ibm FAKE_DEVICE_SOURCES"
+FAKE_PACKAGE = "qiskit-ibm-runtime"
 
 PRESENCE_INSTRUCTIONS = ("measure", "reset", "delay")
 """Present on a device if listed in ``supported_instructions`` and all their qubits exist."""
@@ -291,4 +303,38 @@ def snapshot_comparison_support() -> SnapshotComparisonSupport:
         reader=IbmPropertiesCalibrationReader(),
         resources=IbmSnapshotResourceIndex(),
         error_parameters=ERROR_PARAMETERS,
+    )
+
+
+class IbmFakeDeviceIndex:
+    """``FakeDeviceIndex`` for IBM fake backends, from ``FAKE_DEVICE_SOURCES``."""
+
+    def device_for(self, backend_name: str) -> str | None:
+        return FAKE_DEVICE_SOURCES.get(backend_name)
+
+    def recorded_device(self, snapshot: BackendSnapshot) -> tuple[str | None, str | None]:
+        properties: Any = snapshot.provider_raw.get("properties")
+        if not isinstance(properties, Mapping):
+            return None, None
+        name, version = properties.get("backend_name"), properties.get("backend_version")
+        return (
+            name if isinstance(name, str) else None,
+            version if isinstance(version, str) else None,
+        )
+
+    def missing_resources(
+        self,
+        snapshot: BackendSnapshot,
+        qubits: Sequence[int],
+        operations: Sequence[tuple[str, tuple[int, ...]]],
+    ) -> list[str]:
+        return missing_resources(snapshot.provider_raw, qubits, operations)
+
+
+def run_snapshot_comparison_support() -> RunSnapshotComparisonSupport:
+    return RunSnapshotComparisonSupport(
+        snapshot=snapshot_comparison_support(),
+        devices=IbmFakeDeviceIndex(),
+        mapping_source=FAKE_DEVICE_SOURCES_NAME,
+        fake_package=FAKE_PACKAGE,
     )
