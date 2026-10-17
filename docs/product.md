@@ -46,9 +46,12 @@ V1 is delivered in small slices, which `PLAN.md` tracks:
 |---|---|
 | M0 (done) | `run`, `runs` and `show`, with an immutable and inspectable run record |
 | M1 (done) | `compare`, reporting what changed between two runs, with no judgments |
-| M1.1 | A sampling floor for TVD: how large TVD is expected to be from sampling alone |
-| M1.2 | Compare-time, workload-specific observables with uncertainty intervals |
-| M1.3 | Read-only live calibration snapshots, at zero QPU cost |
+| M1.1 (done) | A sampling floor for TVD: how large TVD is expected to be from sampling alone |
+| M1.2 (done) | Compare-time, workload-specific observables with uncertainty intervals |
+| M1.3 (done) | Read-only live calibration snapshots, at zero QPU cost |
+| M1.4 | Stale-noise check: a fake backend's frozen calibration against a live snapshot of the real device, for one run's footprint |
+| M1.5 | Historical calibration backfill, once historical lookups are verified (D21) |
+| M1.6 | Measurement ages for a footprint, then a pre-flight success estimate labeled as a model prediction |
 | Deferred | M0.5 archival and richer measurement, `test --baseline` and regression detection |
 
 ## Who it is for, initially

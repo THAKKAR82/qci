@@ -1,17 +1,17 @@
 # PLAN
 
-**Current milestone: none. M1.3 (read-only live calibration snapshots) is done. The next step
-is to be decided. M1.3c is done (footprint-scoped snapshot comparison, branch
-`feat/m1.3c-snapshot-diff`, live check 2026-10-10). M1.3b is done (capture and storage, branch
-`feat/m1.3b-snapshot-capture`). M1.3a is done (ADR 0005 accepted 2026-10-09). M1.1 (including
-M1.1v-addendum) and M1.2 are complete.**
+**Current milestone: M1.4 (stale-noise check). Current step: M1.4a, design and ADR 0007
+(branch `docs/m1.4a-stale-noise-design`).** M1.3 (read-only live calibration snapshots) is
+done: M1.3c (footprint-scoped snapshot comparison, branch `feat/m1.3c-snapshot-diff`, live
+check 2026-10-10), M1.3b (capture and storage, branch `feat/m1.3b-snapshot-capture`) and M1.3a
+(ADR 0005 accepted 2026-10-09). M1.1 (including M1.1v-addendum) and M1.2 are complete.
 **Status:** M0 and M1 are complete and committed (`f722eb9`, `07856e0`). Independent seeds
 (`80cfe02`) and the GHZ-star workload (`48638a5`) are committed. M1.1a, M1.1b and M1.1v are
 complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
 M1.1v-addendum is complete (predictions `b7f9ae6`). M1.2 is complete (`aec0e3d`, `c564c13`).
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
-M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c. Do not build a later step, or anything in the
+M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c, M1.4a, M1.4b, M1.4c, M1.5, M1.6. Do not build a later step, or anything in the
 deferred backlog, while an earlier one is open. Each step follows the step workflow in
 `CLAUDE.md`.
 
@@ -572,12 +572,68 @@ used, never environment variables.
       compared over a seeded GHZ-star footprint compiled for `fake_fez`; findings in ADR 0005,
       section 6.)
 
+## M1.4: Stale-noise check (CURRENT)
+
+**Goal:** show, for one stored fake-backend run, how the calibration frozen into that fake
+backend differs from a live snapshot of the corresponding real device, scoped to the run's
+physical footprint. It reports differences and measurement ages only. It does not say whether
+the fake's noise model is adequate for the workload.
+
+Scope sketch (designed in ADR 0007):
+
+- Inputs: one stored run on a fake backend and one stored live snapshot. Read-only, offline,
+  never persisted.
+- The fake-to-real device correspondence is explicit and documented. Device names are never
+  guessed.
+- Direction: fake (baseline) to live (candidate). Deltas are live minus fake.
+- Measurement dates on both sides, side by side, and their differences as calculated values.
+- Kind differences (a resource or parameter on one side only, unit differences, error-type
+  values equal to 1) are each reported explicitly.
+
+Sub-steps, each reviewed separately:
+
+- **M1.4a: design and ADR 0007 only, no code (CURRENT).** Branch
+  `docs/m1.4a-stale-noise-design`.
+- **M1.4b: implementation,** with offline tests on the committed `ibm_fez` fixture and fake
+  backends.
+- **M1.4c: live check by the user,** on their own store, recorded in ADR 0007.
+
+## M1.5: Historical backfill
+
+**Goal:** calibration history from before the first capture, if the provider honors
+historical lookups. Resolves D21 first, then captures past calibrations. Feeds research
+hypothesis H2 and D27.
+
+Scope sketch (designed in its own ADR, after M1.4):
+
+- Resolve D21: verify that historical calibration lookups (`properties(datetime=...)`) are
+  honored across several dates and devices, find how far back they work, and check IBM's
+  terms and rate limits. Each check is a manual, user-run command, and its results are
+  recorded before any code depends on them.
+- Only if D21 resolves in favor: capture past calibrations as snapshots, labeled as
+  historical lookups and distinguished from forward captures, with no scheduler or polling
+  loop.
+
+## M1.6: Footprint staleness and pre-flight
+
+**Goal:** before a run, report how old the calibration of a footprint is, and later an
+estimated success probability that is clearly labeled as a model prediction.
+
+Scope sketch (designed in its own ADR, after M1.5):
+
+- D25: for a footprint, the age of each relevant measurement at capture time and the oldest
+  one, as calculated values.
+- Then an estimated success probability, labeled `model_prediction` with its method and
+  method version, never presented as a measurement.
+- Later, validate the estimate against a few real runs. This is the first paid hardware
+  execution and needs its own approval.
+
 ## Deferred backlog (unplanned order)
 
-None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned order:
+None of these is scheduled. M0.5 stays unscheduled. The rest have no planned order:
 
 - M0.5: archival and richer measurement (details below).
-- Estimated success probability as a labeled `MODEL_PREDICTION`.
+- Estimated success probability as a labeled `MODEL_PREDICTION` (now sketched in M1.6).
 - A Hellinger sampling floor.
 - Chi-square tests.
 - Multiple registers and FDR.
@@ -607,7 +663,7 @@ None of these is scheduled. M0.5 follows M1.3, not M1. The rest have no planned 
 - Repeated executions and experiment grouping (D7).
 - More providers.
 - Long-term backend snapshot history beyond M1.3's forward-only capture log, such as
-  historical capture by datetime (D10; ADR 0005).
+  historical capture by datetime (D10; ADR 0005). Historical capture is now sketched in M1.5.
 - Research datasets. See `docs/research.md` and `docs/product.md`.
 
 ### M0.5: Archival and richer measurement (deferred, not started)
@@ -649,10 +705,10 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D18 | Where are observables declared? | Compare-time now (M1.2). Workload-declared intent in the run record later, which requires schema v2. Open. |
 | D19 | How should standalone calibration snapshots be stored, and how is their history kept? | **Resolved by [ADR 0005](docs/adr/0005-live-calibration-snapshots.md).** An insert-only snapshot store beside the runs table, deduplicated by content hash. History is a forward-only capture log. Measurements are stored as generic rows with adapter-defined resource identifiers, and the raw payload is kept. |
 | D20 | Run comparison does not check that baseline and candidate units agree. | Open. Fix at the next policy bump. Snapshot comparison (M1.3c) will report a unit mismatch as `not_comparable` for that parameter and never converts units (ADR 0005 section 7). |
-| D21 | Historical calibration backfill. | `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). Before relying on it: test multiple dates and devices, find how far back it works, and check IBM's terms and rate limits. Capture stays forward-only until then. |
+| D21 | Historical calibration backfill. | Scheduled: M1.5 resolves it first. `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). Before relying on it: test multiple dates and devices, find how far back it works, and check IBM's terms and rate limits. Capture stays forward-only until then. |
 | D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |
 | D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |
 | D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). |
-| D25 | Report, for a footprint, the age of each relevant measurement at capture time and the oldest one, as a calculated value. | Open. In the first live comparison, values that were not re-measured were about 1 h (T2) to about 22 h (cz) old at the later capture. |
+| D25 | Report, for a footprint, the age of each relevant measurement at capture time and the oldest one, as a calculated value. | Open. Scheduled in M1.6. In the first live comparison, values that were not re-measured were about 1 h (T2) to about 22 h (cz) old at the later capture. |
 | D26 | Show units in the text renderer (T1 and T2 in microseconds, lengths in nanoseconds). | Open. Checked on 2026-10-10: the JSON carries `unit` on every `hardware.shared_resource_parameters` entry (`us`, `ns`, or null for dimensionless values and unit mismatches). `unchanged_values` and `error_values_at_one` entries have no unit field. The text renderer shows the unit only on changed lines. |
 | D27 | Research: estimate the noise in provider calibration estimates by tracking the same parameter across many recalibrations. | Open. IBM publishes no uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and `date`. A `changed` value means only that the reported value changed. |
