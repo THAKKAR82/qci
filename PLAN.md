@@ -1,7 +1,8 @@
 # PLAN
 
-**Current milestone: M1.5 (historical backfill). Current step: M1.5a, design (ADR 0008,
-Proposed).**
+**Current milestone: M1.5 (historical backfill). Current step: M1.5b, the user's D21
+verification.** M1.5a is done (ADR 0008 accepted 2026-10-16 with amendments, branch
+`docs/m1.5a-historical-backfill-design`).
 M1.4 (stale-noise check) is done: M1.4c (live check by the user on three fake/device pairs,
 2026-10-16, recorded in ADR 0007 Findings), M1.4b (`qci snapshot compare-run`, branch
 `feat/m1.4b-compare-run`) and M1.4a (ADR 0007 accepted 2026-10-16 with amendments, branch
@@ -668,86 +669,109 @@ Sub-steps, each reviewed separately:
 - [x] `docs/architecture.md`, `docs/data-model.md` and README describe the command, and all
       gates pass.
 
-## M1.5: Historical backfill (CURRENT: M1.5a, design)
+## M1.5: Historical backfill (CURRENT: M1.5b, the user's verification)
 
 **Goal:** calibration history from before the first capture, if the provider honors
 historical lookups. Resolves D21 first, then captures past calibrations. Feeds research
 hypothesis H2 and D27.
 
-Designed in [ADR 0008](docs/adr/0008-historical-backfill.md) (Proposed). Sub-steps, each
-reviewed separately:
+Designed in [ADR 0008](docs/adr/0008-historical-backfill.md), accepted 2026-10-16 with
+amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
 
-- **M1.5a: design and ADR 0008, plus `scripts/verify_historical_calibration.py` (CURRENT).**
-  Branch `docs/m1.5a-historical-backfill-design`. No `src/` change.
-- **M1.5b: verification of D21, run by the user.** The protocol in ADR 0008 section 2 on
-  `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` at 1, 7, 30, 90, 180 and 365 days back, with
-  one repeated request, plus the user's check of IBM's terms and rate limits. No code.
+- **M1.5a: design, ADR 0008 and `scripts/verify_historical_calibration.py` (DONE: ADR 0008
+  accepted 2026-10-16 with amendments).** Branch `docs/m1.5a-historical-backfill-design`.
+- **M1.5b: verification of D21, run by the user (CURRENT).** Protocol `qci.d21.verify.2` in
+  ADR 0008 section 2: `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` at 1, 7, 30, 90, 180 and
+  365 days back with one repeated request, plus a ground-truth cross-check against the
+  stored live snapshots, and the user's terms-of-service check. No code.
 - **M1.5c: `qci snapshot backfill`, only if M1.5b supports it,** narrowed to the devices and
   depths it supports.
-- **M1.5d: research experiment on D27 and the calibration side of H2,** with predictions and
-  the analysis script committed before any backfilled value is analyzed.
+- **M1.5d: research experiment on D27 and the calibration side of H2.** Predictions P1-P4
+  are pre-registered in ADR 0008 section 8; the analysis script is committed before any
+  backfilled value is analyzed.
 
 **Decision rule after M1.5b** (ADR 0008 section 1): per device, the verified depth is the
-largest offset that is `honored` with every smaller offset `honored` or
-`inconclusive:no_newer_document`. Proceed for devices with a verified depth of at least 30
-days, an identical repeat and no `raises`; narrow to devices with at least 7 but under 30
-days; stop when no device qualifies or the terms do not permit the planned use. Stopping is a
-valid outcome: D21 is then resolved as not supported for QCI's use and history stays
-forward-only.
+largest offset that is `honored` (at or before the requested time, different from the
+current document, within 48 hours before the requested time, and no newer than any less
+distant request's result), with every smaller offset `honored` or
+`inconclusive:no_newer_document`. `honored_distant` does not count. Proceed for devices with
+a verified depth of at least 30 days, an identical repeat, and no `raises` or `non_monotonic`
+outcome; narrow to devices with at least 7 but under 30 days; stop when no device qualifies
+or the terms do not permit the planned use. Stopping is a valid outcome: D21 is then resolved
+as not supported for QCI's use and history stays forward-only.
 
-### M1.5b acceptance criteria (proposed; ADR 0008, section 8)
+The M1.5b commands, run in zsh from the repository root:
 
-- [ ] The user runs the command in ADR 0008 section 2 on the three devices. The full output
-      is recorded verbatim in ADR 0008 Findings ("D21 verification (M1.5b)"), with the
-      anchor time.
+```bash
+mkdir -p ~/qci-m15b
+shasum -a 256 ~/.qci-live/qci.db
+PYTHONPATH=src .venv/bin/python scripts/verify_historical_calibration.py --account default-ibm-quantum-platform --store "$HOME/.qci-live/qci.db" --pause 5 | tee ~/qci-m15b/d21.txt
+shasum -a 256 ~/.qci-live/qci.db
+```
+
+### M1.5b acceptance criteria (approved 2026-10-16; ADR 0008, section 8)
+
+- [ ] The user runs the commands in ADR 0008 section 2 (protocol `qci.d21.verify.2`) on the
+      three devices. The full output is recorded verbatim in ADR 0008 Findings ("D21
+      verification (M1.5b)"), with the anchor time.
 - [ ] Those Findings record, per device: each offset's outcome, the returned `last_update_date`,
-      whether the repeat is identical, and the verified depth.
-- [ ] The store hash of `~/.qci-live/qci.db` is identical before and after the script.
-- [ ] The terms and rate-limit finding replaces the placeholder in ADR 0008 section 6.
+      whether the repeat is identical, any `honored_distant` or `non_monotonic` outcome, and the
+      verified depth.
+- [ ] Those Findings record every cross-check outcome, and for each `different_document` both
+      `last_update_date` values, with the publication-lag note in ADR 0008 section 2 applied
+      where it fits.
+- [ ] The store hash is identical in the script's `store_sha256_before` and `store_sha256_after`
+      lines and in both `shasum` lines.
+- [ ] If the script stopped at a too-many-requests response, that is recorded, and the run is
+      not repeated before the terms check.
+- [ ] The terms-of-service finding completes ADR 0008 section 6.
 - [ ] The decision rule in ADR 0008 section 1 is applied and its result (proceed, narrow or
       stop, per device) is recorded. `PLAN.md` is updated to match: on stop, D21 is resolved,
       M1.5c is removed and M1.5d is marked for redesign or dropped.
 - [ ] No QCI code changes in M1.5b.
 
-### M1.5c acceptance criteria (proposed; only if M1.5b supports it)
+### M1.5c acceptance criteria (approved 2026-10-16; only if M1.5b supports it)
 
 - [ ] `SnapshotSource.HISTORICAL_LOOKUP`, `SnapshotCapture.method` and
-      `SnapshotCapture.requested_before` exist as in ADR 0008 section 3, with the validator.
-      The committed `ibm_fez` fixture validates unchanged.
-- [ ] `snapshot_db_schema = 2` with the `snapshot_lookups` table. A test opens a version 1
-      store read-only (every capture reads as `live_capture`, nothing is written) and for
-      writing (the table is created, the version becomes 2, and every existing row is
-      byte-identical). A version 1 table set and a version 2 table set are both accepted;
-      any other partial set is `DamagedStoreError`.
+      `SnapshotCapture.requested_before` exist as in ADR 0008 section 3, with the validator. The
+      committed `ibm_fez` fixture validates unchanged.
+- [ ] `snapshot_db_schema = 2` with the `snapshot_lookups` table. A test opens a version 1 store
+      read-only (every capture reads as `live_capture`, nothing is written) and for writing (the
+      table is created, the version becomes 2, and every existing row is byte-identical). A
+      version 1 table set and a version 2 table set are both accepted; any other partial set is
+      `DamagedStoreError`.
 - [ ] The content hash formula is unchanged. Two grid times returning one document give one
       snapshot and two lookup captures. `requested_before` is not in `capture_options`.
-- [ ] A lookup stores `configuration: null`. A test asserts that the client's
-      `configuration()` is not stored for a lookup.
-- [ ] Requested times are aware UTC datetimes with a zero offset. A stub test asserts the
-      exact `datetime` keyword the client receives under two `TZ` settings.
-- [ ] A returned `last_update_date` that is missing or after `requested_before` stores
-      nothing for that request and stops with exit 1, naming the device and both times.
-- [ ] The grid is as in ADR 0008 section 5 (UTC midnights, newest first, `--step-hours`
-      minimum 1), and `--days` above the device's verified depth, or a device with no
-      verified depth, exits 2 with nothing requested.
-- [ ] `--max-requests` defaults to 30 and is capped at 100. `--pause` defaults to 10 and has
-      a minimum of 2, unless the ADR 0008 section 6 finding sets other values. A stub test
-      counts the requests and the pauses.
+- [ ] A lookup stores `configuration: null`. A test asserts that the client's `configuration()`
+      is not stored for a lookup.
+- [ ] Requested times are aware UTC datetimes with a zero offset. A stub test asserts the exact
+      `datetime` keyword the client receives under two `TZ` settings.
+- [ ] A returned `last_update_date` that is missing or after `requested_before` stores nothing
+      for that request and stops with exit 1, naming the device and both times.
+- [ ] The grid is as in ADR 0008 section 5 (UTC midnights, newest first, `--step-hours` minimum
+      1), and `--days` above the device's verified depth, or a device with no verified depth,
+      exits 2 with nothing requested.
+- [ ] The first too-many-requests response (HTTP 429, or IBM error code 1202 in the exception
+      chain) stops the invocation with exit 1, with nothing retried by QCI and everything stored
+      before it kept. A stub test raises it on the third request and asserts two stored lookups
+      and three requests.
+- [ ] `--max-requests` defaults to 30 and is capped at 100. `--pause` defaults to 10 and has a
+      minimum of 2, unless the ADR 0008 section 6 finding sets other values. A stub test counts
+      the requests and the pauses.
 - [ ] Re-running after a stub error resumes: grid times already stored are skipped without a
       request, and the run completes the rest.
-- [ ] `fake_*` names and simulators exit 2. The store is checked before any request. The
-      client is constructed only as `QiskitRuntimeService(name=ACCOUNT)`, asserted through
-      the injected factory. No test constructs the real client or opens a connection.
+- [ ] `fake_*` names and simulators exit 2. The store is checked before any request. The client
+      is constructed only as `QiskitRuntimeService(name=ACCOUNT)`, asserted through the injected
+      factory. No test constructs the real client or opens a connection.
 - [ ] `qci snapshot show` prints the source and, for each lookup capture, its
       `requested_before`. `qci snapshots` output for existing stores is unchanged.
-- [ ] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is
-      unchanged for existing inputs, and the golden files are unchanged.
-- [ ] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the
-      command and the provenance. All gates pass, and the neutral-wording check has no
-      unexplained hit.
+- [ ] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is unchanged
+      for existing inputs, and the golden files are unchanged.
+- [ ] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the command
+      and the provenance. All gates pass, and the neutral-wording check has no unexplained hit.
 - [ ] Manual live check by the user: one small backfill (for example `--days 3`) on one
-      qualifying device, recorded in ADR 0008 Findings, with the store hash changing only through
-      the backfill.
+      qualifying device, recorded in ADR 0008 Findings, with the store hash changing only
+      through the backfill.
 
 ## M1.6: Footprint staleness and pre-flight
 
@@ -845,7 +869,7 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D18 | Where are observables declared? | Compare-time now (M1.2). Workload-declared intent in the run record later, which requires schema v2. Open. |
 | D19 | How should standalone calibration snapshots be stored, and how is their history kept? | **Resolved by [ADR 0005](docs/adr/0005-live-calibration-snapshots.md).** An insert-only snapshot store beside the runs table, deduplicated by content hash. History is a forward-only capture log. Measurements are stored as generic rows with adapter-defined resource identifiers, and the raw payload is kept. |
 | D20 | Run comparison does not check that baseline and candidate units agree. | Open. Fix at the next policy bump. Snapshot comparison (M1.3c) will report a unit mismatch as `not_comparable` for that parameter and never converts units (ADR 0005 section 7). |
-| D21 | Historical calibration backfill. | Scheduled: M1.5. [ADR 0008](docs/adr/0008-historical-backfill.md) (Proposed) defines the verification protocol (M1.5b) and a decision rule to proceed, narrow or stop. `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). The installed client has no datetime for `configuration()`. Capture stays forward-only until M1.5b's results and the terms check are recorded. |
+| D21 | Historical calibration backfill. | Scheduled: M1.5. [ADR 0008](docs/adr/0008-historical-backfill.md) (Accepted 2026-10-16) defines the verification protocol (M1.5b, `qci.d21.verify.2`) and a decision rule to proceed, narrow or stop. `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). The installed client has no datetime for `configuration()`. Capture stays forward-only until M1.5b's results and the terms check are recorded. |
 | D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |
 | D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |
 | D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). |

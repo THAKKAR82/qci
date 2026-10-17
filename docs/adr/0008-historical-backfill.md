@@ -1,7 +1,10 @@
 # ADR 0008: Historical calibration backfill
 
-- **Status:** Proposed
-- **Date:** 2026-10-16 (proposed)
+- **Status:** Accepted (2026-10-16), with amendments to the M1.5b protocol: a stricter
+  `honored` (within 48 hours, and monotonic across offsets), a ground-truth cross-check
+  against stored live snapshots, predictions P1-P4 frozen, and the known rate-limit facts
+  recorded (sections 1, 2, 6 and 8).
+- **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -42,6 +45,11 @@ made. ADR 0005's Findings already trace the call path; these facts are new or ma
 - **The client overwrites `backend_name`** in every properties response with the backend's
   own name (`cloud_backend.py:81`), so the payload's `backend_name` cannot show which device
   the server answered for.
+- **Client-side retries.** The client's HTTP session retries a request up to 5 times with
+  backoff (factor 0.5) on 500, 502, 503, 504, 520, 521, 522 and 524 responses
+  (`api/session.py`, `STATUS_FORCELIST` and `_initialize_retry`). 429 is not in that list, so
+  a too-many-requests response reaches the caller at once, as `RequestsApiError` with
+  `status_code` 429 and the IBM error code in its message. QCI adds no retries of its own.
 - **Docstrings still say not implemented.** `IBMBackend.properties` and
   `RuntimeClient.backend_properties` list `NotImplementedError` for a datetime, but neither
   body raises it. Only server responses can settle D21.
@@ -58,74 +66,124 @@ made. ADR 0005's Findings already trace the call path; these facts are new or ma
 | **M1.5d** | A research experiment on D27 (and the calibration side of H2), with predictions committed before any backfilled data is analyzed. | Claude and the user |
 
 **Decision rule after M1.5b.** Each device is judged on its own. For a device, the
-*verified depth* is the largest offset in the protocol for which that device's request is
-`honored` and every smaller offset is `honored` or `inconclusive:no_newer_document`.
+*verified depth* is the largest offset in the protocol whose request is `honored` and every
+smaller offset is `honored` or `inconclusive:no_newer_document`. Only `honored` counts:
+`honored_distant`, `non_monotonic`, any `ignored` label and any `raises` label end the chain.
 
 - **Proceed** with M1.5c for every device whose verified depth is at least 30 days, whose
-  repeat is `repeat:identical`, and that had no `raises` outcome. Backfill for that device is
-  limited to its verified depth.
+  repeat is `repeat:identical`, and that had no `raises` and no `non_monotonic` outcome.
+  Backfill for that device is limited to its verified depth.
 - **Narrow** when only some devices qualify, or a device's verified depth is at least 7 but
-  under 30 days: M1.5c covers only the qualifying devices, each limited to its verified depth. A
-  depth of 7 days is the minimum worth building for.
-- **Stop** when no device qualifies (every verified depth is below 7 days, or every repeat is
-  `repeat:different`, or every device raises), or when the terms check (section 6) does not
-  permit programmatic historical requests at the planned pacing. Then: D21 is resolved as
-  "not supported for QCI's use", history stays forward-only, M1.5c is not built, and M1.5d is
-  either redesigned on forward captures or dropped, in a separate approved step. This is a
-  valid outcome of M1.5, not a defect.
+  under 30 days: M1.5c covers only the qualifying devices, each limited to its verified depth.
+  A depth of 7 days is the minimum worth building for.
+- **Stop** when no device qualifies (every verified depth is below 7 days, or every device has
+  a `repeat:different`, `raises` or `non_monotonic` outcome), or when the terms check
+  (section 6) does not permit programmatic historical requests at the planned pacing. Then:
+  D21 is resolved as "not supported for QCI's use", history stays forward-only, M1.5c is not
+  built, and M1.5d is either redesigned on forward captures or dropped, in a separate approved
+  step. This is a valid outcome of M1.5, not a defect.
 - **Re-run once, never in a loop,** when a device's results are all `inconclusive`. If the
   second run is also inconclusive, that device does not qualify.
+
+A `non_monotonic` outcome disqualifies the device even beyond its verified depth, since the
+grid in section 5 assumes that a further-back request never returns a newer document. The
+ground-truth cross-check (section 2, part 2) does not enter the verified depth. Its results
+are recorded beside it, and every `different_document` is listed with both dates.
 
 The applied rule, each device's verified depth and the resulting choice are recorded in
 Findings at M1.5b before M1.5c starts.
 
 ### 2. The D21 verification protocol
 
-`scripts/verify_historical_calibration.py`, protocol `qci.d21.verify.1`:
+`scripts/verify_historical_calibration.py`, protocol `qci.d21.verify.2` (amended at
+acceptance; version 1 was the proposed protocol and was never run):
 
 - **Devices:** `ibm_fez`, `ibm_kingston`, `ibm_marrakesh`, in that order. These are the three
   devices in `FAKE_DEVICE_SOURCES` (ADR 0007).
 - **Anchor:** one UTC instant per invocation, the start time truncated to whole seconds,
   printed first. Requested times are `anchor - N days` for N in 1, 7, 30, 90, 180 and 365,
   sent as aware UTC datetimes with a zero offset (see Findings on `local_to_utc`).
-- **Per device:** one current request (`properties(refresh=True)`), then one request per
-  offset, then a **repeat** of the 30-day request with the identical requested instant. That
-  is 8 requests per device and 24 in all, with a pause between requests (default 5 s,
-  minimum 1 s). No retries.
-- **Hash:** each returned properties document is normalized as capture normalizes it (UTC
-  datetimes, lossless JSON, redaction) and hashed with `hash_json`. Only the hash is kept.
-- **Outcome per request,** with `requested` the requested instant, `returned` and `current`
-  the two documents:
+- **Hash:** each properties document, returned or stored, is normalized exactly as
+  `qci snapshot capture` normalizes it (UTC datetimes, lossless JSON, redaction, through
+  `build_captured_calibration`), and its properties part is hashed with `hash_json`. Only the
+  hash is kept. Properties only: backfilled snapshots have no configuration (section 3).
+- **Pacing:** a pause between requests (default 5 s, minimum 1 s). No retries by QCI; the
+  client's own retries on 5xx responses still apply (Findings). The first too-many-requests
+  response (HTTP 429, or IBM error code 1202 anywhere in the exception chain) stops the whole
+  script, labeled `raises:<Type>:too_many_requests`, with exit code 3.
+
+**Part 1, offsets.** Per device: one current request (`properties(refresh=True)`), then one
+request per offset, nearest first, then a **repeat** of the 30-day request with the identical
+requested instant: 8 requests per device. With `requested` the requested instant, `returned`
+and `current` the two documents, and `floor` the oldest `last_update_date` returned so far for
+that device by less distant requests (the current request is the least distant), the outcome
+is the first row that applies:
 
 | Outcome | Condition |
 |---|---|
-| `honored` | the returned hash differs from the current hash, and the returned `last_update_date` is at or before `requested` |
-| `ignored` | the returned hash equals the current hash, and the current `last_update_date` is after `requested` |
+| `inconclusive:no_document`, `inconclusive:no_returned_date` | no document, or no returned date |
+| `non_monotonic` | the returned `last_update_date` is after `floor`: a further-back request returned a newer document |
+| `inconclusive:no_current_date` | the hashes are equal and the current document has no date |
+| `inconclusive:no_newer_document` | the hashes are equal, and the current `last_update_date` is itself at or before `requested`: nothing newer was published, so honored and ignored cannot be told apart |
+| `ignored` | the hashes are equal, and the current `last_update_date` is after `requested` |
 | `ignored:returned_after_requested` | a different document whose `last_update_date` is after `requested` |
+| `honored_distant` | a different document whose `last_update_date` is more than 48 hours before `requested` |
+| `honored` | a different document whose `last_update_date` is at or before `requested` and within 48 hours of it |
 | `raises:<Type>` | the request raised; only the exception's type name is printed |
-| `inconclusive:no_newer_document` | the hashes are equal, but the current `last_update_date` is itself at or before `requested`: nothing newer was published, so honored and ignored cannot be told apart |
-| `inconclusive:no_document`, `inconclusive:no_returned_date`, `inconclusive:no_current_date` | no document, or a missing date, on the side named |
 
-- **Repeat:** `repeat:identical` when the second 30-day request returns the same hash as the
-  first, otherwise `repeat:different`. A different result means the same request does not
-  return the same content, and lookups on that device cannot be given a stable provenance.
-- **Output:** one line per request: device, requested time (or `current`), returned
-  `last_update_date`, properties hash and outcome. Nothing else is printed: no account data,
-  backend version, payload content or error text. The script opens no QCI store and writes no
-  file. It is type-checked by the gates and never run by pytest.
+`honored` therefore requires all four conditions of the amendment: (a) at or before the
+requested time, (b) different from the current document, (c) within 48 hours before the
+requested time, and (d) no newer than any less distant request's result.
 
-The command, run by the user in zsh from the repository root:
+**Repeat:** `repeat:identical` when the second 30-day request returns the same hash as the
+first, otherwise `repeat:different`. A different result means the same request does not
+return the same content, and lookups on that device cannot be given a stable provenance.
+
+**Part 2, ground-truth cross-check.** The script opens the QCI store once, read-only
+(`SqliteSnapshotRepository(read_only=True)`, SQLite `mode=ro`), before any request, and reads
+every stored `live_calibration` snapshot of the three devices (newest first capture first, at
+most `--max-cross-checks` per device, default 10). Per snapshot, after that device's part 1,
+it requests properties as of the snapshot's first `captured_at` and compares the hash of the
+returned properties with the hash of the stored `provider_raw["properties"]`:
+
+| Outcome | Condition |
+|---|---|
+| `match` | the hashes are equal |
+| `different_document` | the hashes differ; both `last_update_date` values are printed |
+| `inconclusive:no_document` | no document returned |
+| `raises:<Type>` | the request raised |
+
+A `different_document` result may reflect publication lag: a document stamped before the
+capture time but published after it. M1.3b observed this on `ibm_fez`: a capture at
+2026-10-10T01:12:12Z held a document dated 00:19:17Z, and a request minutes later returned a
+newer document dated 00:58:58Z, also before the capture (ADR 0005 Findings). A lookup as of
+the capture time then returns the later-stamped document, which the capture never saw. So
+`different_document` is recorded with both dates, never read as evidence that lookups are
+ignored. A stored document whose payload was redacted under older rules could also hash
+differently; the redaction rules have not changed since M1.3b (`redact.py` was last changed
+in `10bf573`).
+
+**Output.** One line each for the protocol and anchor, the store's SHA-256 before any
+request, the number of stored live snapshots per device, every request, and the store's
+SHA-256 at the end. Each request line holds the device, the snapshot ID (part 2 only), the
+requested time (or `current`), the returned and stored `last_update_date`, the hashes and the
+outcome. Nothing else is printed: no account data, backend version, payload content, path or
+error text. The script writes nothing to any QCI store and creates no file. It is
+type-checked by the gates and never run by pytest.
+
+The commands, run by the user in zsh from the repository root, are in PLAN.md's M1.5b
+section and repeated here:
 
 ```bash
 mkdir -p ~/qci-m15b
 shasum -a 256 ~/.qci-live/qci.db
-PYTHONPATH=src .venv/bin/python scripts/verify_historical_calibration.py --account default-ibm-quantum-platform --pause 5 | tee ~/qci-m15b/d21.txt
+PYTHONPATH=src .venv/bin/python scripts/verify_historical_calibration.py --account default-ibm-quantum-platform --store "$HOME/.qci-live/qci.db" --pause 5 | tee ~/qci-m15b/d21.txt
 shasum -a 256 ~/.qci-live/qci.db
 ```
 
-The two hashes show that no QCI store was touched. `scripts/check_historical_calibration.py`
-(ADR 0005, one request on one device) is kept as the record of the first observation; this
-script supersedes it for D21.
+The script's own before and after hashes, and the two `shasum` lines, show that the store was
+not modified. `scripts/check_historical_calibration.py` (ADR 0005, one request on one device)
+is kept as the record of the first observation; this script supersedes it for D21.
 
 ### 3. Provenance: a backfilled snapshot is always distinguishable
 
@@ -214,18 +272,25 @@ Each parameter keeps its own provider date, as in every snapshot.
   the cap and prints how many grid times remain.
 - **Pacing:** `--pause` seconds between requests, default 10, minimum 2. Values from the
   terms check below override these defaults before M1.5c is approved.
-- **No retries.** The first error stops the invocation. Everything stored before it is kept,
-  since each lookup is stored in its own transaction.
+- **No retries.** The first error stops the invocation, including the first too-many-requests
+  response (HTTP 429 or IBM error code 1202). Everything stored before it is kept, since each
+  lookup is stored in its own transaction. The client's own retries on 5xx responses
+  (Findings) are outside QCI's control and are stated in the command's help.
 - **Resumable:** before each request, the command looks for an existing lookup capture with
   the same backend and `requested_before`. If it exists, the grid time is skipped and counts
   against no cap. Re-running the same command continues where the last one stopped.
 
 **IBM terms and rate limits (to be checked by the user at M1.5b, before M1.5c):**
 
-> _Placeholder. Record: the documents checked (title, URL, date read), what they say about
-> programmatic or bulk requests for historical calibration data, any stated request-rate
-> limits, and whether the planned pacing (10 s between requests, at most 100 per invocation)
-> is within them. If the terms do not permit it, the decision rule in section 1 says stop._
+> Documented: job submission is limited to 5 per minute per user (not applicable; QCI submits
+> no jobs). No published limit was found for reading properties. A generic too-many-requests
+> error exists (code 1202); the script and the M1.5c command stop at the first such error,
+> with no retries. Terms of service: to be checked by the user before M1.5c.
+>
+> _Still to record at M1.5b: the terms-of-service documents checked (title, URL, date read),
+> what they say about programmatic or bulk requests for historical calibration data, and
+> whether the planned pacing (10 s between requests, at most 100 per invocation) is within
+> them. If the terms do not permit it, the decision rule in section 1 says stop._
 
 ### 7. What M1.5 does not do
 
@@ -243,12 +308,20 @@ Each parameter keeps its own provider date, as in every snapshot.
 
 #### M1.5b: verification of D21, run by the user
 
-- [ ] The user runs the command in section 2 on the three devices. The full output is
-      recorded verbatim in Findings ("D21 verification (M1.5b)"), with the anchor time.
+- [ ] The user runs the commands in section 2 (protocol `qci.d21.verify.2`) on the three
+      devices. The full output is recorded verbatim in Findings ("D21 verification
+      (M1.5b)"), with the anchor time.
 - [ ] Findings record, per device: each offset's outcome, the returned `last_update_date`,
-      whether the repeat is identical, and the verified depth.
-- [ ] The store hash of `~/.qci-live/qci.db` is identical before and after the script.
-- [ ] The terms and rate-limit finding replaces the placeholder in section 6.
+      whether the repeat is identical, any `honored_distant` or `non_monotonic` outcome, and
+      the verified depth.
+- [ ] Findings record every cross-check outcome, and for each `different_document` both
+      `last_update_date` values, with the publication-lag note in section 2 applied where it
+      fits.
+- [ ] The store hash is identical in the script's `store_sha256_before` and
+      `store_sha256_after` lines and in both `shasum` lines.
+- [ ] If the script stopped at a too-many-requests response, that is recorded, and the run is
+      not repeated before the terms check.
+- [ ] The terms-of-service finding completes section 6.
 - [ ] The decision rule in section 1 is applied and its result (proceed, narrow or stop, per
       device) is recorded. `PLAN.md` is updated to match: on stop, D21 is resolved, M1.5c is
       removed and M1.5d is marked for redesign or dropped.
@@ -275,6 +348,10 @@ Each parameter keeps its own provider date, as in every snapshot.
 - [ ] The grid is as in section 5 (UTC midnights, newest first, `--step-hours` minimum 1),
       and `--days` above the device's verified depth, or a device with no verified depth,
       exits 2 with nothing requested.
+- [ ] The first too-many-requests response (HTTP 429, or IBM error code 1202 in the exception
+      chain) stops the invocation with exit 1, with nothing retried by QCI and everything
+      stored before it kept. A stub test raises it on the third request and asserts two
+      stored lookups and three requests.
 - [ ] `--max-requests` defaults to 30 and is capped at 100. `--pause` defaults to 10 and has
       a minimum of 2, unless the section 6 finding sets other values. A stub test counts the
       requests and the pauses.
@@ -294,27 +371,52 @@ Each parameter keeps its own provider date, as in every snapshot.
       qualifying device, recorded in Findings, with the store hash changing only through
       the backfill.
 
-#### M1.5d: research experiment (designed in its own step, outline only)
+#### M1.5d: research experiment, with predictions pre-registered
 
-Predictions are committed, with the analysis script, before any backfilled value is
-analyzed (CLAUDE.md, step workflow item 6). Its results are research notes, not product
-output. Draft predictions, to be frozen at M1.5d's design:
+**P1-P4 were pre-registered before any historical data was seen** (2026-10-16, at the
+acceptance of this ADR). They may be amended only by a dated note in this section, written
+before M1.5d collects any backfilled data, and only to fix a design problem (for example a
+definition that cannot be computed), never in response to a result. Disclosure: they were
+written after the M1.4c live check, which showed fake-to-live `readout_error` ratios of about
+7.7 and 15.5 on `ibm_marrakesh` qubits 11 and 13 (ADR 0007 Findings). No backfilled or
+historical calibration value had been seen.
 
-- **P1 (D27).** For the GHZ-star footprint qubits of each device, over the backfilled daily
-  grid, the median coefficient of variation of `T1` across distinct documents is at least
-  0.10.
-- **P2 (D27).** For `readout_error` on the same qubits, at least one qubit per device has a
-  maximum-to-minimum ratio of at least 3 over the backfilled window.
-- **P3 (H2, calibration side only).** For at least two of the three devices, the rank order
-  of footprint qubits by `readout_error` on the newest document and on the document 30 days
-  earlier has Kendall's tau below 0.5.
-- **P4 (D24).** `rz` `gate_error` is 0 on every document, and its date equals the document's
-  `last_update_date` on at least 99% of documents.
+Definitions, frozen with the predictions:
+
+- **Data:** the `historical_lookup` snapshots M1.5c stores for a device, within its backfilled
+  window. **Distinct documents** are distinct content hashes.
+- **Footprint qubits:** the GHZ-star footprints recorded at M1.4c (ADR 0007 Findings):
+  `ibm_fez` 136, 141, 142, 143, 144; `ibm_kingston` 138, 149, 150, 151, 152; `ibm_marrakesh`
+  10, 11, 12, 13, 18.
+- **Minimum data:** a prediction is evaluated on a device only if it has at least 5 distinct
+  documents in the window the prediction needs. Otherwise it is "not testable" on that
+  device. A prediction whose data the M1.5b outcome does not allow (for example P3 without a
+  30-day depth on two devices) is recorded as not testable, not amended.
+- **Values:** a parameter value that is unavailable on a document is left out, never set to
+  0. Each prediction is reported per device, with no pooling across devices, as supported,
+  not supported or not testable.
+
+The predictions:
+
+- **P1 (D27).** For each device, the median over its footprint qubits of the coefficient of
+  variation of `T1` (sample standard deviation with n - 1, divided by the mean) across
+  distinct documents is at least 0.10.
+- **P2 (D27).** For each device, at least one footprint qubit has a maximum-to-minimum ratio
+  of `readout_error` across distinct documents of at least 3. A qubit whose minimum is 0 has
+  an undefined ratio and does not count.
+- **P3 (H2, calibration side only).** For at least two of the three devices, Kendall's tau-b
+  between the footprint qubits' `readout_error` on the document returned for the newest grid
+  time and on the document returned for the grid time 30 days earlier is below 0.5.
+- **P4 (D24).** On every distinct document of every backfilled device, `rz` `gate_error` on
+  each footprint qubit is 0, and its date equals the document's `last_update_date` for at
+  least 99% of (document, qubit) pairs.
 
 M1.5d cannot test H2 itself, which concerns execution behavior: QCI has no hardware
 executions. P3 tests only whether calibration at one time is a stable description of
-calibration at another, which is a precondition for H2. The results are labeled `statistical`
-or `calculated`, with methods and versions, and never as causal claims.
+calibration at another, which is a precondition for H2. The analysis script is committed
+before it reads any backfilled data. The values it reports are `calculated`, with methods
+and versions; none is presented as a causal claim. Results are research notes, not product
+output.
 
 ## Consequences
 
