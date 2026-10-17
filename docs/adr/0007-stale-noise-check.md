@@ -1,7 +1,10 @@
 # ADR 0007: Stale-noise check (fake calibration against a live snapshot)
 
-- **Status:** Proposed
-- **Date:** 2026-10-16
+- **Status:** Accepted (2026-10-16), with five amendments: a limitation line on calibration
+  data versus a simulator's noise model (section 7), the command name confirmed (section 6),
+  three mapping entries verified offline (section 2), device-wide lists moved to the backlog
+  (sections 4 and 6), and units on every value line (section 6, D26).
+- **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted)
 - **Milestone:** M1.4 (`PLAN.md`). This ADR is M1.4a. M1.4b implements it, and M1.4c is the
   user's live check.
 
@@ -77,6 +80,16 @@ the fake's name. Of the 68 installed fakes, most map `fake_X` to `ibm_X`, but ot
 (`fake_fractional`, `fake_nighthawk`). Deriving a device name from a fake name would be wrong
 for some fakes.
 
+**Mapping entries, checked offline at acceptance (2026-10-16).** With qiskit-ibm-runtime
+0.50.0, each of the three fakes named in the amendment is installed, and its properties
+payload's `backend_name` equals the device it is mapped to:
+
+| Fake (class) | `properties.backend_name` | `backend_version` | `last_update_date` | Qubits |
+|---|---|---|---|---|
+| `fake_fez` (`FakeFez`) | `ibm_fez` | 1.2.8 | 2025-02-26T15:16:25-05:00 | 156 |
+| `fake_kingston` (`FakeKingston`) | `ibm_kingston` | 1.0.0 | 2026-04-15T09:15:15+02:00 | 156 |
+| `fake_marrakesh` (`FakeMarrakesh`) | `ibm_marrakesh` | 1.0.7 | 2025-02-26T14:52:45-05:00 | 156 |
+
 ### Fake against live, offline prototype
 
 A scratch script (not committed) applied the reuse in section 4 to the stored `fake_fez` run
@@ -100,7 +113,8 @@ and the committed `ibm_fez` fixture (captured 2026-10-10, `calibrated_at`
 - Gate names on one side only (device-wide): the live side also has `measure`, `measure_2`,
   `measure_reset`, `measure_reset_2`, `reset_2` and `xslow`. Qubit parameters on one side
   only: `init_error` (live). Measure-gate parameters, such as `threshold`, are not read by the
-  reader (D22).
+  reader (D22). Device-wide differences are not part of M1.4b. They are a backlog item in
+  `PLAN.md`.
 
 ## Decision
 
@@ -132,21 +146,28 @@ device name the fake's own payload records.** The user does not supply a device 
 
 ```python
 # adapters/qiskit_ibm/calibration.py
-FAKE_DEVICE_SOURCES: Mapping[str, str] = {"fake_fez": "ibm_fez"}
+FAKE_DEVICE_SOURCES: Mapping[str, str] = {
+    "fake_fez": "ibm_fez",
+    "fake_kingston": "ibm_kingston",
+    "fake_marrakesh": "ibm_marrakesh",
+}
 """Fake backend name -> the real device whose calibration the fake was built from. Explicit
 and exact. A fake not listed here is not compared with any live snapshot. Entries are added
 only when verified (see the test below); device names are never derived from fake names."""
 ```
 
-- **One entry in M1.4b.** `fake_fez -> ibm_fez` is the only pair with a committed live
-  fixture and a live snapshot in the user's store. Each new entry is one line plus the same
-  test, added in a later step when someone needs that pair.
+- **Three entries in M1.4b, and no others.** `fake_fez -> ibm_fez`,
+  `fake_kingston -> ibm_kingston` and `fake_marrakesh -> ibm_marrakesh`. Each was checked
+  offline at acceptance (see Findings). `fake_fez` is the only one with a committed live
+  fixture and live snapshots in the user's store. Any further entry is one line plus its own
+  test, added in a later, approved step.
 - **Cross-check.** The comparison also reads `provider_raw["properties"]["backend_name"]` from
   the run record. If it differs from the mapped device, the result is `not_comparable`. This
   catches a later `qiskit-ibm-runtime` release whose fake was rebuilt from another device, for
   runs stored under that release.
-- **Test.** For every entry, a test instantiates the installed fake and asserts that its
-  properties `backend_name` equals the mapped device.
+- **Tests.** Each entry has its own test, which instantiates the installed fake and asserts
+  that its properties `backend_name` equals the mapped device. A further test asserts that the
+  mapping has exactly these three keys.
 - **The snapshot's device must match.** The user picks the snapshot ID. If its `backend_name`
   is not the mapped device, the result is `not_comparable`, naming both. So the user's choice
   of snapshot can never pair calibration from two devices.
@@ -193,8 +214,11 @@ source.
 | Reported, but the value is unrepresentable (non-finite, complex, redacted) | `status="unavailable"`, as now. It does not appear in `parameters_on_one_side`. | Unchanged. |
 | Unit differs, including `None` against a unit | `status="not_comparable"`, both raw values, `delta=None`, and the reason naming the resource, the parameter and both units. No unit is converted. In addition, `unit_differences` lists `{resource_kind, operation, qubits, parameter, baseline_unit, candidate_unit}`. | `compare_calibration(require_matching_units=True)` unchanged. `unit_differences` is new, because a mismatched `ParameterComparison` has `unit=None` and the two units appear only in the reason string. It is built from the two reader selections. |
 | Error-type value exactly 1 on either side | `error_values_at_one`, per side, with `side="baseline"` (fake) or `"candidate"` (live), as the provider gave it, with no interpretation. | `error_values_at_one` and `ERROR_PARAMETERS` from M1.3c, unchanged. |
-| Gate names and parameter names present on one side only, device-wide | `gate_names` and `parameter_names`: `SetComparison`s (`common`, `baseline_only`, `candidate_only`) over the names in each properties payload. They are labeled device-wide and do not affect the status. `n_qubits` of each side is shown. | `compare_set` from `compare/values.py`. The name lists come from a new adapter function over the properties payload. |
 | `general` pairwise parameters and `measure` gate entries | Excluded and listed in `hardware.excluded`, as now (D14, D22). | Unchanged. |
+
+Device-wide gate-set and qubit-count differences between a fake and its live device are not
+reported in M1.4b. They are a backlog item in `PLAN.md` (amendment 4). The output covers the
+footprint only.
 
 `compare_calibration` itself is not modified. `compare_snapshots` cannot be reused: it
 requires both sides to be `CalibrationSnapshot`s of one backend name, it takes the footprint
@@ -274,15 +298,13 @@ The mapping note `fake_fez is the fake built from ibm_fez calibration
     "calibrated_at": "2025-02-26T20:16:25Z",
     "recorded_device": "ibm_fez",             // properties.backend_name in the run record
     "recorded_device_version": "1.2.8",       // properties.backend_version
-    "qiskit_ibm_runtime_version": "0.50.0",   // from the run's environment provenance
-    "n_qubits": 156
+    "qiskit_ibm_runtime_version": "0.50.0"    // from the run's environment provenance
   },
   "candidate": {                              // the live side
     "snapshot_id": "...", "provider": "qiskit_ibm",
     "backend_name": "ibm_fez", "backend_version": "1.3.37",
     "content_hash": "...", "source": "live_calibration",
-    "captured_at": "...", "calibrated_at": "2026-10-10T00:19:17Z",
-    "n_qubits": 156
+    "captured_at": "...", "calibrated_at": "2026-10-10T00:19:17Z"
   },
   "device_mapping": {"fake": "fake_fez", "device": "ibm_fez",
                      "source": "qiskit_ibm FAKE_DEVICE_SOURCES"},   // null before exit 6
@@ -295,9 +317,6 @@ The mapping note `fake_fez is the fake built from ibm_fez calibration
   "unit_differences": [],
   "error_parameters": ["gate_error", "readout_error", "init_error"],
   "error_values_at_one": [],
-  "gate_names": {"status": "changed", "common": [...], "baseline_only": [],
-                 "candidate_only": ["measure", ..., "xslow"]},
-  "parameter_names": { ... SetComparison ... },
   "calibrated_at_difference": {"name": "calibrated_at_difference", "value": 50990572.0,
                                "unit": "s", "kind": "calculated", ...},
   "measurement_dates": [
@@ -325,8 +344,6 @@ adapter:
   properties `backend_name` and `backend_version`;
 - `missing_resources(snapshot: BackendSnapshot, qubits, operations) -> list[str]`, which calls
   the existing `missing_resources(snapshot.provider_raw, ...)`;
-- `names(provider_raw) -> tuple[list[str], list[str], int | None]`: gate names, parameter names
-  and `n_qubits`.
 
 A dataclass `RunSnapshotComparisonSupport` bundles the existing `SnapshotComparisonSupport`
 and a `FakeDeviceIndex`. A `RunSnapshotCompareService` in `qci/services/` loads the run and the
@@ -358,19 +375,22 @@ version, `qci.compare.run_snapshot.1`. `SnapshotComparison` and its method versi
    does not say whether the fake's noise model suits the workload, and it does not predict
    how the workload would behave on the device. Nothing is simulated against the live
    snapshot."
-6. "Measurement dates are provider timestamps, shown as given. Their differences are
+6. "This compares calibration data: the values the fake backend was built from and the live
+   device's reported values. It does not compare the noise model a simulator constructs from
+   that data; a simulator may use only some of these parameters, in its own way."
+7. "Measurement dates are provider timestamps, shown as given. Their differences are
    calculated. For virtual gates (such as rz) and configured durations (such as gate_length),
    the date can be the document timestamp rather than the time of a physical measurement."
-7. "The run's captured_at is when QCI read the fake backend, not a calibration date, and is
+8. "The run's captured_at is when QCI read the fake backend, not a calibration date, and is
    not used."
-8. "Relevant hardware means calibration data for the physical resources of the footprint. It
+9. "Relevant hardware means calibration data for the physical resources of the footprint. It
    does not mean a parameter is known to affect workload performance."
-9. "The raw payloads of a fake and a live device always differ, so global_snapshot_changed
-   is true in practice and carries no further information here."
-10. "Error-type parameters with a value of exactly 1 are listed as the provider reported
+10. "The raw payloads of a fake and a live device always differ, so global_snapshot_changed
+    is true in practice and carries no further information here."
+11. "Error-type parameters with a value of exactly 1 are listed as the provider reported
     them. QCI does not interpret them."
-11. "Pairwise general parameters (D14) and measure gate entries (D22) are not compared."
-12. "These comparisons are never stored."
+12. "Pairwise general parameters (D14) and measure gate entries (D22) are not compared."
+13. "These comparisons are never stored."
 
 ### 8. Out of scope
 
@@ -378,19 +398,22 @@ version, `qci.compare.run_snapshot.1`. `SnapshotComparison` and its method versi
 - Routing, backend selection or layout advice.
 - Predictions of any kind, including an estimated success probability (M1.6).
 - Ages relative to the current time or to the capture time (D25, M1.6).
-- Mapping entries beyond `fake_fez -> ibm_fez`.
+- Mapping entries beyond the three in section 2.
+- Device-wide gate-set and qubit-count differences (backlog).
 - Comparing two runs' fake calibrations, or a run against a snapshot from another device.
 - Any change to run comparison, snapshot comparison, the run schema or the snapshot schema.
 - Network access, live capture inside the command, and historical lookups (M1.5).
 
 ### 9. Acceptance criteria
 
-#### M1.4b: implementation (proposed)
+#### M1.4b: implementation (approved 2026-10-16, with amendments)
 
 - [ ] `FAKE_DEVICE_SOURCES` in `adapters/qiskit_ibm/calibration.py` is an explicit mapping
-      with exactly one entry, `fake_fez -> ibm_fez`. A test instantiates every listed fake and
-      asserts that its properties payload's `backend_name` equals the mapped device. No code
-      derives a device name from a fake name.
+      with exactly three entries: `fake_fez -> ibm_fez`, `fake_kingston -> ibm_kingston` and
+      `fake_marrakesh -> ibm_marrakesh`. Each entry has its own test, which instantiates the
+      installed fake and asserts that its properties payload's `backend_name` equals the
+      mapped device. A test asserts that the mapping has exactly these keys. No code derives a
+      device name from a fake name.
 - [ ] `qci snapshot compare-run RUN_ID SNAPSHOT_ID [--json]` opens both repositories
       read-only. The database bytes are unchanged after the command, and the existing guard
       shows that no IBM client is constructed. An unknown run or snapshot ID exits 1.
@@ -427,12 +450,15 @@ version, `qci.compare.run_snapshot.1`. `SnapshotComparison` and its method versi
       `calibrated_at_difference` are calculated `Metric`s, or null. A test shows that
       changing the run's `backend_snapshot.captured_at` changes no date, difference or
       status in the output.
-- [ ] `gate_names` and `parameter_names` are `SetComparison`s over each side's properties
-      payload and do not affect `status`. On the fixture pair, `init_error` is in
-      `parameter_names.candidate_only` and `xslow` in `gate_names.candidate_only`.
+- [ ] The output has no device-wide gate-set, parameter-set or qubit-count fields; only the
+      footprint is compared.
 - [ ] The output carries both backend versions, the recorded device and its version, the
       run's `qiskit-ibm-runtime` version, `device_mapping`, and exactly the limitations in
-      section 7.
+      section 7, including: "This compares calibration data: the values the fake backend was
+      built from and the live device's reported values. It does not compare the noise model a
+      simulator constructs from that data; a simulator may use only some of these parameters,
+      in its own way."
+- [ ] The text renderer shows the unit on every value line (D26, for this command).
 - [ ] `run_snapshot_comparison_id` is deterministic, lists are sorted as in section 6, and
       `--json` output is byte-identical across two invocations.
 - [ ] Rendered and JSON output contain none of the rule 8 words, nor `significan`,
@@ -469,7 +495,7 @@ JSON:
 - `parameters_on_one_side`, `unit_differences` and `error_values_at_one`, each listed in full
   or stated as empty;
 - the range of `live_minus_fake` and `calibrated_at_difference`, for both snapshots;
-- both backend versions and the `gate_names` and `parameter_names` differences;
+- both backend versions;
 - that the database hash is unchanged and `a.json` equals `b.json`;
 - any output line that could be read as a judgment, to be fixed before M1.4 closes.
 
@@ -481,7 +507,7 @@ JSON:
 - **Good:** `compare_calibration`, `missing_resources`, `error_values_at_one` and
   `compare_set` are reused unchanged. Run comparison and snapshot comparison output stays
   byte-identical.
-- **Cost:** one mapping entry. Every additional fake needs a reviewed one-line entry and its
+- **Cost:** three mapping entries. Every additional fake needs a reviewed one-line entry and its
   test before it can be compared.
 - **Cost:** a run is now compared with a snapshot. In M1.3c the run only selected resources.
   Here its stored calibration is the baseline. This is the reason for the source checks

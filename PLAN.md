@@ -1,7 +1,8 @@
 # PLAN
 
-**Current milestone: M1.4 (stale-noise check). Current step: M1.4a, design and ADR 0007
-(branch `docs/m1.4a-stale-noise-design`).** M1.3 (read-only live calibration snapshots) is
+**Current milestone: M1.4 (stale-noise check). Current step: M1.4b, implementation.** M1.4a
+is done (ADR 0007 accepted 2026-10-16 with amendments, branch
+`docs/m1.4a-stale-noise-design`). M1.3 (read-only live calibration snapshots) is
 done: M1.3c (footprint-scoped snapshot comparison, branch `feat/m1.3c-snapshot-diff`, live
 check 2026-10-10), M1.3b (capture and storage, branch `feat/m1.3b-snapshot-capture`) and M1.3a
 (ADR 0005 accepted 2026-10-09). M1.1 (including M1.1v-addendum) and M1.2 are complete.
@@ -12,8 +13,8 @@ M1.1v-addendum is complete (predictions `b7f9ae6`). M1.2 is complete (`aec0e3d`,
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
 M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c, M1.4a, M1.4b, M1.4c, M1.5, M1.6. Do not build a
-later step, or anything in the deferred backlog, while an earlier one is open. Each step follows the step workflow in
-`CLAUDE.md`.
+later step, or anything in the deferred backlog, while an earlier one is open. Each step
+follows the step workflow in `CLAUDE.md`.
 
 ---
 
@@ -572,7 +573,7 @@ used, never environment variables.
       compared over a seeded GHZ-star footprint compiled for `fake_fez`; findings in ADR 0005,
       section 6.)
 
-## M1.4: Stale-noise check (CURRENT)
+## M1.4: Stale-noise check (CURRENT: M1.4b)
 
 **Goal:** show, for one stored fake-backend run, how the calibration frozen into that fake
 backend differs from a live snapshot of the corresponding real device, scoped to the run's
@@ -592,32 +593,33 @@ Scope sketch (designed in ADR 0007):
 
 Sub-steps, each reviewed separately:
 
-- **M1.4a: design and [ADR 0007](docs/adr/0007-stale-noise-check.md) only, no code
-  (CURRENT; ADR proposed 2026-10-16, awaiting approval).** Branch
-  `docs/m1.4a-stale-noise-design`.
-- **M1.4b: implementation,** with offline tests on the committed `ibm_fez` fixture and fake
-  backends.
+- **M1.4a: design and [ADR 0007](docs/adr/0007-stale-noise-check.md) only, no code (DONE:
+  ADR 0007 accepted 2026-10-16 with amendments).** Branch `docs/m1.4a-stale-noise-design`.
+- **M1.4b: implementation (CURRENT),** with offline tests on the committed `ibm_fez`
+  fixture and fake backends.
 - **M1.4c: live check by the user,** on their own store, recorded in ADR 0007.
 
-### M1.4b acceptance criteria (proposed in ADR 0007, section 9; not yet approved)
+### M1.4b acceptance criteria (approved 2026-10-16 with amendments; ADR 0007, section 9)
 
 - [ ] `FAKE_DEVICE_SOURCES` in `adapters/qiskit_ibm/calibration.py` is an explicit mapping
-      with exactly one entry, `fake_fez -> ibm_fez`. A test instantiates every listed fake and
-      asserts that its properties payload's `backend_name` equals the mapped device. No code
-      derives a device name from a fake name.
+      with exactly three entries: `fake_fez -> ibm_fez`, `fake_kingston -> ibm_kingston` and
+      `fake_marrakesh -> ibm_marrakesh`. Each entry has its own test, which instantiates the
+      installed fake and asserts that its properties payload's `backend_name` equals the
+      mapped device. A test asserts that the mapping has exactly these keys. No code derives a
+      device name from a fake name.
 - [ ] `qci snapshot compare-run RUN_ID SNAPSHOT_ID [--json]` opens both repositories
       read-only. The database bytes are unchanged after the command, and the existing guard
       shows that no IBM client is constructed. An unknown run or snapshot ID exits 1.
 - [ ] Each exit in ADR 0007 section 6 has a test that asserts its status and its reason,
       and that no parameter comparisons are produced: no backend snapshot (`unavailable`);
       run snapshot source not `static_fake` (`not_comparable`); snapshot source not
-      `live_calibration` (`not_comparable`); provider differs (`not_comparable`); fake not in the mapping
-      (`not_comparable`, naming the fake and saying that no device name is derived from it);
-      snapshot backend differs from the mapped device (`not_comparable`, naming both); the
-      run's recorded properties `backend_name` missing or different from the mapped device
-      (`not_comparable`, naming both); footprint not available (`unavailable`, or
-      `not_comparable` when dynamic); footprint resources missing from either side
-      (`not_comparable`, listing each one per side).
+      `live_calibration` (`not_comparable`); provider differs (`not_comparable`); fake not in
+      the mapping (`not_comparable`, naming the fake and saying that no device name is
+      derived from it); snapshot backend differs from the mapped device (`not_comparable`,
+      naming both); the run's recorded properties `backend_name` missing or different from
+      the mapped device (`not_comparable`, naming both); footprint not available
+      (`unavailable`, or `not_comparable` when dynamic); footprint resources missing from
+      either side (`not_comparable`, listing each one per side).
 - [ ] The calibration comparison is `compare_calibration` with `require_matching_units=True`,
       with the run's stored `BackendSnapshot` as baseline and the live snapshot's
       `BackendSnapshot` view as candidate, and the same footprint on both sides.
@@ -641,12 +643,15 @@ Sub-steps, each reviewed separately:
       `calibrated_at_difference` are calculated `Metric`s, or null. A test shows that
       changing the run's `backend_snapshot.captured_at` changes no date, difference or
       status in the output.
-- [ ] `gate_names` and `parameter_names` are `SetComparison`s over each side's properties
-      payload and do not affect `status`. On the fixture pair, `init_error` is in
-      `parameter_names.candidate_only` and `xslow` in `gate_names.candidate_only`.
+- [ ] The output has no device-wide gate-set, parameter-set or qubit-count fields; only the
+      footprint is compared.
 - [ ] The output carries both backend versions, the recorded device and its version, the
       run's `qiskit-ibm-runtime` version, `device_mapping`, and exactly the limitations in
-      ADR 0007 section 7.
+      ADR 0007 section 7, including: "This compares calibration data: the values the fake
+      backend was built from and the live device's reported values. It does not compare the
+      noise model a simulator constructs from that data; a simulator may use only some of
+      these parameters, in its own way."
+- [ ] The text renderer shows the unit on every value line (D26, for this command).
 - [ ] `run_snapshot_comparison_id` is deterministic, lists are sorted as in ADR 0007
       section 6, and `--json` output is byte-identical across two invocations.
 - [ ] Rendered and JSON output contain none of the rule 8 words, nor `significan`,
@@ -691,6 +696,8 @@ None of these is scheduled. M0.5 stays unscheduled. The rest have no planned ord
 
 - M0.5: archival and richer measurement (details below).
 - Estimated success probability as a labeled `MODEL_PREDICTION` (now sketched in M1.6).
+- Device-wide gate-set and qubit-count differences between a fake and its live device
+  (removed from M1.4b at the ADR 0007 review, 2026-10-16).
 - A Hellinger sampling floor.
 - Chi-square tests.
 - Multiple registers and FDR.
@@ -767,5 +774,5 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |
 | D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). |
 | D25 | Report, for a footprint, the age of each relevant measurement at capture time and the oldest one, as a calculated value. | Open. Scheduled in M1.6. In the first live comparison, values that were not re-measured were about 1 h (T2) to about 22 h (cz) old at the later capture. |
-| D26 | Show units in the text renderer (T1 and T2 in microseconds, lengths in nanoseconds). | Open. Checked on 2026-10-10: the JSON carries `unit` on every `hardware.shared_resource_parameters` entry (`us`, `ns`, or null for dimensionless values and unit mismatches). `unchanged_values` and `error_values_at_one` entries have no unit field. The text renderer shows the unit only on changed lines. |
+| D26 | Show units in the text renderer (T1 and T2 in microseconds, lengths in nanoseconds). | Open. Checked on 2026-10-10: the JSON carries `unit` on every `hardware.shared_resource_parameters` entry (`us`, `ns`, or null for dimensionless values and unit mismatches). `unchanged_values` and `error_values_at_one` entries have no unit field. The text renderer shows the unit only on changed lines. `qci snapshot compare-run` (M1.4b, ADR 0007) shows the unit on every value line. |
 | D27 | Research: estimate the noise in provider calibration estimates by tracking the same parameter across many recalibrations. | Open. IBM publishes no uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and `date`. A `changed` value means only that the reported value changed. |
