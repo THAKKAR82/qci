@@ -4,7 +4,8 @@
   data versus a simulator's noise model (section 7), the command name confirmed (section 6),
   three mapping entries verified offline (section 2), device-wide lists moved to the backlog
   (sections 4 and 6), and units on every value line (section 6, D26).
-- **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted)
+- **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted), 2026-10-16 (M1.4b implemented on
+  `feat/m1.4b-compare-run`; M1.4c live check recorded in Findings, M1.4 closed)
 - **Milestone:** M1.4 (`PLAN.md`). This ADR is M1.4a. M1.4b implements it, and M1.4c is the
   user's live check.
 
@@ -115,6 +116,63 @@ and the committed `ibm_fez` fixture (captured 2026-10-10, `calibrated_at`
   only: `init_error` (live). Measure-gate parameters, such as `threshold`, are not read by the
   reader (D22). Device-wide differences are not part of M1.4b. They are a backlog item in
   `PLAN.md`.
+
+### Live check (M1.4c)
+
+Run by the user on 2026-10-16 (local time) on their own store, `~/.qci-live`, on branch
+`feat/m1.4b-compare-run`. The three snapshots were captured at 2026-10-17 02:35 UTC. One
+seeded GHZ-star run (`examples/ghz_star.py --seed 7`) was executed on
+each fake, and each run was compared with the most recent snapshot of its mapped device, as
+text and twice as JSON. The database hash was taken after the runs and before the
+comparisons, and again after them. Every value below was checked against the stored JSON.
+
+| | `fake_fez` → `ibm_fez` | `fake_kingston` → `ibm_kingston` | `fake_marrakesh` → `ibm_marrakesh` |
+|---|---|---|---|
+| Run | `01M53WS95J24M0GKV7TW2QHV4G` | `01M53WSKVXWWX4GSJ8MZX7Z3R7` | `01M53WSWP5Q2YBAZJX9GT97Y8D` |
+| Snapshot | `01M53VD2ZQWXPP8FZYKN4SJEEE` | `01M53VD7HEW073D41KACG554YG` | `01M53VDC75KJ0WPXRE20KN2XGC` |
+| Fake version, `calibrated_at` | 1.2.8, 2025-02-26T20:16:25Z | 1.0.0, 2026-04-15T07:15:15Z | 1.0.7, 2025-02-26T19:52:45Z |
+| Live version, `calibrated_at` | 1.3.37, 2026-10-17T02:18:24Z | 1.0.0, 2026-10-17T02:17:17Z | 1.0.21, 2026-10-17T01:18:11Z |
+| Recorded device (run payload) | `ibm_fez` 1.2.8 | `ibm_kingston` 1.0.0 | `ibm_marrakesh` 1.0.7 |
+| Footprint qubits | 136, 141, 142, 143, 144 | 138, 149, 150, 151, 152 | 10, 11, 12, 13, 18 |
+| `cz` operations | (142,141), (142,143), (143,136), (143,142), (143,144) | (150,149), (150,151), (151,138), (151,150), (151,152) | (11,10), (11,12), (11,18), (12,11), (12,13) |
+| Status | `changed` | `changed` | `changed` |
+| Parameters | 65: 45 changed, 15 unchanged, 5 unavailable, 0 not compared | 65: 39 changed, 21 unchanged, 5 unavailable, 0 not compared | 65: 40 changed, 20 unchanged, 5 unavailable, 0 not compared |
+| `live_minus_fake` range | 596.9 to 599.3 days | 184.0 to 184.8 days | 597.2 to 601.2 days |
+| `calibrated_at_difference` | 51602519 s (597.3 days) | 15966122 s (184.8 days) | 51600326 s (597.2 days) |
+
+For all three pairs:
+
+- The operations are `cz`, `measure`, `rz` and `sx`. Every footprint resource is present on
+  both sides. `relevant_hardware_changed` and `global_snapshot_changed` are true. The reason
+  is the mapping note alone, such as `fake_fez is the fake built from ibm_fez calibration
+  (qiskit_ibm FAKE_DEVICE_SOURCES)`. The runs' `qiskit-ibm-runtime` version is 0.50.0.
+- `parameters_on_one_side`: `init_error` on each of the 5 footprint qubits, `side="candidate"`
+  (reported by the live side only). These are the 5 `unavailable` parameters, and the only
+  `measurement_dates` entries with a null `live_minus_fake`.
+- `unit_differences`: empty. `error_values_at_one`: empty. No error-type value equals 1 in any
+  footprint, on either side.
+- The database hash was `23fc1a7e987110d31af08cbb8e0141612746a680953daa6d9ffa950a2f4aad06`
+  before and after the comparisons. For each pair, the two JSON outputs are byte-identical.
+- No output line, text or JSON, contains the rule 8 words or the additional substrings in
+  section 5, and no line was identified as a judgment.
+
+Observed values, stated without interpretation:
+
+- `readout_length` differs by +100 ns on every footprint qubit for `fez` and `marrakesh`
+  (1560 ns on the fake, 1660 ns live, for `fez`), and by -100 ns for `kingston`.
+- `ibm_marrakesh` `readout_error`: qubit 11 is 0.0083 on the fake and 0.0642 live; qubit 13 is
+  0.0051 on the fake and 0.0792 live. The other three footprint qubits are between 0.0039 and
+  0.0079 on both sides.
+- `cz` `gate_length`: 84 ns on the fake and 68 ns live for `fez`. It is equal on both sides
+  for `kingston` and `marrakesh` (68 ns or 80 ns, depending on the pair).
+- The unchanged parameters are `rz` `gate_error` and `gate_length` and `sx` `gate_length`
+  everywhere, plus `cz` `gate_length` for `kingston` and `marrakesh`, plus one
+  `prob_meas0_prep1` for `kingston`.
+- The device version differs between the fake and the live side for `fez` (1.2.8 and 1.3.37)
+  and `marrakesh` (1.0.7 and 1.0.21). It is equal for `kingston` (1.0.0). Limitation 3
+  applies: QCI cannot detect whether a revision renamed physical resources.
+- Exact comparison counts nearly every continuous value that was measured again as
+  `changed` (39 to 45 of 65 here). A summary by magnitude is a backlog item in `PLAN.md`.
 
 ## Decision
 
@@ -346,7 +404,16 @@ adapter:
   the existing `missing_resources(snapshot.provider_raw, ...)`;
 
 A dataclass `RunSnapshotComparisonSupport` bundles the existing `SnapshotComparisonSupport`
-and a `FakeDeviceIndex`. A `RunSnapshotCompareService` in `qci/services/` loads the run and the
+(`snapshot`) and a `FakeDeviceIndex` (`devices`), with two provider-supplied strings, so that
+`qci.compare` holds no provider names:
+
+- `mapping_source`: the name of the explicit list `devices` reads, shown in `device_mapping`
+  and the mapping note (IBM: `"qiskit_ibm FAKE_DEVICE_SOURCES"`);
+- `fake_package`: the distribution whose installed fakes hold the frozen calibration, whose
+  version is read from the run's environment provenance into
+  `baseline.qiskit_ibm_runtime_version` (IBM: `"qiskit-ibm-runtime"`).
+
+These two fields were added in M1.4b and recorded here at M1.4c. A `RunSnapshotCompareService` in `qci/services/` loads the run and the
 snapshot and calls `compare_run_to_snapshot`. `qci.compare` imports no provider SDK, and the
 architecture test covers the new module.
 
@@ -435,9 +502,11 @@ version, `qci.compare.run_snapshot.1`. `SnapshotComparison` and its method versi
       and `ENGINE_VERSION` are unchanged, and all existing compare tests pass unmodified.
 - [x] On a `fake_fez` run built in the test session and the committed `ibm_fez` fixture:
       `init_error` on each footprint qubit appears in `parameters_on_one_side` with
-      `side="candidate"`, has `status="unavailable"` and a null baseline value, never 0. A
-      synthetic fake-side parameter removal appears with `side="baseline"`. A synthetic
-      unrepresentable value is `unavailable` and is not in `parameters_on_one_side`.
+      `side="candidate"`, has `status="unavailable"` and a null baseline value, never 0.
+      `side` names the side that reports the parameter: a synthetic removal from the live
+      side appears with `side="baseline"`, and a removal from the fake side with
+      `side="candidate"`. A synthetic unrepresentable value is `unavailable` and is not in
+      `parameters_on_one_side`. (Wording corrected at M1.4c to match the implementation.)
 - [x] A synthetic unit change, including `None` against a unit, gives `not_comparable`, both
       raw values, `delta=None`, the reason naming both units, and one `unit_differences`
       entry with both units. No unit is converted.
@@ -490,14 +559,17 @@ shasum -a 256 "$QCI_HOME/qci.db"                      # after: unchanged
 that store. Record in a "Live check (M1.4c)" section of this ADR, checked against the stored
 JSON:
 
-- the status, the footprint, and the counts of `changed`, `unchanged`, `unavailable` and
-  `not_comparable` parameters;
-- `parameters_on_one_side`, `unit_differences` and `error_values_at_one`, each listed in full
-  or stated as empty;
-- the range of `live_minus_fake` and `calibrated_at_difference`, for both snapshots;
-- both backend versions;
-- that the database hash is unchanged and `a.json` equals `b.json`;
-- any output line that could be read as a judgment, to be fixed before M1.4 closes.
+- [x] the status, the footprint, and the counts of `changed`, `unchanged`, `unavailable` and
+      `not_comparable` parameters;
+- [x] `parameters_on_one_side`, `unit_differences` and `error_values_at_one`, each listed in
+      full or stated as empty;
+- [x] the range of `live_minus_fake` and `calibrated_at_difference`, for every snapshot used;
+- [x] both backend versions;
+- [x] that the database hash is unchanged and `a.json` equals `b.json`;
+- [x] any output line that could be read as a judgment, to be fixed before M1.4 closes.
+
+Done 2026-10-16. The check was run on three fake/device pairs instead of the two `ibm_fez`
+snapshots named above; see "Live check (M1.4c)" in Findings.
 
 ## Consequences
 

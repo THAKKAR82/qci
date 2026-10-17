@@ -1,8 +1,9 @@
 # PLAN
 
-**Current milestone: M1.4 (stale-noise check). Current step: M1.4c, the user's live check.**
-M1.4b is done (`qci snapshot compare-run`, branch `feat/m1.4b-compare-run`). M1.4a
-is done (ADR 0007 accepted 2026-10-16 with amendments, branch
+**Current milestone: M1.5 (historical backfill). Current step: M1.5a, design (ADR).**
+M1.4 (stale-noise check) is done: M1.4c (live check by the user on three fake/device pairs,
+2026-10-16, recorded in ADR 0007 Findings), M1.4b (`qci snapshot compare-run`, branch
+`feat/m1.4b-compare-run`) and M1.4a (ADR 0007 accepted 2026-10-16 with amendments, branch
 `docs/m1.4a-stale-noise-design`). M1.3 (read-only live calibration snapshots) is
 done: M1.3c (footprint-scoped snapshot comparison, branch `feat/m1.3c-snapshot-diff`, live
 check 2026-10-10), M1.3b (capture and storage, branch `feat/m1.3b-snapshot-capture`) and M1.3a
@@ -13,7 +14,8 @@ complete (`82ccd2e`). M1.1c is complete (`6e5ebe7`).
 M1.1v-addendum is complete (predictions `b7f9ae6`). M1.2 is complete (`aec0e3d`, `c564c13`).
 
 Milestones and sub-steps are strictly sequential: M1.1a, M1.1b, M1.1v, M1.1c,
-M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c, M1.4a, M1.4b, M1.4c, M1.5, M1.6. Do not build a
+M1.1v-addendum, M1.2, M1.3a, M1.3b, M1.3c, M1.4a, M1.4b, M1.4c, M1.5a (design), the later
+M1.5 sub-steps its ADR defines, then M1.6. Do not build a
 later step, or anything in the deferred backlog, while an earlier one is open. Each step
 follows the step workflow in `CLAUDE.md`.
 
@@ -574,7 +576,7 @@ used, never environment variables.
       compared over a seeded GHZ-star footprint compiled for `fake_fez`; findings in ADR 0005,
       section 6.)
 
-## M1.4: Stale-noise check (CURRENT: M1.4c)
+## M1.4: Stale-noise check (DONE)
 
 **Goal:** show, for one stored fake-backend run, how the calibration frozen into that fake
 backend differs from a live snapshot of the corresponding real device, scoped to the run's
@@ -598,7 +600,9 @@ Sub-steps, each reviewed separately:
   ADR 0007 accepted 2026-10-16 with amendments).** Branch `docs/m1.4a-stale-noise-design`.
 - **M1.4b: implementation (DONE, branch `feat/m1.4b-compare-run`),** with offline tests on
   the committed `ibm_fez` fixture and fake backends.
-- **M1.4c: live check by the user (CURRENT),** on their own store, recorded in ADR 0007.
+- **M1.4c: live check by the user (DONE, 2026-10-16),** on their own store, recorded in
+  ADR 0007 Findings ("Live check (M1.4c)"). All M1.4c criteria in ADR 0007 section 9 are
+  ticked.
 
 ### M1.4b acceptance criteria (approved 2026-10-16 with amendments; ADR 0007, section 9)
 
@@ -629,9 +633,11 @@ Sub-steps, each reviewed separately:
       and `ENGINE_VERSION` are unchanged, and all existing compare tests pass unmodified.
 - [x] On a `fake_fez` run built in the test session and the committed `ibm_fez` fixture:
       `init_error` on each footprint qubit appears in `parameters_on_one_side` with
-      `side="candidate"`, has `status="unavailable"` and a null baseline value, never 0. A
-      synthetic fake-side parameter removal appears with `side="baseline"`. A synthetic
-      unrepresentable value is `unavailable` and is not in `parameters_on_one_side`.
+      `side="candidate"`, has `status="unavailable"` and a null baseline value, never 0.
+      `side` names the side that reports the parameter: a synthetic removal from the live
+      side appears with `side="baseline"`, and a removal from the fake side with
+      `side="candidate"`. A synthetic unrepresentable value is `unavailable` and is not in
+      `parameters_on_one_side`. (Wording corrected at M1.4c to match the implementation.)
 - [x] A synthetic unit change, including `None` against a unit, gives `not_comparable`, both
       raw values, `delta=None`, the reason naming both units, and one `unit_differences`
       entry with both units. No unit is converted.
@@ -661,7 +667,7 @@ Sub-steps, each reviewed separately:
 - [x] `docs/architecture.md`, `docs/data-model.md` and README describe the command, and all
       gates pass.
 
-## M1.5: Historical backfill
+## M1.5: Historical backfill (CURRENT: M1.5a, design)
 
 **Goal:** calibration history from before the first capture, if the provider honors
 historical lookups. Resolves D21 first, then captures past calibrations. Feeds research
@@ -699,6 +705,9 @@ None of these is scheduled. M0.5 stays unscheduled. The rest have no planned ord
 - Estimated success probability as a labeled `MODEL_PREDICTION` (now sketched in M1.6).
 - Device-wide gate-set and qubit-count differences between a fake and its live device
   (removed from M1.4b at the ADR 0007 review, 2026-10-16).
+- Summarize footprint differences by magnitude (relative and absolute), not only counts;
+  under exact comparison nearly every re-measured continuous value counts as changed
+  (M1.4c, 2026-10-16).
 - A Hellinger sampling floor.
 - Chi-square tests.
 - Multiple registers and FDR.

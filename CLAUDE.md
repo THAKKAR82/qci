@@ -19,9 +19,16 @@ MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
 .venv/bin/qci runs
 .venv/bin/qci show <RUN_ID> [--json]
 .venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json] [--observable NAME=BITS,...]
+.venv/bin/qci snapshot capture --backend ibm_fez [--account NAME]
+.venv/bin/qci snapshots [--backend NAME] [--limit N]
+.venv/bin/qci snapshot show <SNAPSHOT_ID> [--json]
+.venv/bin/qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]
+.venv/bin/qci snapshot compare <BASELINE_ID> <CANDIDATE_ID> --footprint-run <RUN_ID> [--allow-footprint-backend-mismatch] [--json]
+.venv/bin/qci snapshot compare-run <RUN_ID> <SNAPSHOT_ID> [--json]
 ```
 
-The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`.
+The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`. Snapshots live in the same
+file. `qci snapshot capture` is the only command that uses the network.
 
 ## Non-negotiable rules
 
@@ -88,7 +95,9 @@ Work is delivered in small, reviewed steps. For every step:
 8. Commit on the branch with a conventional commit message. Never push, merge or rebase `main`.
 9. Stop and print a report with exactly these headings: Summary / Files changed / Design
    decisions / Deviations from PLAN.md / Gate results / Manual verification commands / Open
-   questions.
+   questions. Manual verification commands are run in zsh (the macOS default), so write them
+   zsh-safe: no comment lines inside command blocks, and no loops that rely on word-splitting
+   unquoted variables. Prefer explicit blocks with one command per line.
 10. If a step's changes make any doc stale, update it within the step when the step's file
     restrictions allow. Otherwise, list it under Open questions. Prompt file restrictions take
     priority.
