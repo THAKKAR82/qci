@@ -680,7 +680,7 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
 
 - **M1.5a: design, ADR 0008 and `scripts/verify_historical_calibration.py` (DONE: ADR 0008
   accepted 2026-10-16 with amendments).** Branch `docs/m1.5a-historical-backfill-design`.
-- **M1.5b: verification of D21, run by the user (CURRENT).** Protocol `qci.d21.verify.2` in
+- **M1.5b: verification of D21, run by the user (CURRENT).** Protocol `qci.d21.verify.3` in
   ADR 0008 section 2: `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` at 1, 7, 30, 90, 180 and
   365 days back with one repeated request, plus a ground-truth cross-check against the
   stored live snapshots, and the user's terms-of-service check. No code.
@@ -697,8 +697,12 @@ distant request's result), with every smaller offset `honored` or
 `inconclusive:no_newer_document`. `honored_distant` does not count. Proceed for devices with
 a verified depth of at least 30 days, an identical repeat, and no `raises` or `non_monotonic`
 outcome; narrow to devices with at least 7 but under 30 days; stop when no device qualifies
-or the terms do not permit the planned use. Stopping is a valid outcome: D21 is then resolved
-as not supported for QCI's use and history stays forward-only.
+or the terms do not permit the planned use. In the cross-check, `match` and
+`different_document:lag_consistent` (stored stamp < returned stamp <= capture time) do not
+disqualify; `different_document:inconsistent` does. Any `lag_consistent` result means
+backfilled history for that device is documents by stamp time, not what a user would have
+seen at a given time, and the ADR and M1.5c's docs must say so. Stopping is a valid
+outcome: D21 is then resolved as not supported for QCI's use and history stays forward-only.
 
 The M1.5b commands, run in zsh from the repository root:
 
@@ -709,17 +713,20 @@ PYTHONPATH=src .venv/bin/python scripts/verify_historical_calibration.py --accou
 shasum -a 256 ~/.qci-live/qci.db
 ```
 
-### M1.5b acceptance criteria (approved 2026-10-16; ADR 0008, section 8)
+### M1.5b acceptance criteria (approved 2026-10-16, amended 2026-10-18; ADR 0008, section 8)
 
-- [ ] The user runs the commands in ADR 0008 section 2 (protocol `qci.d21.verify.2`) on the
+- [ ] The user runs the commands in ADR 0008 section 2 (protocol `qci.d21.verify.3`) on the
       three devices. The full output is recorded verbatim in ADR 0008 Findings ("D21
       verification (M1.5b)"), with the anchor time.
 - [ ] Those Findings record, per device: each offset's outcome, the returned `last_update_date`,
       whether the repeat is identical, any `honored_distant` or `non_monotonic` outcome, and the
       verified depth.
-- [ ] Those Findings record every cross-check outcome, and for each `different_document` both
-      `last_update_date` values, with the publication-lag note in ADR 0008 section 2 applied
-      where it fits.
+- [ ] Those Findings record every cross-check outcome with `L`, `R` and `T`, and classify each
+      `different_document` as `lag_consistent` or `inconsistent`. Any
+      `different_document:inconsistent` disqualifies its device. If any
+      `different_document:lag_consistent` occurs on a qualifying device, Findings state that
+      backfilled history for that device is documents by stamp time, not what a user would have
+      seen at a given time.
 - [ ] The store hash is identical in the script's `store_sha256_before` and `store_sha256_after`
       lines and in both `shasum` lines.
 - [ ] If the script stopped at a too-many-requests response, that is recorded, and the run is
@@ -730,7 +737,7 @@ shasum -a 256 ~/.qci-live/qci.db
       M1.5c is removed and M1.5d is marked for redesign or dropped.
 - [ ] No QCI code changes in M1.5b.
 
-### M1.5c acceptance criteria (approved 2026-10-16; only if M1.5b supports it)
+### M1.5c acceptance criteria (approved 2026-10-16, amended 2026-10-18; only if M1.5b supports it)
 
 - [ ] `SnapshotSource.HISTORICAL_LOOKUP`, `SnapshotCapture.method` and
       `SnapshotCapture.requested_before` exist as in ADR 0008 section 3, with the validator. The
@@ -768,7 +775,10 @@ shasum -a 256 ~/.qci-live/qci.db
 - [ ] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is unchanged
       for existing inputs, and the golden files are unchanged.
 - [ ] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the command
-      and the provenance. All gates pass, and the neutral-wording check has no unexplained hit.
+      and the provenance. Where M1.5b recorded `different_document:lag_consistent` for a device,
+      they and `qci snapshot backfill --help` state that its backfilled history is documents by
+      stamp time, not what a user would have seen at a given time. All gates pass, and the
+      neutral-wording check has no unexplained hit.
 - [ ] Manual live check by the user: one small backfill (for example `--days 3`) on one
       qualifying device, recorded in ADR 0008 Findings, with the store hash changing only
       through the backfill.
@@ -869,7 +879,7 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D18 | Where are observables declared? | Compare-time now (M1.2). Workload-declared intent in the run record later, which requires schema v2. Open. |
 | D19 | How should standalone calibration snapshots be stored, and how is their history kept? | **Resolved by [ADR 0005](docs/adr/0005-live-calibration-snapshots.md).** An insert-only snapshot store beside the runs table, deduplicated by content hash. History is a forward-only capture log. Measurements are stored as generic rows with adapter-defined resource identifiers, and the raw payload is kept. |
 | D20 | Run comparison does not check that baseline and candidate units agree. | Open. Fix at the next policy bump. Snapshot comparison (M1.3c) will report a unit mismatch as `not_comparable` for that parameter and never converts units (ADR 0005 section 7). |
-| D21 | Historical calibration backfill. | Scheduled: M1.5. [ADR 0008](docs/adr/0008-historical-backfill.md) (Accepted 2026-10-16) defines the verification protocol (M1.5b, `qci.d21.verify.2`) and a decision rule to proceed, narrow or stop. `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). The installed client has no datetime for `configuration()`. Capture stays forward-only until M1.5b's results and the terms check are recorded. |
+| D21 | Historical calibration backfill. | Scheduled: M1.5. [ADR 0008](docs/adr/0008-historical-backfill.md) (Accepted 2026-10-16) defines the verification protocol (M1.5b, `qci.d21.verify.3`) and a decision rule to proceed, narrow or stop. `properties(datetime=...)` appears to be honored (one observation, ibm_fez, 2026-10-10; ADR 0005 Findings). The installed client has no datetime for `configuration()`. Capture stays forward-only until M1.5b's results and the terms check are recorded. |
 | D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |
 | D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |
 | D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). |

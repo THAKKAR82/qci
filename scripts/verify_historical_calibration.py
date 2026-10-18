@@ -34,7 +34,15 @@ Outcome labels, part 1 (ADR 0008, section 2), checked in this order:
 - raises:<ExceptionType>; raises:<ExceptionType>:too_many_requests stops the script.
 The repeat line is labeled repeat:identical or repeat:different by hash.
 
-Outcome labels, part 2: match, different_document, inconclusive:no_document, raises:<Type>.
+Outcome labels, part 2, for a stored document stamped L, first captured at T, and a lookup as
+of T that returned a document stamped R, checked in this order:
+- inconclusive:no_document;
+- match: the returned properties hash equals the stored one;
+- inconclusive:no_returned_date, inconclusive:no_stored_date;
+- different_document:lag_consistent: L < R <= T, a document stamped after the stored one but
+  before the capture, consistent with publication lag;
+- different_document:inconsistent: any other different document (R < L, R == L, or R > T);
+- raises:<ExceptionType>.
 """
 
 import argparse
@@ -55,7 +63,7 @@ from qci.core.hashing import hash_json
 from qci.domain.backend import SnapshotSource
 from qci.storage.snapshots import SqliteSnapshotRepository
 
-PROTOCOL = "qci.d21.verify.2"
+PROTOCOL = "qci.d21.verify.3"
 DEVICES = ("ibm_fez", "ibm_kingston", "ibm_marrakesh")
 OFFSETS_DAYS = (1, 7, 30, 90, 180, 365)
 REPEAT_OFFSET_DAYS = 30
@@ -238,6 +246,22 @@ def _verify_offsets(backend: Any, device: str, anchor: datetime, pause: float) -
             floor = returned.last_update
 
 
+def cross_check_outcome(snap: StoredSnapshot, returned: Document) -> str:
+    """Stored document stamped L, captured first at T; the lookup as of T returned stamp R."""
+    if not returned.present or returned.hash is None:
+        return "inconclusive:no_document"
+    if returned.hash == snap.properties_hash:
+        return "match"
+    stamp_l, stamp_r, at_t = snap.calibrated_at, returned.last_update, snap.captured_at
+    if stamp_r is None:
+        return "inconclusive:no_returned_date"
+    if stamp_l is None:
+        return "inconclusive:no_stored_date"
+    if stamp_l < stamp_r <= at_t:
+        return "different_document:lag_consistent"
+    return "different_document:inconsistent"
+
+
 def _cross_check(backend: Any, device: str, snapshots: list[StoredSnapshot], pause: float) -> None:
     for snap in snapshots:
         time.sleep(pause)
@@ -247,12 +271,7 @@ def _cross_check(backend: Any, device: str, snapshots: list[StoredSnapshot], pau
         except Exception as exc:
             outcome = _raises(exc)
         else:
-            if not returned.present:
-                outcome = "inconclusive:no_document"
-            elif returned.hash == snap.properties_hash:
-                outcome = "match"
-            else:
-                outcome = "different_document"
+            outcome = cross_check_outcome(snap, returned)
         print(
             f"{device}  cross_check  snapshot={snap.snapshot_id}  "
             f"requested_before={snap.captured_at.isoformat()}  "

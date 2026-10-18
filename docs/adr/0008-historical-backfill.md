@@ -71,13 +71,15 @@ smaller offset is `honored` or `inconclusive:no_newer_document`. Only `honored` 
 `honored_distant`, `non_monotonic`, any `ignored` label and any `raises` label end the chain.
 
 - **Proceed** with M1.5c for every device whose verified depth is at least 30 days, whose
-  repeat is `repeat:identical`, and that had no `raises` and no `non_monotonic` outcome.
+  repeat is `repeat:identical`, and that had no `raises` and no `non_monotonic` outcome in
+  part 1 and no `raises` and no `different_document:inconsistent` outcome in part 2.
   Backfill for that device is limited to its verified depth.
 - **Narrow** when only some devices qualify, or a device's verified depth is at least 7 but
   under 30 days: M1.5c covers only the qualifying devices, each limited to its verified depth.
   A depth of 7 days is the minimum worth building for.
 - **Stop** when no device qualifies (every verified depth is below 7 days, or every device has
-  a `repeat:different`, `raises` or `non_monotonic` outcome), or when the terms check
+  a `repeat:different`, `raises`, `non_monotonic` or `different_document:inconsistent`
+  outcome), or when the terms check
   (section 6) does not permit programmatic historical requests at the planned pacing. Then:
   D21 is resolved as "not supported for QCI's use", history stays forward-only, M1.5c is not
   built, and M1.5d is either redesigned on forward captures or dropped, in a separate approved
@@ -86,17 +88,26 @@ smaller offset is `honored` or `inconclusive:no_newer_document`. Only `honored` 
   second run is also inconclusive, that device does not qualify.
 
 A `non_monotonic` outcome disqualifies the device even beyond its verified depth, since the
-grid in section 5 assumes that a further-back request never returns a newer document. The
-ground-truth cross-check (section 2, part 2) does not enter the verified depth. Its results
-are recorded beside it, and every `different_document` is listed with both dates.
+grid in section 5 assumes that a further-back request never returns a newer document.
+
+The ground-truth cross-check (section 2, part 2) does not change the verified depth, but it
+enters the rule:
+
+- `match` and `different_document:lag_consistent` do not disqualify.
+- `different_document:inconsistent` disqualifies the device: a lookup as of a capture time
+  returned a document that the stored capture rules out.
+- If any `different_document:lag_consistent` occurs on a device that qualifies, Findings must
+  record, and M1.5c's documentation must state, that backfilled history for that device is
+  documents ordered by their provider stamp, not what a user would have seen at a given
+  time: a document can be stamped before a time and still have been published after it.
 
 The applied rule, each device's verified depth and the resulting choice are recorded in
 Findings at M1.5b before M1.5c starts.
 
 ### 2. The D21 verification protocol
 
-`scripts/verify_historical_calibration.py`, protocol `qci.d21.verify.2` (amended at
-acceptance; version 1 was the proposed protocol and was never run):
+`scripts/verify_historical_calibration.py`, protocol `qci.d21.verify.3` (amended at and after
+acceptance; versions 1 and 2 were never run):
 
 - **Devices:** `ibm_fez`, `ibm_kingston`, `ibm_marrakesh`, in that order. These are the three
   devices in `FAKE_DEVICE_SOURCES` (ADR 0007).
@@ -144,24 +155,30 @@ return the same content, and lookups on that device cannot be given a stable pro
 every stored `live_calibration` snapshot of the three devices (newest first capture first, at
 most `--max-cross-checks` per device, default 10). Per snapshot, after that device's part 1,
 it requests properties as of the snapshot's first `captured_at` and compares the hash of the
-returned properties with the hash of the stored `provider_raw["properties"]`:
+returned properties with the hash of the stored `provider_raw["properties"]`. With `L` the
+stored document's `last_update_date`, `T` its first `captured_at` (the requested time) and
+`R` the returned `last_update_date`, the outcome is the first row that applies:
 
 | Outcome | Condition |
 |---|---|
-| `match` | the hashes are equal |
-| `different_document` | the hashes differ; both `last_update_date` values are printed |
 | `inconclusive:no_document` | no document returned |
+| `match` | the properties hashes are equal (then `R == L`) |
+| `inconclusive:no_returned_date`, `inconclusive:no_stored_date` | `R` or `L` is missing |
+| `different_document:lag_consistent` | `L < R <= T`: a document stamped after the stored one and at or before the capture time |
+| `different_document:inconsistent` | any other different document: `R < L`, `R == L` with a different hash, or `R > T` |
 | `raises:<Type>` | the request raised |
 
-A `different_document` result may reflect publication lag: a document stamped before the
+`R > T` is not one of the cases named at acceptance. It is classed as inconsistent, since a
+lookup as of `T` returned a document stamped after `T`.
+
+`different_document:lag_consistent` fits publication lag: a document stamped before the
 capture time but published after it. M1.3b observed this on `ibm_fez`: a capture at
 2026-10-10T01:12:12Z held a document dated 00:19:17Z, and a request minutes later returned a
 newer document dated 00:58:58Z, also before the capture (ADR 0005 Findings). A lookup as of
-the capture time then returns the later-stamped document, which the capture never saw. So
-`different_document` is recorded with both dates, never read as evidence that lookups are
-ignored. A stored document whose payload was redacted under older rules could also hash
-differently; the redaction rules have not changed since M1.3b (`redact.py` was last changed
-in `10bf573`).
+the capture time then returns the later-stamped document, which the capture never saw. It is
+recorded with both dates and is never read as evidence that lookups are ignored. A stored
+document whose payload was redacted under older rules could also hash differently; the
+redaction rules have not changed since M1.3b (`redact.py` was last changed in `10bf573`).
 
 **Output.** One line each for the protocol and anchor, the store's SHA-256 before any
 request, the number of stored live snapshots per device, every request, and the store's
@@ -308,15 +325,18 @@ Each parameter keeps its own provider date, as in every snapshot.
 
 #### M1.5b: verification of D21, run by the user
 
-- [ ] The user runs the commands in section 2 (protocol `qci.d21.verify.2`) on the three
+- [ ] The user runs the commands in section 2 (protocol `qci.d21.verify.3`) on the three
       devices. The full output is recorded verbatim in Findings ("D21 verification
       (M1.5b)"), with the anchor time.
 - [ ] Findings record, per device: each offset's outcome, the returned `last_update_date`,
       whether the repeat is identical, any `honored_distant` or `non_monotonic` outcome, and
       the verified depth.
-- [ ] Findings record every cross-check outcome, and for each `different_document` both
-      `last_update_date` values, with the publication-lag note in section 2 applied where it
-      fits.
+- [ ] Findings record every cross-check outcome with `L`, `R` and `T`, and classify each
+      `different_document` as `lag_consistent` or `inconsistent`. Any
+      `different_document:inconsistent` disqualifies its device. If any
+      `different_document:lag_consistent` occurs on a qualifying device, Findings state that
+      backfilled history for that device is documents by stamp time, not what a user would
+      have seen at a given time.
 - [ ] The store hash is identical in the script's `store_sha256_before` and
       `store_sha256_after` lines and in both `shasum` lines.
 - [ ] If the script stopped at a too-many-requests response, that is recorded, and the run is
@@ -365,8 +385,10 @@ Each parameter keeps its own provider date, as in every snapshot.
 - [ ] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is
       unchanged for existing inputs, and the golden files are unchanged.
 - [ ] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the
-      command and the provenance. All gates pass, and the neutral-wording check has no
-      unexplained hit.
+      command and the provenance. Where M1.5b recorded `different_document:lag_consistent`
+      for a device, they and `qci snapshot backfill --help` state that its backfilled history
+      is documents by stamp time, not what a user would have seen at a given time. All gates
+      pass, and the neutral-wording check has no unexplained hit.
 - [ ] Manual live check by the user: one small backfill (for example `--days 3`) on one
       qualifying device, recorded in Findings, with the store hash changing only through
       the backfill.
