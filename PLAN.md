@@ -1,7 +1,8 @@
 # PLAN
 
 **Current milestone: M1.5 (historical backfill). Current step: M1.5d (design of the research
-experiment on D27 and the calibration side of H2).** M1.5c is done (`qci snapshot backfill`,
+experiment on D27 and the calibration side of H2; design proposed 2026-10-18 in
+`docs/experiments/2026-10-calibration-history.md`, awaiting review).** M1.5c is done (`qci snapshot backfill`,
 branch `feat/m1.5c-historical-backfill`; manual live check on `ibm_fez` 2026-10-18, ADR 0008
 Findings). The terms-of-service finding was recorded on 2026-10-18 (ADR 0008 section 6):
 personal, local research use only (D29). M1.5b is done (D21
@@ -706,6 +707,20 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
   documents were stamped about every 46 to 78 minutes (interquartile range over 3 days), so a
   daily grid samples about one document in 23, and each document took about 2.1 MB in the
   store (ADR 0008 Findings).
+  **Design (proposed 2026-10-18, branch `docs/m1.5d-experiment-design`):**
+  [docs/experiments/2026-10-calibration-history.md](docs/experiments/2026-10-calibration-history.md).
+  It defines a dense set for D27, P1 and P2 (hourly, the 7 days ending at the collection date
+  `D`, 169 grid times per device) and a sparse set for P3 and the calibration side of H2
+  (every 120 hours over 365 days, 73 grid times per device, so that the grid time 30 days
+  before the newest is on the grid) on `ibm_fez`, `ibm_kingston` and `ibm_marrakesh`. Upper
+  bound: 795 requests in 9 invocations and 1.67 GB added. The design also gives the exact
+  statistics, the marking rules for P1-P4 (thresholds unchanged), the integrity notes
+  (including the use of the 51 existing `ibm_fez` lookups) and the backfill commands.
+  Remaining M1.5d parts, each a separate approved step: (1) the analysis script under
+  `experiments/calibration_history/`, committed with offline tests on synthetic stores
+  before any data set is collected or read; (2) collection by the user with the design's
+  commands; (3) one analysis run from a clean tree, with the aggregate results and marks
+  recorded in the design file.
 
 **Decision rule after M1.5b** (ADR 0008 section 1): per device, the verified depth is the
 largest offset that is `honored` (at or before the requested time, different from the
