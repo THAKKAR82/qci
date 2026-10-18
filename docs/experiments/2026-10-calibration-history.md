@@ -4,9 +4,10 @@ Date: 2026-10-18 (design). Branch: `docs/m1.5d-experiment-design`. Milestone: M1
 `PLAN.md`. Predictions: P1-P4, frozen in [ADR 0008](../adr/0008-historical-backfill.md)
 section 8 on 2026-10-16.
 
-Status: design, accepted 2026-10-18. No data set has been collected and no analysis code
-exists yet. The next step is the analysis script (branch `exp/m1.5d-analysis`), committed
-before any data set defined here is collected or read (Procedure).
+Status: design, accepted 2026-10-18. The analysis script is committed
+(`experiments/calibration_history/`, branch `exp/m1.5d-analysis`), with a dated
+clarification of the reading rule (Change history). No data set has been collected or read.
+The next step is collection by the user (Procedure).
 
 ## Purpose
 
@@ -149,11 +150,14 @@ why a value differs.
 - **Series:** one `(resource, parameter)` pair on one device, such as `qubit/136` `T1` or
   `gate/cz/142,141` `gate_error`.
 - **Reading:** a series' row on one document. A reading is **usable** when the document has
-  exactly one row for the series, with a numeric `value_real`, a `measured_at` date and a unit.
-  A missing row, a null or non-numeric value, a missing date, or more than one row for the
-  series on one document (the store keeps duplicates) makes the reading unusable. Unusable
-  readings are left out and counted per reason, never set to 0. A series whose usable readings
-  have more than one unit across the set is reported as `mixed_units` and gets no statistic.
+  exactly one row for the series, with a numeric `value_real` and a `measured_at` date. A unit
+  is not required (clarified 2026-10-18, Change history). A missing row, a null or non-numeric
+  value, a missing date, or more than one row for the series on one document (the store keeps
+  duplicates) makes the reading unusable. Unusable readings are left out and counted per
+  reason, never set to 0. A series whose usable readings have more than one unit across the
+  set is reported as `mixed_units` and gets no statistic. No unit (`null`, a dimensionless
+  parameter) counts as one unit value, so a series that has no unit on some readings and a
+  unit on others is `mixed_units`.
 - **Measurement:** the provider's date is the only evidence of a re-measurement. Within a set,
   the measurements of a series are its distinct `measured_at` dates among usable readings. A
   measurement's value is the value of the earliest-stamped document that carries that date. A
@@ -501,11 +505,35 @@ after a pause the user chooses, with the same commands, which skip everything al
 ### 5. Analysis
 
 The committed script is run once, read-only, with `D` as its only data-selection input. Its
-interface is fixed by the step that adds it. It prints the store's SHA-256 before and after,
-the commit hash and the dirty flag, and writes its full output to `~/qci-m15d/results.md`. The
-aggregate tables and the marks for P1-P4 are then copied into a Results section of this file,
-in a separate commit.
+interface, fixed by the step that added it:
+
+```bash
+PYTHONPATH=src:experiments/calibration_history .venv/bin/python experiments/calibration_history/run_analysis.py --store ~/.qci-live/qci.db --collection-date YYYY-MM-DD --out ~/qci-m15d
+```
+
+It refuses to run on a dirty tree and refuses to overwrite an earlier result. It prints the
+store's SHA-256 before and after, the commit hash and the dirty flag, and writes its full
+output to `~/qci-m15d/results.json` and `~/qci-m15d/results.md`. It exits non-zero if the
+store's hash changed. The aggregate tables and the marks for P1-P4 are then copied into a
+Results section of this file, in a separate commit.
 
 ## Results
 
 None yet. This file is the design. Results are added only after the procedure above.
+
+## Change history
+
+- **2026-10-16.** P1-P4 frozen in ADR 0008 section 8.
+- **2026-10-18.** Design accepted (branch `docs/m1.5d-experiment-design`). ADR 0008 section 8
+  records a dated design clarification of P1 and P2: "across distinct documents" is over
+  distinct measurements; thresholds unchanged.
+- **2026-10-18, design clarification, before any data set is collected or read** (branch
+  `exp/m1.5d-analysis`). The reading rule ("Units of observation") no longer requires a unit.
+  IBM reports the unit `""` for every dimensionless parameter (`readout_error`,
+  `prob_meas0_prep1`, `prob_meas1_prep0`, `init_error` and every `gate_error`), and the
+  adapter stores it as `null` (`src/qci/adapters/qiskit_ibm/calibration.py`, as seen in the
+  committed `ibm_fez` fixture, where only `T1` and `T2` have a unit). Read literally, the
+  rule would have made 39 of the 45 in-scope series unusable on every document, and P2 and P3
+  not testable for a reason unrelated to the data. The unit is used only for the
+  `mixed_units` check, where no unit counts as one unit value. No threshold, window,
+  statistic or marking rule changes.

@@ -19,15 +19,15 @@ python -m venv .venv && .venv/Scripts/python.exe -m pip install -e '.[dev]'
 .venv/Scripts/ruff.exe check .
 .venv/Scripts/ruff.exe format --check .
 .venv/Scripts/python.exe -m mypy --strict src tests scripts
-MYPYPATH='src;experiments/repeated_sampling' .venv/Scripts/python.exe -m mypy --strict experiments
+MYPYPATH='src;experiments/repeated_sampling;experiments/calibration_history' .venv/Scripts/python.exe -m mypy --strict experiments
 .venv/Scripts/python.exe -m pytest -q --basetemp="$TEMP/qci-pytest"
 git diff main...HEAD -U0 -- src docs README.md | grep -E '^\+' | grep -v '^+++' | grep -n -i -E 'better|worse|regress|improv|degrad|\bpass|fail|significan|verdict|caus' || echo "neutral-wording check: no hits"
 ```
 
 In PowerShell, set the experiments path with
-`$env:MYPYPATH = "src;experiments/repeated_sampling"` before running mypy. When `CLAUDE.md`
-adds an experiment directory to `MYPYPATH`, add it here with `;`. `CLAUDE.md` is the source of
-truth for which gates exist.
+`$env:MYPYPATH = "src;experiments/repeated_sampling;experiments/calibration_history"` before
+running mypy. When `CLAUDE.md` adds an experiment directory to `MYPYPATH`, add it here with `;`.
+`CLAUDE.md` is the source of truth for which gates exist.
 
 ## Windows gotchas
 

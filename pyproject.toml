@@ -57,7 +57,7 @@ module = ["qiskit.*", "qiskit_ibm_runtime.*", "qiskit_aer.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "experiments/calibration_history"]
 # Import from src/ directly: on this macOS setup the editable-install .pth can be hidden
 # and skipped by Python 3.13 (see CLAUDE.md, Troubleshooting).
 pythonpath = ["src"]

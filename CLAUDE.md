@@ -13,7 +13,7 @@ website in site/ is outside the product and its gates.
 python3.13 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy --strict src tests scripts
-MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
+MYPYPATH=src:experiments/repeated_sampling:experiments/calibration_history .venv/bin/mypy --strict experiments
 .venv/bin/pytest -q
 .venv/bin/qci run examples/bell.py --backend fake_sherbrooke --seed 7
 .venv/bin/qci runs
@@ -79,7 +79,7 @@ Work is delivered in small, reviewed steps. For every step:
    .venv/bin/ruff check .
    .venv/bin/ruff format --check .
    .venv/bin/mypy --strict src tests scripts
-   MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
+   MYPYPATH=src:experiments/repeated_sampling:experiments/calibration_history .venv/bin/mypy --strict experiments
    .venv/bin/pytest -q
    ```
    When a new experiment directory is added, append it to `MYPYPATH`. Scripts in `scripts/` are
