@@ -1,7 +1,9 @@
 # PLAN
 
-**Current milestone: M1.5 (historical backfill). Next step: M1.5c (`qci snapshot backfill`),
-pending the user's terms-of-service check (ADR 0008 section 6).** M1.5b is done (D21
+**Current milestone: M1.5 (historical backfill). Current step: M1.5c (`qci snapshot
+backfill`), implemented on branch `feat/m1.5c-historical-backfill` and pending the user's
+manual live check (ADR 0008 section 8).** The terms-of-service finding was recorded on
+2026-10-18 (ADR 0008 section 6): personal, local research use only (D29). M1.5b is done (D21
 verified 2026-10-18 on `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` to 365 days; ADR 0008
 Findings). M1.5a is done (ADR 0008 accepted 2026-10-16 with amendments, branch
 `docs/m1.5a-historical-backfill-design`).
@@ -671,7 +673,7 @@ Sub-steps, each reviewed separately:
 - [x] `docs/architecture.md`, `docs/data-model.md` and README describe the command, and all
       gates pass.
 
-## M1.5: Historical backfill (NEXT: M1.5c, pending the terms check)
+## M1.5: Historical backfill (CURRENT: M1.5c, pending the manual live check)
 
 **Goal:** calibration history from before the first capture, if the provider honors
 historical lookups. Resolves D21 first, then captures past calibrations. Feeds research
@@ -688,7 +690,9 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
   ground-truth cross-check against the stored live snapshots. All 18 offsets `honored`,
   repeats identical, 5 `match` and 1 `different_document:lag_consistent`; proceed for all
   three devices. The terms-of-service check was moved to a gate before M1.5c. No code.
-- **M1.5c: `qci snapshot backfill` (NEXT, pending the user's terms-of-service check).**
+- **M1.5c: `qci snapshot backfill` (CURRENT: implemented on branch
+  `feat/m1.5c-historical-backfill`, pending the user's manual live check).** Terms finding
+  recorded 2026-10-18: personal, local research use only (D29).
   M1.5b supports it for all three devices, each with a depth cap of 365 days. Backfilled
   history is documents by stamp time, not what a user would have seen at a given time
   (publication lag observed: at least 5 min 33 s).
@@ -737,8 +741,9 @@ shasum -a 256 ~/.qci-live/qci.db
       lines and in both `shasum` lines.
 - [x] If the script stopped at a too-many-requests response, that is recorded, and the run is
       not repeated before the terms check. (It did not occur.)
-- [ ] The terms-of-service finding completes ADR 0008 section 6. **Open:** moved by the
-      user on 2026-10-18 to a gate before M1.5c; M1.5b is closed without it.
+- [x] The terms-of-service finding completes ADR 0008 section 6. Moved by the user on
+      2026-10-18 to a gate before M1.5c, and recorded on 2026-10-18: personal, local research
+      use only; redistribution and commercial use stay open as D29.
 - [x] The decision rule in ADR 0008 section 1 is applied and its result (proceed, narrow or
       stop, per device) is recorded. `PLAN.md` is updated to match: on stop, D21 is resolved,
       M1.5c is removed and M1.5d is marked for redesign or dropped.
@@ -746,42 +751,42 @@ shasum -a 256 ~/.qci-live/qci.db
 
 ### M1.5c acceptance criteria (approved 2026-10-16, amended 2026-10-18; only if M1.5b supports it)
 
-- [ ] `SnapshotSource.HISTORICAL_LOOKUP`, `SnapshotCapture.method` and
+- [x] `SnapshotSource.HISTORICAL_LOOKUP`, `SnapshotCapture.method` and
       `SnapshotCapture.requested_before` exist as in ADR 0008 section 3, with the validator. The
       committed `ibm_fez` fixture validates unchanged.
-- [ ] `snapshot_db_schema = 2` with the `snapshot_lookups` table. A test opens a version 1 store
+- [x] `snapshot_db_schema = 2` with the `snapshot_lookups` table. A test opens a version 1 store
       read-only (every capture reads as `live_capture`, nothing is written) and for writing (the
       table is created, the version becomes 2, and every existing row is byte-identical). A
       version 1 table set and a version 2 table set are both accepted; any other partial set is
       `DamagedStoreError`.
-- [ ] The content hash formula is unchanged. Two grid times returning one document give one
+- [x] The content hash formula is unchanged. Two grid times returning one document give one
       snapshot and two lookup captures. `requested_before` is not in `capture_options`.
-- [ ] A lookup stores `configuration: null`. A test asserts that the client's `configuration()`
+- [x] A lookup stores `configuration: null`. A test asserts that the client's `configuration()`
       is not stored for a lookup.
-- [ ] Requested times are aware UTC datetimes with a zero offset. A stub test asserts the exact
+- [x] Requested times are aware UTC datetimes with a zero offset. A stub test asserts the exact
       `datetime` keyword the client receives under two `TZ` settings.
-- [ ] A returned `last_update_date` that is missing or after `requested_before` stores nothing
+- [x] A returned `last_update_date` that is missing or after `requested_before` stores nothing
       for that request and stops with exit 1, naming the device and both times.
-- [ ] The grid is as in ADR 0008 section 5 (UTC midnights, newest first, `--step-hours` minimum
+- [x] The grid is as in ADR 0008 section 5 (UTC midnights, newest first, `--step-hours` minimum
       1), and `--days` above the device's verified depth, or a device with no verified depth,
       exits 2 with nothing requested.
-- [ ] The first too-many-requests response (HTTP 429, or IBM error code 1202 in the exception
+- [x] The first too-many-requests response (HTTP 429, or IBM error code 1202 in the exception
       chain) stops the invocation with exit 1, with nothing retried by QCI and everything stored
       before it kept. A stub test raises it on the third request and asserts two stored lookups
       and three requests.
-- [ ] `--max-requests` defaults to 30 and is capped at 100. `--pause` defaults to 10 and has a
+- [x] `--max-requests` defaults to 30 and is capped at 100. `--pause` defaults to 10 and has a
       minimum of 2, unless the ADR 0008 section 6 finding sets other values. A stub test counts
       the requests and the pauses.
-- [ ] Re-running after a stub error resumes: grid times already stored are skipped without a
+- [x] Re-running after a stub error resumes: grid times already stored are skipped without a
       request, and the run completes the rest.
-- [ ] `fake_*` names and simulators exit 2. The store is checked before any request. The client
+- [x] `fake_*` names and simulators exit 2. The store is checked before any request. The client
       is constructed only as `QiskitRuntimeService(name=ACCOUNT)`, asserted through the injected
       factory. No test constructs the real client or opens a connection.
-- [ ] `qci snapshot show` prints the source and, for each lookup capture, its
+- [x] `qci snapshot show` prints the source and, for each lookup capture, its
       `requested_before`. `qci snapshots` output for existing stores is unchanged.
-- [ ] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is unchanged
+- [x] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is unchanged
       for existing inputs, and the golden files are unchanged.
-- [ ] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the command
+- [x] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the command
       and the provenance. Where M1.5b recorded `different_document:lag_consistent` for a device,
       they and `qci snapshot backfill --help` state that its backfilled history is documents by
       stamp time, not what a user would have seen at a given time. All gates pass, and the
@@ -886,7 +891,7 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D18 | Where are observables declared? | Compare-time now (M1.2). Workload-declared intent in the run record later, which requires schema v2. Open. |
 | D19 | How should standalone calibration snapshots be stored, and how is their history kept? | **Resolved by [ADR 0005](docs/adr/0005-live-calibration-snapshots.md).** An insert-only snapshot store beside the runs table, deduplicated by content hash. History is a forward-only capture log. Measurements are stored as generic rows with adapter-defined resource identifiers, and the raw payload is kept. |
 | D20 | Run comparison does not check that baseline and candidate units agree. | Open. Fix at the next policy bump. Snapshot comparison (M1.3c) will report a unit mismatch as `not_comparable` for that parameter and never converts units (ADR 0005 section 7). |
-| D21 | Historical calibration backfill. | **Resolved by M1.5b (2026-10-18, [ADR 0008](docs/adr/0008-historical-backfill.md) Findings).** `properties(datetime=...)` is honored on `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` at 1, 7, 30, 90, 180 and 365 days back: every returned document is older than the requested time by at most 1 h 41 min, monotonic, and repeatable, and 5 of 6 cross-checks against stored captures match. The sixth shows publication lag (at least 5 min 33 s), so backfilled history is documents by stamp time, not what a user would have seen at a given time. `configuration()` has no history. Backfill (M1.5c) is gated on the user's terms-of-service check. |
+| D21 | Historical calibration backfill. | **Resolved by M1.5b (2026-10-18, [ADR 0008](docs/adr/0008-historical-backfill.md) Findings).** `properties(datetime=...)` is honored on `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` at 1, 7, 30, 90, 180 and 365 days back: every returned document is older than the requested time by at most 1 h 41 min, monotonic, and repeatable, and 5 of 6 cross-checks against stored captures match. The sixth shows publication lag (at least 5 min 33 s), so backfilled history is documents by stamp time, not what a user would have seen at a given time. `configuration()` has no history. Backfill (M1.5c) was gated on the user's terms-of-service check, recorded 2026-10-18 (ADR 0008 section 6): personal, local research use only (D29). |
 | D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |
 | D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |
 | D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). |
@@ -894,3 +899,4 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D26 | Show units in the text renderer (T1 and T2 in microseconds, lengths in nanoseconds). | Open. Checked on 2026-10-10: the JSON carries `unit` on every `hardware.shared_resource_parameters` entry (`us`, `ns`, or null for dimensionless values and unit mismatches). `unchanged_values` and `error_values_at_one` entries have no unit field. The text renderer shows the unit only on changed lines. `qci snapshot compare-run` (M1.4b, ADR 0007) shows the unit on every value line. |
 | D27 | Research: estimate the noise in provider calibration estimates by tracking the same parameter across many recalibrations. | Open. IBM publishes no uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and `date`. A `changed` value means only that the reported value changed. |
 | D28 | Historical snapshots have no configuration (ADR 0008 section 3): `qci snapshot compare` with `--allow-footprint-backend-mismatch` lists every footprint resource as missing, and `elapsed_between_captures` is the difference of request times. | Open. Raised in M1.5a. Comparison code is unchanged in M1.5. Decide in a later step whether presence for a historical snapshot may use another snapshot's configuration, and how elapsed time is reported for lookups. |
+| D29 | Review the IBM Quantum service agreement for redistribution of calibration data and commercial use under the Open Plan before any public release, hosted service, or shared dataset. | Open. Raised 2026-10-18 by the terms finding in [ADR 0008](docs/adr/0008-historical-backfill.md) section 6: M1.5c proceeds for personal, local research use only, and backfilled data is never committed to the repository or redistributed. |

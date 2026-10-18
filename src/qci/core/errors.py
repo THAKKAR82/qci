@@ -47,3 +47,17 @@ class ReadOnlyStoreError(QCIError):
 
 class DamagedStoreError(QCIError):
     """A store has some of its tables but not all, or lacks its schema version row."""
+
+
+class TooManyRequestsError(QCIError):
+    """The provider answered a request with too-many-requests. Nothing is retried."""
+
+
+class LookupRejectedError(QCIError):
+    """A historical lookup returned a document without a date, or dated after the requested
+    time. Nothing was stored for that request."""
+
+
+class BackfillRejectedError(QCIError):
+    """A backfill cannot be made as requested (fake, simulator, or beyond the verified depth).
+    Nothing was requested."""

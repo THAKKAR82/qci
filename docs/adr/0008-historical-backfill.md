@@ -5,7 +5,8 @@
   against stored live snapshots, predictions P1-P4 frozen, and the known rate-limit facts
   recorded (sections 1, 2, 6 and 8).
 - **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted), 2026-10-18 (M1.5b verification
-  recorded in Findings; cross-check rule amended 2026-10-18 before the run)
+  recorded in Findings; cross-check rule amended 2026-10-18 before the run), 2026-10-18
+  (terms finding recorded in section 6)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -108,8 +109,8 @@ depth of 365 days, the deepest offset tested (lookups further back were not test
 identical repeat, no `raises`, no `non_monotonic` and no `different_document:inconsistent`.
 D21 is resolved: `properties(datetime=...)` is honored for `ibm_fez`, `ibm_kingston` and
 `ibm_marrakesh` back to at least 365 days, by stamp time. M1.5c's per-device depth cap is
-365 days. M1.5c remains gated on the user's terms-of-service check (section 6), which is
-still open.
+365 days. M1.5c was gated on the user's terms-of-service check (section 6), recorded on
+2026-10-18: personal, local research use only.
 
 Full output (`~/qci-m15b/d21.txt`, 34 lines, verbatim):
 
@@ -378,6 +379,15 @@ therefore samples history on a grid.
 
 Each parameter keeps its own provider date, as in every snapshot.
 
+**Note (2026-10-18, M1.5c).** The implemented grid bounds the oldest time by the request time,
+not by the latest midnight: grid times are the multiples of `--step-hours` hours since
+1970-01-01T00:00Z that are at or before the most recent UTC midnight and no more than `--days`
+days before the request. With the default step this gives `--days` UTC midnights, the oldest
+`--days - 1` days before the latest midnight, so no requested time is further back than the
+verified depth measured from the request. Anchoring the grid at the epoch keeps grid times
+fixed instants for any step, which resumability depends on. The cap is applied to `--days`
+as specified.
+
 ### 6. Pacing, limits and resumability
 
 - **No daemon, scheduler or polling loop.** Each invocation is one bounded run.
@@ -393,17 +403,22 @@ Each parameter keeps its own provider date, as in every snapshot.
   the same backend and `requested_before`. If it exists, the grid time is skipped and counts
   against no cap. Re-running the same command continues where the last one stopped.
 
-**IBM terms and rate limits (to be checked by the user at M1.5b, before M1.5c):**
+**IBM terms and rate limits (checked by the user, recorded 2026-10-18, before M1.5c):**
 
 > Documented: job submission is limited to 5 per minute per user (not applicable; QCI submits
 > no jobs). No published limit was found for reading properties. A generic too-many-requests
 > error exists (code 1202); the script and the M1.5c command stop at the first such error,
-> with no retries. Terms of service: to be checked by the user before M1.5c.
+> with no retries.
 >
-> _Still to record at M1.5b: the terms-of-service documents checked (title, URL, date read),
-> what they say about programmatic or bulk requests for historical calibration data, and
-> whether the planned pacing (10 s between requests, at most 100 per invocation) is within
-> them. If the terms do not permit it, the decision rule in section 1 says stop._
+> Governing terms: the IBM Quantum service agreement accepted at instance creation; not yet
+> reviewed in full (the former quantum.ibm.com/terms page now redirects). Decision
+> (2026-10-18): proceed with M1.5c for personal, local research use only. Backfilled data
+> stays in the user's local store and is never committed to the repository or
+> redistributed. Redistribution of IBM-provided data and commercial use under the Open Plan
+> remain open: see D29.
+
+The finding sets no pacing values, so the defaults above apply: `--pause` 10 s (minimum 2)
+and `--max-requests` 30 (at most 100).
 
 ### 7. What M1.5 does not do
 
@@ -437,8 +452,8 @@ Each parameter keeps its own provider date, as in every snapshot.
       `store_sha256_after` lines and in both `shasum` lines.
 - [x] If the script stopped at a too-many-requests response, that is recorded, and the run is
       not repeated before the terms check. (It did not occur.)
-- [ ] The terms-of-service finding completes section 6. **Open:** moved by the user on
-      2026-10-18 to a gate before M1.5c; M1.5b is closed without it.
+- [x] The terms-of-service finding completes section 6. Moved by the user on 2026-10-18 to
+      a gate before M1.5c, and recorded on 2026-10-18: personal, local research use only (D29).
 - [x] The decision rule in section 1 is applied and its result (proceed, narrow or stop, per
       device) is recorded. `PLAN.md` is updated to match: on stop, D21 is resolved, M1.5c is
       removed and M1.5d is marked for redesign or dropped.
@@ -446,42 +461,42 @@ Each parameter keeps its own provider date, as in every snapshot.
 
 #### M1.5c: `qci snapshot backfill` (only if M1.5b supports it)
 
-- [ ] `SnapshotSource.HISTORICAL_LOOKUP`, `SnapshotCapture.method` and
+- [x] `SnapshotSource.HISTORICAL_LOOKUP`, `SnapshotCapture.method` and
       `SnapshotCapture.requested_before` exist as in section 3, with the validator. The
       committed `ibm_fez` fixture validates unchanged.
-- [ ] `snapshot_db_schema = 2` with the `snapshot_lookups` table. A test opens a version 1
+- [x] `snapshot_db_schema = 2` with the `snapshot_lookups` table. A test opens a version 1
       store read-only (every capture reads as `live_capture`, nothing is written) and for
       writing (the table is created, the version becomes 2, and every existing row is
       byte-identical). A version 1 table set and a version 2 table set are both accepted;
       any other partial set is `DamagedStoreError`.
-- [ ] The content hash formula is unchanged. Two grid times returning one document give one
+- [x] The content hash formula is unchanged. Two grid times returning one document give one
       snapshot and two lookup captures. `requested_before` is not in `capture_options`.
-- [ ] A lookup stores `configuration: null`. A test asserts that the client's
+- [x] A lookup stores `configuration: null`. A test asserts that the client's
       `configuration()` is not stored for a lookup.
-- [ ] Requested times are aware UTC datetimes with a zero offset. A stub test asserts the
+- [x] Requested times are aware UTC datetimes with a zero offset. A stub test asserts the
       exact `datetime` keyword the client receives under two `TZ` settings.
-- [ ] A returned `last_update_date` that is missing or after `requested_before` stores
+- [x] A returned `last_update_date` that is missing or after `requested_before` stores
       nothing for that request and stops with exit 1, naming the device and both times.
-- [ ] The grid is as in section 5 (UTC midnights, newest first, `--step-hours` minimum 1),
+- [x] The grid is as in section 5 (UTC midnights, newest first, `--step-hours` minimum 1),
       and `--days` above the device's verified depth, or a device with no verified depth,
       exits 2 with nothing requested.
-- [ ] The first too-many-requests response (HTTP 429, or IBM error code 1202 in the exception
+- [x] The first too-many-requests response (HTTP 429, or IBM error code 1202 in the exception
       chain) stops the invocation with exit 1, with nothing retried by QCI and everything
       stored before it kept. A stub test raises it on the third request and asserts two
       stored lookups and three requests.
-- [ ] `--max-requests` defaults to 30 and is capped at 100. `--pause` defaults to 10 and has
+- [x] `--max-requests` defaults to 30 and is capped at 100. `--pause` defaults to 10 and has
       a minimum of 2, unless the section 6 finding sets other values. A stub test counts the
       requests and the pauses.
-- [ ] Re-running after a stub error resumes: grid times already stored are skipped without a
+- [x] Re-running after a stub error resumes: grid times already stored are skipped without a
       request, and the run completes the rest.
-- [ ] `fake_*` names and simulators exit 2. The store is checked before any request. The
+- [x] `fake_*` names and simulators exit 2. The store is checked before any request. The
       client is constructed only as `QiskitRuntimeService(name=ACCOUNT)`, asserted through
       the injected factory. No test constructs the real client or opens a connection.
-- [ ] `qci snapshot show` prints the source and, for each lookup capture, its
+- [x] `qci snapshot show` prints the source and, for each lookup capture, its
       `requested_before`. `qci snapshots` output for existing stores is unchanged.
-- [ ] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is
+- [x] `qci compare`, `qci snapshot compare` and `qci snapshot compare-run` output is
       unchanged for existing inputs, and the golden files are unchanged.
-- [ ] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the
+- [x] `docs/architecture.md`, `docs/data-model.md`, README and `CLAUDE.md` describe the
       command and the provenance. Where M1.5b recorded `different_document:lag_consistent`
       for a device, they and `qci snapshot backfill --help` state that its backfilled history
       is documents by stamp time, not what a user would have seen at a given time. All gates

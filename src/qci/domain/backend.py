@@ -14,6 +14,9 @@ class SnapshotSource(StrEnum):
     """Frozen calibration data shipped with a fake backend. Not live hardware state."""
     SIMULATOR_IDEAL = "simulator_ideal"
     """Noiseless simulator with no calibration data."""
+    HISTORICAL_LOOKUP = "historical_lookup"
+    """Calibration a provider published for a real device at an earlier time, returned by a
+    lookup for a requested time (ADR 0008). Has no configuration."""
 
 
 class Backend(DomainModel):

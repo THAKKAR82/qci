@@ -91,6 +91,8 @@ class SnapshotService:
             capture_id=new_run_id(),
             snapshot_id=snapshot.snapshot_id,
             captured_at=captured.captured_at,
+            method="live_capture" if captured.requested_before is None else "historical_lookup",
+            requested_before=captured.requested_before,
         )
         stored, created = self._repository.save(snapshot, captured.measurements, capture)
         return CaptureOutcome(
@@ -115,8 +117,19 @@ class SnapshotService:
         ``redactions``. Local IDs become placeholders. If anything outside ``provider_raw``
         would need redaction, or the text contains any of ``secrets`` verbatim, the export
         aborts: the rules are incomplete, and that is fixed in code, not in the fixture.
+
+        Historical lookup data is never exported: backfilled data stays in the local store
+        and is never committed or redistributed (ADR 0008, section 6; D29).
         """
         snapshot = self._repository.get(snapshot_id)
+        stored_captures = self._repository.captures(snapshot_id)
+        if snapshot.source is SnapshotSource.HISTORICAL_LOOKUP or any(
+            c.method == "historical_lookup" for c in stored_captures
+        ):
+            raise FixtureExportError(
+                "this snapshot holds historical lookup data, which stays in the local store "
+                "and is never exported as a fixture. Nothing was written."
+            )
         provider_raw, new_paths = redact(snapshot.provider_raw)
         if not isinstance(provider_raw, dict):  # pragma: no cover - redaction keeps the shape
             raise FixtureExportError("redaction changed the payload shape")
@@ -134,7 +147,7 @@ class SnapshotService:
                 snapshot_id=FIXTURE_SNAPSHOT_ID,
                 captured_at=capture.captured_at,
             )
-            for index, capture in enumerate(self._repository.captures(snapshot_id), start=1)
+            for index, capture in enumerate(stored_captures, start=1)
         ]
         fixture = SnapshotFixture(
             fixture_origin=(

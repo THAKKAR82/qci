@@ -53,7 +53,8 @@ def test_importing_neutral_layers_does_not_load_qiskit() -> None:
         "qci.adapters.qiskit_ibm.live, qci.adapters.qiskit_ibm.redact, qci.compare.snapshots, "
         "qci.services.snapshot_compare_service, qci.cli.render_snapshot_compare, "
         "qci.compare.run_snapshot, qci.services.run_snapshot_compare_service, "
-        "qci.cli.render_run_snapshot_compare; "
+        "qci.cli.render_run_snapshot_compare, qci.services.backfill_service, "
+        "qci.adapters.qiskit_ibm.historical; "
         "print(sorted(m for m in sys.modules if m.split('.')[0] in "
         f"{PROVIDER_SDKS!r}))"
     )

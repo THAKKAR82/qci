@@ -11,14 +11,17 @@ from pydantic import ValidationError
 
 from qci.adapters.qiskit_ibm import live as ibm_live
 from qci.core.errors import (
+    BackfillRejectedError,
     CaptureRejectedError,
     DamagedStoreError,
     FixtureExportError,
     InvalidObservableError,
+    LookupRejectedError,
     QCIError,
     RunNotFoundError,
     SchemaVersionError,
     SnapshotNotFoundError,
+    TooManyRequestsError,
     WorkloadLoadError,
 )
 from qci.domain.circuit import CircuitSummary, CompileConfig
@@ -65,7 +68,8 @@ def _snapshot_repository(*, read_only: bool = False) -> SqliteSnapshotRepository
 
 
 snapshot_app = typer.Typer(
-    help="Read-only calibration snapshots of live hardware. Nothing is executed.",
+    help="Read-only calibration snapshots of live hardware, captured now or looked up for "
+    "past times. Nothing is executed.",
     no_args_is_help=True,
 )
 app.add_typer(snapshot_app, name="snapshot")
@@ -441,6 +445,135 @@ def snapshot_capture(
     typer.echo(f"Inspect it with: qci snapshot show {snap.snapshot_id}", err=True)
 
 
+BACKFILL_STAMP_NOTE = (
+    "Backfilled history is documents by provider stamp time, not what a user would have seen "
+    "at a given time: a document stamped before a requested time can have been published after "
+    "it."
+)
+
+
+BACKFILL_HELP = "\n\n".join(
+    [
+        "Look up past calibration of a live device and store each returned document as a "
+        "historical_lookup snapshot.",
+        "Uses the network. One properties request per pending grid time: one UTC midnight per "
+        "day (or every --step-hours hours), newest first, going back --days days, capped at the "
+        "device's verified lookup depth (365 days for ibm_fez, ibm_kingston and "
+        "ibm_marrakesh). Requested times are sent as UTC with a zero offset. A lookup stores "
+        "no configuration: the provider keeps no configuration history.",
+        BACKFILL_STAMP_NOTE,
+        "Each invocation is bounded: at most --max-requests requests (default 30, at most "
+        "100), with --pause seconds before each one (default 10, minimum 2). QCI retries "
+        "nothing and stops at the first error, including the first too-many-requests response "
+        "(HTTP 429 or IBM error code 1202). The IBM client's own HTTP session may still retry "
+        "some 5xx responses (up to 5 times, with backoff); that is outside QCI's control. "
+        "Every lookup stored before an error is kept. Grid times already stored are skipped "
+        "without a request, so re-running the same command continues where the last one "
+        "stopped.",
+        "A returned document without a date, or dated after its requested time, stores "
+        "nothing and stops with exit 1. Backfilled data stays in the local store: qci snapshot "
+        "export refuses it.",
+    ]
+)
+
+
+@snapshot_app.command("backfill", help=BACKFILL_HELP)
+def snapshot_backfill(
+    backend: Annotated[str, typer.Option(help="Live IBM device name, e.g. ibm_fez.")],
+    days: Annotated[
+        int, typer.Option(min=1, help="How many days back, at most the verified depth.")
+    ],
+    step_hours: Annotated[
+        int, typer.Option(min=1, help="Hours between grid times (24: UTC midnights).")
+    ] = 24,
+    max_requests: Annotated[
+        int, typer.Option(min=1, max=100, help="Most requests in this invocation.")
+    ] = 30,
+    pause: Annotated[
+        float, typer.Option(min=2.0, help="Seconds to wait before each request.")
+    ] = 10.0,
+    account: AccountOption = ibm_live.DEFAULT_ACCOUNT,
+) -> None:
+    from qci.adapters.qiskit_ibm.historical import IbmHistoricalCalibrationSource
+    from qci.services.backfill_service import BackfillService, LookupResult
+
+    service = BackfillService(IbmHistoricalCalibrationSource(account=account))
+    # Check the store and plan before any request. Read-only, so nothing is created or
+    # upcast when nothing is requested.
+    reader = _snapshot_repository(read_only=True)
+    try:
+        plan = service.plan(reader, backend, days, step_hours)
+    except BackfillRejectedError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    finally:
+        reader.close()
+    typer.echo(
+        f"grid times: {len(plan.grid)}; already stored: {plan.already_stored}; "
+        f"pending: {len(plan.pending)}",
+        err=True,
+    )
+    if not plan.pending:
+        typer.echo("Nothing to request.", err=True)
+        return
+
+    try:
+        lookup = service.open(plan)
+    except BackfillRejectedError as exc:
+        typer.echo(f"error: {_safe_error(exc, account)}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"error: backfill failed: {type(exc).__name__}: {_safe_error(exc, account)}",
+            err=True,
+        )
+        typer.echo("Nothing was recorded.", err=True)
+        raise typer.Exit(code=1) from exc
+
+    stored: list[LookupResult] = []
+
+    def show(result: LookupResult) -> None:
+        stored.append(result)
+        snap = result.outcome.snapshot
+        calibrated = snap.calibrated_at.isoformat() if snap.calibrated_at else "unknown"
+        typer.echo(
+            f"{result.requested_before.isoformat()}  {snap.snapshot_id}  "
+            f"calibrated_at={calibrated}  {'new' if result.outcome.created else 'existing'}"
+        )
+
+    repository = _snapshot_repository()
+    try:
+        report = service.run(
+            repository,
+            lookup,
+            plan,
+            max_requests=max_requests,
+            pause_seconds=pause,
+            on_result=show,
+        )
+    except TooManyRequestsError as exc:
+        typer.echo(f"error: stopped: {exc}. Nothing was retried.", err=True)
+        typer.echo(f"Lookups stored before it are kept: {len(stored)}.", err=True)
+        raise typer.Exit(code=1) from exc
+    except LookupRejectedError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        typer.echo(f"Lookups stored before it are kept: {len(stored)}.", err=True)
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        typer.echo(
+            f"error: backfill failed: {type(exc).__name__}: {_safe_error(exc, account)}",
+            err=True,
+        )
+        typer.echo(f"Lookups stored before it are kept: {len(stored)}.", err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        repository.close()
+    typer.echo(f"requested: {report.requested}; remaining: {report.remaining}", err=True)
+    if report.remaining:
+        typer.echo("Re-run the same command to continue.", err=True)
+    typer.echo(f"note: {BACKFILL_STAMP_NOTE}", err=True)
+
+
 @app.command()
 def snapshots(
     backend: Annotated[str | None, typer.Option(help="Only this backend.")] = None,
@@ -490,6 +623,15 @@ def render_snapshot(
         "  environment:    " + ", ".join(f"{k}={v}" for k, v in snap.environment.items()),
         f"  raw provider payloads: {raw}",
     ]
+    lookups = [c for c in captures if c.requested_before is not None]
+    if lookups:
+        lines.append(f"  historical lookups: {len(lookups)}")
+        lines += [
+            f"    {c.capture_id}  requested_before={c.requested_before.isoformat()}  "
+            f"requested_at={c.captured_at.isoformat()}"
+            for c in lookups
+            if c.requested_before is not None
+        ]
     return "\n".join(lines)
 
 

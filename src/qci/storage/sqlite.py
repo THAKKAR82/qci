@@ -4,6 +4,7 @@ Each run is stored as its complete JSON document plus a few indexed columns for 
 There is deliberately no update or delete. See docs/adr/0003-immutable-run-records.md.
 """
 
+from collections.abc import Mapping
 from pathlib import Path
 
 from sqlalchemy import (
@@ -32,6 +33,7 @@ from qci.core.errors import (
 from qci.domain.run import Run, RunListItem
 
 DB_SCHEMA_VERSION = 1
+_RUN_VERSIONS = {DB_SCHEMA_VERSION: {"runs"}}
 
 _metadata = MetaData()
 
@@ -57,30 +59,40 @@ schema_meta_table = Table(
 )
 
 
+def _names(names: set[str]) -> str:
+    return ", ".join(sorted(names))
+
+
 def open_read_only(
-    db_path: Path, label: str, tables: set[str], schema_key: str, supported: int
+    db_path: Path, label: str, versions: Mapping[int, set[str]], schema_key: str
 ) -> Engine | None:
     """A read-only engine on the ``label`` store in ``db_path``, or None if it is empty.
 
-    SQLite opens the file with ``mode=ro``, so nothing is ever written: the file, its tables
-    and ``schema_meta`` are never created. A missing file, or a file with none of ``tables``,
-    is an empty store. Some but not all of ``tables``, or all of them without a ``schema_key``
-    row in ``schema_meta``, raises ``DamagedStoreError``. Another version raises
+    ``versions`` maps each supported schema version to its exact table set. SQLite opens the
+    file with ``mode=ro``, so nothing is ever written: the file, its tables and
+    ``schema_meta`` are never created. A missing file, or a file with none of the tables, is
+    an empty store. Raises ``DamagedStoreError`` when only some of the tables every version
+    has are present, when ``schema_meta`` or its ``schema_key`` row is missing, or when the
+    tables present are not the set of the recorded version. Another version raises
     ``SchemaVersionError``.
     """
     if not db_path.is_file():
         return None
+    known = set().union(*versions.values())
+    common = set.intersection(*versions.values())
     engine = create_engine(f"sqlite:///{db_path.resolve().as_uri()}?mode=ro&uri=true")
     try:
         present = set(inspect(engine).get_table_names())
-        found, missing = sorted(tables & present), sorted(tables - present)
+        found = known & present
         if not found:
             engine.dispose()
             return None
+        missing = common - present
         if missing:
+            listed = (common & present) or found
             raise DamagedStoreError(
-                f"{db_path}: the {label} store is damaged: tables {', '.join(found)} exist but "
-                f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} missing"
+                f"{db_path}: the {label} store is damaged: tables {_names(listed)} exist but "
+                f"{_names(missing)} {'is' if len(missing) == 1 else 'are'} missing"
             )
         if "schema_meta" not in present:
             raise DamagedStoreError(
@@ -96,9 +108,22 @@ def open_read_only(
                 f"{db_path}: the {label} store is damaged: its tables exist but schema_meta has "
                 f"no {schema_key!r} row"
             )
-        if int(row.value) != supported:
+        version = int(row.value)
+        if version not in versions:
+            supported = " and ".join(str(v) for v in sorted(versions))
             raise SchemaVersionError(
                 f"{db_path} has {schema_key} {row.value}; this QCI supports {supported}"
+            )
+        expected = versions[version]
+        if found != expected:
+            parts = []
+            if expected - found:
+                parts.append(f"{_names(expected - found)} missing")
+            if found - expected:
+                parts.append(f"{_names(found - expected)} present")
+            raise DamagedStoreError(
+                f"{db_path}: the {label} store is damaged: {schema_key} {version} but tables "
+                + " and ".join(parts)
             )
     except Exception:
         engine.dispose()
@@ -113,13 +138,11 @@ class SqliteRunRepository:
         raises ``SchemaVersionError`` before anything is written."""
         self._read_only = read_only
         if read_only:
-            self._engine: Engine | None = open_read_only(
-                db_path, "run", {"runs"}, "db_schema", DB_SCHEMA_VERSION
-            )
+            self._engine: Engine | None = open_read_only(db_path, "run", _RUN_VERSIONS, "db_schema")
             return
         # Check before writing anything: a damaged or other-version store raises here, with
         # nothing created. Only an empty store gets tables and a version row below.
-        probe = open_read_only(db_path, "run", {"runs"}, "db_schema", DB_SCHEMA_VERSION)
+        probe = open_read_only(db_path, "run", _RUN_VERSIONS, "db_schema")
         if probe is not None:
             probe.dispose()
         db_path.parent.mkdir(parents=True, exist_ok=True)

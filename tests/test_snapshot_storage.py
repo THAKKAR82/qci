@@ -41,6 +41,7 @@ def test_repository_has_no_update_or_delete() -> None:
         "list_snapshots",
         "measurements",
         "captures",
+        "lookup_times",
         "close",
     }
 
@@ -62,10 +63,15 @@ def test_existing_run_database_opens_unchanged(tmp_path: Path) -> None:
     meta = {str(k): str(v) for k, v in _rows(db, "SELECT key, value FROM schema_meta")}
     assert meta == {
         "db_schema": "1",
-        "snapshot_db_schema": "1",
+        "snapshot_db_schema": "2",
     }
     tables = {r[0] for r in _rows(db, "SELECT name FROM sqlite_master WHERE type = 'table'")}
-    assert {"calibration_snapshots", "snapshot_captures", "calibration_measurements"} <= tables
+    assert {
+        "calibration_snapshots",
+        "snapshot_captures",
+        "calibration_measurements",
+        "snapshot_lookups",
+    } <= tables
     reopened = SqliteRunRepository(db)
     assert reopened.get(run.run_id) == run
     reopened.close()

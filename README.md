@@ -79,8 +79,8 @@ a frozen IBM calibration snapshot as its noise model.
 ## Calibration snapshots (live IBM hardware, read-only)
 
 QCI can read the calibration an IBM backend currently publishes and store it as an immutable
-snapshot. It executes nothing on hardware and costs no QPU time. This is the only QCI command
-that uses the network.
+snapshot. It executes nothing on hardware and costs no QPU time. `capture` and `backfill` are
+the only QCI commands that use the network.
 
 **Prerequisite: a saved IBM account.** Save it once with Qiskit's own API. QCI never asks for,
 stores, logs or prints a token, and it never reads credentials from environment variables:
@@ -93,6 +93,8 @@ QiskitRuntimeService.save_account(token="...", instance="...", name="default-ibm
 
 ```bash
 qci snapshot capture --backend ibm_fez [--account default-ibm-quantum-platform]
+qci snapshot backfill --backend ibm_fez --days N [--step-hours H] [--max-requests M] \
+    [--pause S] [--account NAME]
 qci snapshots [--backend ibm_fez] [--limit N]
 qci snapshot show <SNAPSHOT_ID> [--json]
 qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]   # developers: test fixture
@@ -109,9 +111,31 @@ qci snapshot compare-run <RUN_ID> <SNAPSHOT_ID> [--json]
   exit code is 1.
 - Credential-like values in the payload (tokens, instance CRNs, URLs, emails and similar) are
   replaced with `{"$redacted": "<rule>"}` before storage, and their paths are listed.
-- History is forward-only: it starts at your first capture.
 - `calibrated_at` is the provider's own `last_update_date` for the properties document.
   Individual parameters carry their own dates.
+
+### Backfilling past calibration
+
+`qci snapshot backfill` looks up the calibration documents a device published before
+`capture` was first run, and stores each one as a `historical_lookup` snapshot. It sends one
+request per grid time: one UTC midnight per day by default (`--step-hours` for a finer grid),
+newest first, going back `--days` days.
+
+- **Backfilled history is documents by provider stamp time, not what a user would have seen
+  at a given time.** A document stamped before a requested time can have been published after
+  it. Documents published and superseded between two grid times are not recovered, and there
+  is no configuration history, so a lookup stores no configuration.
+- `--days` is capped at each device's verified lookup depth: 365 days for `ibm_fez`,
+  `ibm_kingston` and `ibm_marrakesh`. Other devices, fakes and simulators exit 2 with nothing
+  requested.
+- Each run is bounded: at most `--max-requests` requests (default 30, at most 100), with
+  `--pause` seconds before each (default 10, minimum 2). QCI retries nothing and stops at the
+  first error, including the first too-many-requests response. The IBM client may itself
+  retry some 5xx responses.
+- It is resumable: grid times already stored are skipped without a request, so re-run the
+  same command until it reports nothing remaining.
+- Backfilled data is for personal, local research use. It stays in your local store, and
+  `qci snapshot export` refuses it (see D29 in `PLAN.md`).
 
 Snapshots are stored in the same `qci.db` as runs, in separate tables.
 

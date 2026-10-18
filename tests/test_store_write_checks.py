@@ -1,12 +1,15 @@
 """Write commands check the store before writing anything (empty, damaged or other version).
 
-A damaged or other-version store makes ``qci run`` and ``qci snapshot capture`` exit 1 with
-the database file byte-identical: no tables, version rows, runs or snapshots are written.
-Capture uses the stub client only. Its store check runs before the client is built.
+A damaged or other-version store makes ``qci run``, ``qci snapshot capture`` and ``qci snapshot
+backfill`` exit 1 with the database file byte-identical: no tables, version rows, runs or
+snapshots are written. Capture and backfill use the stub client only. Their store checks run
+before the client is built.
 """
 
 import re
 import sqlite3
+import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -18,7 +21,7 @@ from qci.cli.app import app
 from qci.core.errors import DamagedStoreError, SchemaVersionError
 from qci.storage.snapshots import SqliteSnapshotRepository
 from qci.storage.sqlite import SqliteRunRepository
-from snapshot_stubs import StubFactory
+from snapshot_stubs import HistoryBackend, StubFactory
 from test_store_read_only import DAMAGE, _damaged_store
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -162,3 +165,41 @@ def test_empty_stores_are_created_as_before(tmp_path: Path) -> None:
     snapshots.close()
     assert _rows(db, "calibration_snapshots") == 0
     assert _rows(db, "runs") == 1
+
+
+BACKFILL = ["snapshot", "backfill", "--backend", "ibm_fez", "--days", "2"]
+
+
+@pytest.mark.parametrize(("shape", "statements", "damaged", "message"), SHAPES, ids=IDS)
+def test_backfill_checks_the_store_before_any_request(
+    home: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    shape: str,
+    statements: list[str],
+    damaged: set[str],
+    message: str,
+) -> None:
+    backend = HistoryBackend([datetime(2026, 1, 1, tzinfo=UTC)])
+    backend.name = "ibm_fez"
+    factory = StubFactory(backend)
+    monkeypatch.setattr(live, "create_service", factory)
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    db = home / "qci.db"
+    _damaged_store(db, statements)
+    before = db.read_bytes()
+
+    result = CliRunner().invoke(app, BACKFILL)
+
+    if "snapshots" in damaged:
+        assert result.exit_code == 1, result.output
+        assert "error: " in result.stderr and message in result.stderr
+        assert factory.calls == []  # no client was built, nothing was requested
+        assert result.stdout == ""
+        assert db.read_bytes() == before
+        assert sorted(p.name for p in home.iterdir()) == ["qci.db"]
+    else:
+        # Only the run store is damaged: the lookups are recorded, and the run store is left
+        # exactly as it was.
+        assert result.exit_code == 0, result.output
+        assert _rows(db, "snapshot_lookups") == 2
+        assert _rows(db, "runs") == 1

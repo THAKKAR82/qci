@@ -3,6 +3,11 @@
 Snapshot tables live in the same file as runs but are owned here. They record their own
 schema version under ``snapshot_db_schema``, so the runs table and ``DB_SCHEMA_VERSION`` are
 untouched. There is deliberately no update or delete.
+
+Version 2 (ADR 0008, section 3) adds ``snapshot_lookups``: one row per historical lookup
+capture. A capture without a row is a live capture. Opening a version 1 store for writing
+upcasts it in one transaction: it creates ``snapshot_lookups`` and records version 2, and
+changes no other row. A read-only open of a version 1 store reads every capture as live.
 """
 
 from collections.abc import Sequence
@@ -23,11 +28,14 @@ from sqlalchemy import (
     create_engine,
     func,
     insert,
+    inspect,
     select,
+    update,
 )
 
 from qci.core.errors import ReadOnlyStoreError, SchemaVersionError, SnapshotNotFoundError
 from qci.domain.snapshot import (
+    HISTORICAL_LOOKUP_METHOD_VERSION,
     CalibrationSnapshot,
     Measurement,
     SnapshotCapture,
@@ -35,7 +43,7 @@ from qci.domain.snapshot import (
 )
 from qci.storage.sqlite import open_read_only, schema_meta_table
 
-SNAPSHOT_DB_SCHEMA_VERSION = 1
+SNAPSHOT_DB_SCHEMA_VERSION = 2
 _SCHEMA_KEY = "snapshot_db_schema"
 
 _metadata = MetaData()
@@ -81,6 +89,16 @@ measurements_table = Table(
 )
 
 
+lookups_table = Table(
+    "snapshot_lookups",
+    _metadata,
+    Column("capture_id", String, primary_key=True),
+    Column("requested_before", String, nullable=False),
+    Column("method_version", String, nullable=False),
+    Index("ix_lookups_requested_before", "requested_before"),
+)
+
+
 def _utc(value: datetime) -> str:
     """UTC ISO-8601, so that stored timestamps sort lexicographically."""
     return value.astimezone(UTC).isoformat()
@@ -100,31 +118,37 @@ def _measurement_row(snapshot_id: str, seq: int, m: Measurement) -> dict[str, ob
     }
 
 
-_TABLES = {"calibration_snapshots", "snapshot_captures", "calibration_measurements"}
+_V1_TABLES = {"calibration_snapshots", "snapshot_captures", "calibration_measurements"}
+_VERSIONS = {1: _V1_TABLES, 2: _V1_TABLES | {"snapshot_lookups"}}
 
 
 class SqliteSnapshotRepository:
     def __init__(self, db_path: Path, *, read_only: bool = False) -> None:
         """``read_only`` never creates or writes the store. A store with none of the snapshot
         tables has no snapshots. In either mode, a damaged store raises ``DamagedStoreError``
-        and another version raises ``SchemaVersionError`` before anything is written."""
+        and another version raises ``SchemaVersionError`` before anything is written. Opening
+        a version 1 store for writing upcasts it to version 2."""
         self._read_only = read_only
         if read_only:
             self._engine: Engine | None = open_read_only(
-                db_path, "snapshot", _TABLES, _SCHEMA_KEY, SNAPSHOT_DB_SCHEMA_VERSION
+                db_path, "snapshot", _VERSIONS, _SCHEMA_KEY
+            )
+            self._has_lookups = self._engine is not None and "snapshot_lookups" in set(
+                inspect(self._engine).get_table_names()
             )
             return
         # Check before writing anything: a damaged or other-version store raises here, with
-        # nothing created. Only an empty store gets tables and a version row below.
-        probe = open_read_only(
-            db_path, "snapshot", _TABLES, _SCHEMA_KEY, SNAPSHOT_DB_SCHEMA_VERSION
-        )
+        # nothing created.
+        probe = open_read_only(db_path, "snapshot", _VERSIONS, _SCHEMA_KEY)
         if probe is not None:
             probe.dispose()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._engine = engine = create_engine(f"sqlite:///{db_path}")
+        self._has_lookups = True
         schema_meta_table.create(engine, checkfirst=True)
-        _metadata.create_all(engine)
+        # One transaction. The version row is written first because the SQLite driver opens
+        # a transaction only at a data statement; the table DDL that follows is then part of
+        # it, so a failure leaves the store as it was.
         with engine.begin() as conn:
             row = conn.execute(
                 select(schema_meta_table.c.value).where(schema_meta_table.c.key == _SCHEMA_KEY)
@@ -135,6 +159,14 @@ class SqliteSnapshotRepository:
                         key=_SCHEMA_KEY, value=str(SNAPSHOT_DB_SCHEMA_VERSION)
                     )
                 )
+                _metadata.create_all(conn)
+            elif int(row.value) == 1:
+                conn.execute(
+                    update(schema_meta_table)
+                    .where(schema_meta_table.c.key == _SCHEMA_KEY)
+                    .values(value=str(SNAPSHOT_DB_SCHEMA_VERSION))
+                )
+                lookups_table.create(conn)
             elif int(row.value) != SNAPSHOT_DB_SCHEMA_VERSION:
                 raise SchemaVersionError(
                     f"{db_path} has snapshot DB schema {row.value}; this QCI supports "
@@ -192,6 +224,14 @@ class SqliteSnapshotRepository:
                     captured_at=_utc(capture.captured_at),
                 )
             )
+            if capture.requested_before is not None:
+                conn.execute(
+                    insert(lookups_table).values(
+                        capture_id=capture.capture_id,
+                        requested_before=_utc(capture.requested_before),
+                        method_version=HISTORICAL_LOOKUP_METHOD_VERSION,
+                    )
+                )
         return stored, existing is None
 
     def get(self, snapshot_id: str) -> CalibrationSnapshot:
@@ -265,13 +305,44 @@ class SqliteSnapshotRepository:
         if self._engine is None:
             return []
         c = captures_table.c
+        if self._has_lookups:
+            query = select(
+                c.capture_id, c.snapshot_id, c.captured_at, lookups_table.c.requested_before
+            ).select_from(
+                captures_table.outerjoin(lookups_table, lookups_table.c.capture_id == c.capture_id)
+            )
+        else:  # a version 1 store, opened read-only: every capture is live
+            query = select(c.capture_id, c.snapshot_id, c.captured_at)
         with self._engine.connect() as conn:
             rows = conn.execute(
-                select(c.capture_id, c.snapshot_id, c.captured_at)
-                .where(c.snapshot_id == snapshot_id)
-                .order_by(c.captured_at, c.capture_id)
+                query.where(c.snapshot_id == snapshot_id).order_by(c.captured_at, c.capture_id)
             ).all()
-        return [SnapshotCapture.model_validate(row._asdict()) for row in rows]
+        captures = []
+        for row in rows:
+            fields = row._asdict()
+            requested = fields.pop("requested_before", None)
+            if requested is not None:
+                fields["method"] = "historical_lookup"
+                fields["requested_before"] = datetime.fromisoformat(requested)
+            captures.append(SnapshotCapture.model_validate(fields))
+        return captures
+
+    def lookup_times(self, provider: str, backend_name: str) -> set[datetime]:
+        if self._engine is None or not self._has_lookups:
+            return set()
+        s, c, lk = snapshots_table.c, captures_table.c, lookups_table.c
+        query = (
+            select(lk.requested_before)
+            .select_from(
+                lookups_table.join(captures_table, c.capture_id == lk.capture_id).join(
+                    snapshots_table, s.snapshot_id == c.snapshot_id
+                )
+            )
+            .where(s.provider == provider, s.backend_name == backend_name)
+        )
+        with self._engine.connect() as conn:
+            rows = conn.execute(query).all()
+        return {datetime.fromisoformat(row.requested_before) for row in rows}
 
     def close(self) -> None:
         if self._engine is not None:

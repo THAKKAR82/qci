@@ -172,6 +172,8 @@ class CapturedCalibration:
     extraction_method: str
     extraction_method_version: str
     environment: dict[str, str]
+    requested_before: datetime | None = None
+    """Set for a historical lookup: the requested time, in UTC with a zero offset."""
 
 
 @dataclass(frozen=True)
@@ -229,6 +231,33 @@ class CalibrationSource(Protocol):
         ...
 
 
+class HistoricalLookup(Protocol):
+    """One opened device, ready for historical lookups."""
+
+    def lookup(self, requested_before: datetime) -> CapturedCalibration:
+        """One request for the latest calibration published before ``requested_before`` (an
+        aware UTC datetime). Never retries. Raises ``TooManyRequestsError`` at the first
+        too-many-requests response."""
+        ...
+
+
+class HistoricalCalibrationSource(Protocol):
+    """One provider's historical calibration lookups (ADR 0008)."""
+
+    provider: str
+
+    def verified_depth_days(self, backend_name: str) -> int | None:
+        """The verified lookup depth of a device in days, from an explicit list. None when the
+        device is not listed, and then it is never backfilled. Raises
+        ``BackfillRejectedError`` for a name the provider reserves for fakes."""
+        ...
+
+    def open(self, backend_name: str) -> HistoricalLookup:
+        """Build the client and resolve the device. Raises ``BackfillRejectedError`` for a
+        fake or a simulator. Requests no calibration."""
+        ...
+
+
 class SnapshotRepository(Protocol):
     """Insert-only snapshot persistence. There is deliberately no update or delete."""
 
@@ -260,4 +289,8 @@ class SnapshotRepository(Protocol):
 
     def captures(self, snapshot_id: str) -> list[SnapshotCapture]:
         """Oldest first."""
+        ...
+
+    def lookup_times(self, provider: str, backend_name: str) -> set[datetime]:
+        """The ``requested_before`` of every stored historical lookup capture of a backend."""
         ...

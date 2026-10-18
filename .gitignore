@@ -19,3 +19,15 @@ htmlcov/
 
 # M1.1v-addendum experiment run store
 .qci-exp-addendum/
+
+# QCI stores and their backups, wherever they are copied. Backfilled calibration data
+# (qci snapshot backfill, ADR 0008 section 6) stays in the local store and is never
+# committed or redistributed (D29).
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+.qci-live/
+qci-backups/

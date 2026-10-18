@@ -149,13 +149,16 @@ in [ADR 0005](adr/0005-live-calibration-snapshots.md). Models live in
 `qci/domain/snapshot.py`.
 
 - **`CalibrationSnapshot`** (`schema_version` 1): `snapshot_id`, `content_hash`, `provider`,
-  `backend_name`, `backend_version`, `source` (`live_calibration` for captures),
+  `backend_name`, `backend_version`, `source` (`live_calibration` for captures,
+  `historical_lookup` for backfilled documents),
   `captured_at`, `calibrated_at`, `capture_options`, `extraction_method` and its version,
   `redactions`, `environment` and `provider_raw` (`{"properties", "configuration"}`). It has no
   git provenance, host, user path, account name, token or instance.
-- **`SnapshotCapture`**: one row per successful capture command. Capturing identical content
-  again adds only a capture row, so the capture log is the history. History is forward-only:
-  QCI never requests a past datetime (D21).
+- **`SnapshotCapture`**: one row per successful capture. Capturing identical content again
+  adds only a capture row, so the capture log is the history. `method` is `live_capture`
+  (`qci snapshot capture`, the default) or `historical_lookup` (`qci snapshot backfill`,
+  M1.5c), and `requested_before` is set exactly for a lookup: the requested time, in UTC with
+  a zero offset. See "Historical lookups" below.
 - **`Measurement`**: the generic projection of a snapshot, one row per reported (resource,
   parameter), in extraction order with duplicates kept. `resource_kind` and `resource` are
   adapter-defined and opaque to core, so a neutral-atom site or a logical patch needs no
@@ -180,7 +183,34 @@ Semantics:
   to "keep raw data".
 - **Fixtures:** `qci snapshot export` writes a `SnapshotFixture`: `fixture_format`,
   `fixture_origin` (`live_capture` or `synthetic`), `fixture_note`, the snapshot with
-  placeholder IDs, its measurements and its captures.
+  placeholder IDs, its measurements and its captures. Historical lookup data is never
+  exported.
+
+### Historical lookups (M1.5c)
+
+`qci snapshot backfill` stores calibration a provider published for a real device at an
+earlier time, returned by a lookup for a requested time
+([ADR 0008](adr/0008-historical-backfill.md)).
+
+- **Snapshot:** `source = historical_lookup` records how QCI first obtained the content.
+  `captured_at` is when QCI made the first request that returned it, not a calibration time;
+  `calibrated_at` is the returned document's `last_update_date`. `backend_version` comes from
+  the properties document. `provider_raw` is `{"properties": ..., "configuration": null}`:
+  the provider keeps no configuration history, and the current configuration is never paired
+  with an older document.
+- **Capture:** `method = historical_lookup` and `requested_before`. The store keeps each
+  lookup in `snapshot_lookups` with `method_version` (`qci.snapshot.backfill.1`).
+  `requested_before` is never in `capture_options`, so the content hash formula is unchanged
+  and two requested times returning one document give one snapshot and two lookup captures.
+- **Validation:** a lookup is stored only if the returned `last_update_date` is present and
+  at or before `requested_before`.
+- **Stamp time.** Backfilled history is documents by provider stamp time, not what a user
+  would have seen at a given time: a document stamped before a requested time can have been
+  published after it. This was observed on `ibm_fez` (publication lag of at least 5 min 33 s,
+  ADR 0008 Findings). Documents published and superseded between two grid times are not
+  recovered.
+- **Local only.** Backfilled data stays in the user's local store. It is never committed to
+  the repository or redistributed (ADR 0008 section 6, D29).
 
 ### Snapshot comparison (M1.3c)
 

@@ -241,3 +241,56 @@ def synthetic_fake_fez_fixture_text() -> str:
             )
         finally:
             repository.close()
+
+
+def history_properties(stamp: datetime | None, t1: float) -> dict[str, Any]:
+    """One properties document as the client returns it for a historical lookup: dates in
+    local time, stamped ``stamp`` (no ``last_update_date`` when None)."""
+    props = stub_properties(t1=t1)
+    if stamp is None:
+        del props["last_update_date"]
+    else:
+        props["last_update_date"] = local(stamp)
+    return props
+
+
+class HistoryBackend(StubBackend):
+    """Answers ``properties(datetime=T)`` with the latest of ``stamps`` at or before ``T``.
+
+    ``returned`` overrides the stamp per requested time (None: an undated document).
+    ``errors`` maps a 1-based properties call number to the exception it raises.
+    """
+
+    def __init__(
+        self,
+        stamps: list[datetime],
+        *,
+        simulator: bool = False,
+        errors: dict[int, Exception] | None = None,
+        returned: dict[datetime, datetime | None] | None = None,
+    ) -> None:
+        super().__init__(simulator=simulator)
+        self._stamps = sorted(stamps)
+        self._errors = errors or {}
+        self._returned = returned or {}
+
+    def properties(self, **kwargs: Any) -> _Payload | None:
+        self.properties_calls.append(kwargs)
+        error = self._errors.get(len(self.properties_calls))
+        if error is not None:
+            raise error
+        at: datetime = kwargs["datetime"]
+        if at in self._returned:
+            stamp = self._returned[at]
+        else:
+            stamp = max(s for s in self._stamps if s <= at)
+        index = self._stamps.index(stamp) if stamp in self._stamps else -1
+        return _Payload(history_properties(stamp, t1=100.0 + index))
+
+
+class RateLimitError(Exception):
+    """Shaped like the client's ``RequestsApiError``: a message and a ``status_code``."""
+
+    def __init__(self, message: str, status_code: int = -1) -> None:
+        super().__init__(message)
+        self.status_code = status_code

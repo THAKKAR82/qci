@@ -12,7 +12,7 @@ only the physical level today, and new code must respect the constraints in
 cli/            Typer commands: argument parsing and rendering only
   │
 services/       Use-case orchestration (RunService, CompareService, SnapshotService,
-                SnapshotCompareService, RunSnapshotCompareService)
+                SnapshotCompareService, RunSnapshotCompareService, BackfillService)
   │  depends on ports, never on adapters directly
 compare/        Pure comparison logic over stored runs: provider-neutral
   │
@@ -54,7 +54,8 @@ All ports are `typing.Protocol` classes in `qci/core/ports.py`.
 | `SnapshotComparisonSupport` (M1.3c) | A dataclass bundling one provider's `CalibrationReader`, `SnapshotResourceIndex` and explicit error-type parameter list. |
 | `FakeDeviceIndex` (M1.4b) | For one provider's fake backends: the device a fake was built from, from an explicit list (IBM: `FAKE_DEVICE_SOURCES`), never derived from the fake's name; the device name and version a run's stored payload records; and the footprint resources a run's stored configuration does not have. |
 | `RunSnapshotComparisonSupport` (M1.4b) | A dataclass bundling one provider's `SnapshotComparisonSupport`, its `FakeDeviceIndex`, the name of the mapping list, and the package whose fakes hold the frozen calibration. |
-| `SnapshotRepository` (M1.3b) | Insert-only snapshot persistence with `save` (deduplicates by content hash and always adds a capture row), `get`, `get_by_hash`, `list_snapshots`, `measurements` and `captures`. It has no update or delete. |
+| `SnapshotRepository` (M1.3b) | Insert-only snapshot persistence with `save` (deduplicates by content hash and always adds a capture row), `get`, `get_by_hash`, `list_snapshots`, `measurements`, `captures` and `lookup_times` (M1.5c: the `requested_before` of every stored historical lookup of a backend). It has no update or delete. |
+| `HistoricalCalibrationSource`, `HistoricalLookup` (M1.5c) | One provider's historical lookups: an explicit list of verified lookup depths per device, and `open(NAME)`, which resolves the device and rejects fakes and simulators. `lookup(requested_before)` makes one request, never retries, and raises `TooManyRequestsError` at the first too-many-requests response. |
 
 ### Why opaque handles
 
@@ -104,15 +105,20 @@ The exit codes are a contract.
 | `qci snapshot capture` | 0 | A snapshot was stored, or identical content was recorded as one more capture. |
 | `qci snapshot capture` | 1 | Capture failed. **Nothing was persisted.** The message is sanitized. |
 | `qci snapshot capture` | 2 | The backend is a fake (`fake_*` or a fake object) or a simulator. **Nothing was persisted.** |
+| `qci snapshot backfill` | 0 | Every requested lookup was stored, or nothing was pending. Grid times left by `--max-requests` are printed as remaining. |
+| `qci snapshot backfill` | 1 | A request failed, including the first too-many-requests response, or a returned document has no date or is dated after its requested time. Nothing is retried; lookups stored before the error are kept. |
+| `qci snapshot backfill` | 2 | The backend is a fake or a simulator, has no verified lookup depth, or `--days` exceeds it; or an option is out of range. **Nothing was requested.** |
 | `qci snapshot compare` | 1 | A snapshot ID or the footprint run ID was not found. Nothing is stored. |
 | `qci snapshot compare-run` | 1 | The run ID or the snapshot ID was not found. Nothing is stored. |
-| `qci snapshot show`, `qci snapshot export` | 1 | A snapshot ID was not found, the saved account could not be read for the export scan, or the export was unsafe. Export writes nothing. |
+| `qci snapshot show`, `qci snapshot export` | 1 | A snapshot ID was not found, the saved account could not be read for the export scan, or the export was unsafe or holds historical lookup data. Export writes nothing. |
 | `qci runs`, `qci show`, `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot export`, `qci snapshot compare`, `qci snapshot compare-run` | 1 | The store is damaged (`DamagedStoreError`) or has another schema version. Nothing is written. |
 | any | 1 | Any other `QCIError` that reaches `main()`. |
 | any | 2 | A usage error reported by Typer. |
 
 `qci run` prints the run ID to stdout before the error, which goes to stderr. `qci snapshot
-capture` prints the snapshot ID to stdout and its details to stderr.
+capture` prints the snapshot ID to stdout and its details to stderr. `qci snapshot backfill`
+prints one line per stored lookup to stdout (requested time, snapshot ID, returned stamp, new
+or existing) and its counts and errors to stderr.
 
 ## Qiskit/IBM adapter notes (M0)
 
@@ -202,7 +208,38 @@ the real client: a session guard in `tests/conftest.py` blocks `QiskitRuntimeSer
 `qci snapshot export ID --fixture PATH [--account ACCOUNT]` is offline. It redacts again,
 replaces local IDs with placeholders, writes sorted plain JSON, and aborts without writing if
 the text contains the saved account's token, instance or URL verbatim, or if anything outside
-the provider payload matches a redaction rule.
+the provider payload matches a redaction rule. It also refuses a snapshot whose source or any
+capture is a historical lookup: backfilled data stays in the local store (ADR 0008, D29).
+
+## M1.5c historical backfill flow
+
+Read-only on hardware. The only networked command besides `qci snapshot capture`. See
+[ADR 0008](adr/0008-historical-backfill.md).
+
+```
+qci snapshot backfill --backend NAME --days N [--step-hours H] [--max-requests M] [--pause S]
+                      [--account ACCOUNT]
+  0. open the snapshot store read-only                  → exit 1 if damaged or another version
+  1. fake_* name, no verified depth, or N > depth       → exit 2, no client built
+  2. grid: multiples of H hours since the epoch (UTC), from the latest midnight back to at most
+     N days before now, newest first; drop times already stored as lookups
+  3. nothing pending                                    → exit 0, no client built
+  4. QiskitRuntimeService(name=ACCOUNT); service.backend → reject fakes and simulators (exit 2)
+  5. open the store for writing                         → upcast a version 1 store to version 2
+  6. per pending time, at most M: pause S seconds; properties(datetime=<UTC, zero offset>)
+     → stamp missing or after the requested time: store nothing, exit 1
+     → too-many-requests (HTTP 429 or IBM code 1202): stop, exit 1, nothing retried
+     → else SnapshotService.record in its own transaction (configuration: null)
+  7. print requested and remaining counts
+```
+
+Backfilled history is documents by provider stamp time, not what a user would have seen at a
+given time: a document stamped before a requested time can have been published after it
+(ADR 0008 Findings). The grid recovers neither documents superseded between grid times nor
+any configuration history. The IBM client's own HTTP session retries some 5xx responses (up
+to 5 times, with backoff); QCI adds no retries. The verified depths are an explicit list in
+`adapters/qiskit_ibm/historical.py` (365 days for `ibm_fez`, `ibm_kingston` and
+`ibm_marrakesh`).
 
 ## M1.3c snapshot comparison flow
 
@@ -264,8 +301,16 @@ used.
 - Insert-only. See [ADR 0003](adr/0003-immutable-run-records.md).
 - Calibration snapshots (M1.3b) live in the same file, in `calibration_snapshots`,
   `snapshot_captures` and `calibration_measurements`, owned by `SqliteSnapshotRepository`.
-  They record `snapshot_db_schema = 1` in `schema_meta`. The `runs` table and
+  They record `snapshot_db_schema` in `schema_meta`. The `runs` table and
   `DB_SCHEMA_VERSION` are untouched. See [ADR 0005](adr/0005-live-calibration-snapshots.md).
+- Snapshot DB schema 2 (M1.5c, [ADR 0008](adr/0008-historical-backfill.md) section 3) adds
+  `snapshot_lookups` (`capture_id`, `requested_before`, `method_version`): one row per
+  historical lookup capture; a capture without a row is a live capture. Opening a version 1
+  store for writing upcasts it in one transaction, creating the table and recording version 2
+  and changing no other row. A read-only command on a version 1 store reads every capture as
+  live and writes nothing. Store checks accept exactly the version 1 table set (three tables)
+  with version 1 and the version 2 set (four) with version 2; any other set is
+  `DamagedStoreError`.
 - Commands that only read (`qci runs`, `qci show`, `qci compare`, `qci snapshots`,
   `qci snapshot show`, `qci snapshot export`, `qci snapshot compare` and
   `qci snapshot compare-run`) open their
@@ -280,8 +325,9 @@ used.
   first inspects the store read-only: an empty store gets its tables and version row as
   before, while a damaged or other-version store raises with nothing written. `qci run` opens
   its repository before `RunService.run`, so the check precedes loading the workload and
-  creating any run record, succeeded or failed. `qci snapshot capture` checks the snapshot
-  store read-only before building the client, and again when it opens the store to save.
+  creating any run record, succeeded or failed. `qci snapshot capture` and `qci snapshot
+  backfill` check the snapshot store read-only before building the client, and again when
+  they open the store to save.
   The check is per store: damage to the snapshot store does not block `qci run`, and damage
   to the run store does not block capture. A write through a read-only repository
   raises `ReadOnlyStoreError`.

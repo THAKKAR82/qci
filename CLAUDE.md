@@ -20,6 +20,7 @@ MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
 .venv/bin/qci show <RUN_ID> [--json]
 .venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json] [--observable NAME=BITS,...]
 .venv/bin/qci snapshot capture --backend ibm_fez [--account NAME]
+.venv/bin/qci snapshot backfill --backend ibm_fez --days N [--step-hours H] [--max-requests M] [--pause S] [--account NAME]
 .venv/bin/qci snapshots [--backend NAME] [--limit N]
 .venv/bin/qci snapshot show <SNAPSHOT_ID> [--json]
 .venv/bin/qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]
@@ -28,7 +29,10 @@ MYPYPATH=src:experiments/repeated_sampling .venv/bin/mypy --strict experiments
 ```
 
 The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`. Snapshots live in the same
-file. `qci snapshot capture` is the only command that uses the network.
+file. `qci snapshot capture` and `qci snapshot backfill` are the only commands that use the
+network. Backfilled history is documents by provider stamp time, not what a user would have
+seen at a given time. Backfilled data stays in the local store and is never committed,
+exported as a fixture or redistributed (ADR 0008, D29).
 
 ## Non-negotiable rules
 

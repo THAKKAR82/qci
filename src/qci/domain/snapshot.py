@@ -5,9 +5,10 @@ and stored insert-only. ``resource_kind`` and ``resource`` are adapter-defined, 
 core and storage never parse them (ADR 0006).
 """
 
-from typing import Literal
+from datetime import timedelta
+from typing import Literal, Self
 
-from pydantic import AwareDatetime, Field, JsonValue, NonNegativeInt
+from pydantic import AwareDatetime, Field, JsonValue, NonNegativeInt, model_validator
 
 from qci.domain.backend import SnapshotSource
 from qci.domain.base import DomainModel
@@ -20,6 +21,11 @@ from qci.domain.comparison import (
 from qci.domain.metric import Metric
 
 SNAPSHOT_SCHEMA_VERSION = 1
+
+HISTORICAL_LOOKUP_METHOD_VERSION = "qci.snapshot.backfill.1"
+"""Recorded with every historical lookup capture (ADR 0008, sections 3 to 6)."""
+
+CaptureMethod = Literal["live_capture", "historical_lookup"]
 
 
 class Measurement(DomainModel):
@@ -61,11 +67,30 @@ class CalibrationSnapshot(DomainModel):
 
 
 class SnapshotCapture(DomainModel):
-    """One successful capture command, which returned an existing or a new snapshot."""
+    """One successful capture, which returned an existing or a new snapshot.
+
+    A ``historical_lookup`` capture is one request for the latest document published before
+    ``requested_before``. Its ``captured_at`` is when QCI made the request, not a calibration
+    time.
+    """
 
     capture_id: str
     snapshot_id: str
     captured_at: AwareDatetime
+    method: CaptureMethod = "live_capture"
+    requested_before: AwareDatetime | None = None
+    """Set exactly for a ``historical_lookup``, in UTC with a zero offset."""
+
+    @model_validator(mode="after")
+    def _requested_before_only_for_lookups(self) -> Self:
+        if self.method == "historical_lookup":
+            if self.requested_before is None:
+                raise ValueError("a historical_lookup capture needs requested_before")
+            if self.requested_before.utcoffset() != timedelta(0):
+                raise ValueError("requested_before must be in UTC with a zero offset")
+        elif self.requested_before is not None:
+            raise ValueError("requested_before is set only for a historical_lookup capture")
+        return self
 
 
 class SnapshotListItem(DomainModel):

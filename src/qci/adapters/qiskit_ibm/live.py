@@ -101,6 +101,7 @@ def build_captured_calibration(
     capture_options: dict[str, JsonValue],
     captured_at: datetime,
     environment: dict[str, str],
+    requested_before: datetime | None = None,
 ) -> CapturedCalibration:
     """Normalize to UTC, convert losslessly, redact, then extract measurements."""
     raw: JsonValue = {
@@ -132,6 +133,7 @@ def build_captured_calibration(
         extraction_method=EXTRACTION_METHOD,
         extraction_method_version=EXTRACTION_METHOD_VERSION,
         environment=environment,
+        requested_before=requested_before,
     )
 
 
