@@ -8,7 +8,8 @@
   recorded in Findings; cross-check rule amended 2026-10-18 before the run), 2026-10-18
   (terms finding recorded in section 6), 2026-10-18 (M1.5c manual live check recorded in
   Findings), 2026-10-18 (design clarification of P1 and P2 recorded in section 8, before
-  M1.5d collection)
+  M1.5d collection), 2026-10-18 (unit rule clarification recorded in section 8, before M1.5d
+  collection)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -641,6 +642,12 @@ computed over distinct measurements (distinct provider dates of the parameter am
 documents), so that a value carried over unchanged is not counted more than once. Thresholds
 unchanged. The experiment design is
 [docs/experiments/2026-10-calibration-history.md](../experiments/2026-10-calibration-history.md).
+
+**Note (2026-10-18, design clarification, made before any M1.5d data was collected or
+analyzed).** 2026-10-18, before collection: unit rule clarified in
+[docs/experiments/2026-10-calibration-history.md](../experiments/2026-10-calibration-history.md)
+(Change history): a reading is usable without a unit; no unit counts as one unit value in the
+`mixed_units` check. Thresholds unchanged.
 
 ## Consequences
 
