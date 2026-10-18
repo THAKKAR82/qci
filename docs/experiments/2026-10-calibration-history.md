@@ -4,9 +4,9 @@ Date: 2026-10-18 (design). Branch: `docs/m1.5d-experiment-design`. Milestone: M1
 `PLAN.md`. Predictions: P1-P4, frozen in [ADR 0008](../adr/0008-historical-backfill.md)
 section 8 on 2026-10-16.
 
-Status: design, proposed. No data set has been collected and no analysis code exists yet. The
-analysis script is committed in a later step, before any data set defined here is read
-(Procedure).
+Status: design, accepted 2026-10-18. No data set has been collected and no analysis code
+exists yet. The next step is the analysis script (branch `exp/m1.5d-analysis`), committed
+before any data set defined here is collected or read (Procedure).
 
 ## Purpose
 
@@ -286,8 +286,10 @@ measurements of a series (Analyses): one value per distinct provider date, taken
 earliest-stamped document carrying it. This is how the design computes "across distinct
 documents": each distinct document is used once, and a value carried over unchanged to later
 documents is not counted again as a separate observation. Taking every document's value
-instead would count one measurement once per document that repeats it. For P2 this cannot change the maximum or minimum, except
-through `revised_same_date` readings. For P1 it can change `n` and the CV. The per-document
+instead would count one measurement once per document that repeats it. This is recorded in
+ADR 0008 section 8 as a dated design clarification (2026-10-18, before collection), with the
+thresholds unchanged. For P2 it cannot change the maximum or minimum, except through
+`revised_same_date` readings. For P1 it can change `n` and the CV. The per-document
 form (each distinct document's usable value, once per document) is also computed and
 reported for P1 and P2, labeled "per-document, not used for marking". The decision to mark on
 measurements is fixed here, before any data is seen.

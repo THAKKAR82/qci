@@ -1,8 +1,10 @@
 # PLAN
 
-**Current milestone: M1.5 (historical backfill). Current step: M1.5d (design of the research
-experiment on D27 and the calibration side of H2; design proposed 2026-10-18 in
-`docs/experiments/2026-10-calibration-history.md`, awaiting review).** M1.5c is done (`qci snapshot backfill`,
+**Current milestone: M1.5 (historical backfill). Current step: M1.5d analysis script (research
+experiment on D27 and the calibration side of H2), branch `exp/m1.5d-analysis`.** The M1.5d
+design is done: accepted 2026-10-18 (`docs/experiments/2026-10-calibration-history.md`, branch
+`docs/m1.5d-experiment-design`), with a dated design clarification of P1 and P2 in ADR 0008
+section 8. M1.5c is done (`qci snapshot backfill`,
 branch `feat/m1.5c-historical-backfill`; manual live check on `ibm_fez` 2026-10-18, ADR 0008
 Findings). The terms-of-service finding was recorded on 2026-10-18 (ADR 0008 section 6):
 personal, local research use only (D29). M1.5b is done (D21
@@ -675,7 +677,7 @@ Sub-steps, each reviewed separately:
 - [x] `docs/architecture.md`, `docs/data-model.md` and README describe the command, and all
       gates pass.
 
-## M1.5: Historical backfill (CURRENT: M1.5d, design)
+## M1.5: Historical backfill (CURRENT: M1.5d, analysis script)
 
 **Goal:** calibration history from before the first capture, if the provider honors
 historical lookups. Resolves D21 first, then captures past calibrations. Feeds research
@@ -700,14 +702,15 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
   M1.5b supports it for all three devices, each with a depth cap of 365 days. Backfilled
   history is documents by stamp time, not what a user would have seen at a given time
   (publication lag observed: at least 5 min 33 s).
-- **M1.5d: research experiment on D27 and the calibration side of H2 (CURRENT: design).**
+- **M1.5d: research experiment on D27 and the calibration side of H2 (CURRENT: analysis
+  script; design accepted 2026-10-18).**
   Predictions P1-P4 are pre-registered in ADR 0008 section 8; the analysis script is committed
   before any backfilled value is analyzed. The design must choose the sampling grid and window
   explicitly, with an estimate of storage size, before any larger backfill: `ibm_fez`
   documents were stamped about every 46 to 78 minutes (interquartile range over 3 days), so a
   daily grid samples about one document in 23, and each document took about 2.1 MB in the
   store (ADR 0008 Findings).
-  **Design (proposed 2026-10-18, branch `docs/m1.5d-experiment-design`):**
+  **Design (accepted 2026-10-18, branch `docs/m1.5d-experiment-design`):**
   [docs/experiments/2026-10-calibration-history.md](docs/experiments/2026-10-calibration-history.md).
   It defines a dense set for D27, P1 and P2 (hourly, the 7 days ending at the collection date
   `D`, 169 grid times per device) and a sparse set for P3 and the calibration side of H2
@@ -716,8 +719,10 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
   bound: 795 requests in 9 invocations and 1.67 GB added. The design also gives the exact
   statistics, the marking rules for P1-P4 (thresholds unchanged), the integrity notes
   (including the use of the 51 existing `ibm_fez` lookups) and the backfill commands.
-  Remaining M1.5d parts, each a separate approved step: (1) the analysis script under
-  `experiments/calibration_history/`, committed with offline tests on synthetic stores
+  ADR 0008 section 8 records a dated design clarification (2026-10-18, before collection):
+  "across distinct documents" in P1 and P2 is over distinct measurements; thresholds
+  unchanged. Remaining M1.5d parts, each a separate approved step: (1) the analysis script
+  under `experiments/calibration_history/` (CURRENT, branch `exp/m1.5d-analysis`), committed with offline tests on synthetic stores
   before any data set is collected or read; (2) collection by the user with the design's
   commands; (3) one analysis run from a clean tree, with the aggregate results and marks
   recorded in the design file.

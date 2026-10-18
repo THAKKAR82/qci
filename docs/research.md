@@ -23,6 +23,12 @@ possibly lightweight live probes?
 
 These are hypotheses, not facts. QCI must not hard-code which variables matter.
 
+**H2 and D27, calibration history (M1.5d).** The calibration side of H2, and D27 (the spread
+of provider calibration estimates across re-measurements, `PLAN.md` open decisions), are
+studied in `docs/experiments/2026-10-calibration-history.md`, with predictions P1-P4
+pre-registered in ADR 0008 section 8. That experiment uses backfilled calibration documents
+only and has no hardware executions, so it does not test H2 itself.
+
 H5 and H6 are **post-hoc and untested**. Both were formed after seeing the results they
 describe, so those results cannot count as evidence for them.
 

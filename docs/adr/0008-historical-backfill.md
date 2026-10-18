@@ -7,7 +7,8 @@
 - **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted), 2026-10-18 (M1.5b verification
   recorded in Findings; cross-check rule amended 2026-10-18 before the run), 2026-10-18
   (terms finding recorded in section 6), 2026-10-18 (M1.5c manual live check recorded in
-  Findings)
+  Findings), 2026-10-18 (design clarification of P1 and P2 recorded in section 8, before
+  M1.5d collection)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -633,6 +634,13 @@ calibration at another, which is a precondition for H2. The analysis script is c
 before it reads any backfilled data. The values it reports are `calculated`, with methods
 and versions; none is presented as a causal claim. Results are research notes, not product
 output.
+
+**Note (2026-10-18, design clarification, made before any M1.5d data was collected or
+analyzed).** 2026-10-18, before collection: "across distinct documents" in P1 and P2 is
+computed over distinct measurements (distinct provider dates of the parameter among distinct
+documents), so that a value carried over unchanged is not counted more than once. Thresholds
+unchanged. The experiment design is
+[docs/experiments/2026-10-calibration-history.md](../experiments/2026-10-calibration-history.md).
 
 ## Consequences
 
