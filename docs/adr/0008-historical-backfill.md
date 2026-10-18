@@ -4,7 +4,8 @@
   `honored` (within 48 hours, and monotonic across offsets), a ground-truth cross-check
   against stored live snapshots, predictions P1-P4 frozen, and the known rate-limit facts
   recorded (sections 1, 2, 6 and 8).
-- **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted)
+- **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted), 2026-10-18 (M1.5b verification
+  recorded in Findings; cross-check rule amended 2026-10-18 before the run)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -53,6 +54,101 @@ made. ADR 0005's Findings already trace the call path; these facts are new or ma
 - **Docstrings still say not implemented.** `IBMBackend.properties` and
   `RuntimeClient.backend_properties` list `NotImplementedError` for a datetime, but neither
   body raises it. Only server responses can settle D21.
+
+## D21 verification (M1.5b)
+
+Run by the user on 2026-10-18 from commit `f4a7d80`, protocol `qci.d21.verify.3`, with the
+commands in section 2. Anchor 2026-10-18T20:14:58Z, pause 5 s. The store hash was
+`23fc1a7e987110d31af08cbb8e0141612746a680953daa6d9ffa950a2f4aad06` in all four places: both
+`shasum` lines and the script's `store_sha256_before` and `store_sha256_after`. The values
+below were computed from the output file, which is reproduced in full at the end of this
+section.
+
+**Part 1, offsets.** All 18 offset requests are `honored`: `ibm_fez`, `ibm_kingston` and
+`ibm_marrakesh` at 1, 7, 30, 90, 180 and 365 days back. Within each device, the 6 returned
+documents have 6 distinct hashes, each differs from the current document, and their stamps
+decrease with the offset: no `non_monotonic` outcome. The repeat of the 30-day request is
+`repeat:identical` on all three devices. There is no `raises` outcome and no
+too-many-requests response.
+
+Requested time minus the returned document's `last_update_date`, over the six offsets
+(calculated from the output):
+
+| Device | Largest gap | At offset | Smallest gap | At offset |
+|---|---|---|---|---|
+| `ibm_fez` | 1 h 26 min 42 s (5202 s) | 1 day | 9 min 24 s (564 s) | 180 days |
+| `ibm_kingston` | 1 h 40 min 48 s (6048 s) | 30 days | 26 min 0 s (1560 s) | 365 days |
+| `ibm_marrakesh` | 1 h 16 min 36 s (4596 s) | 365 days | 26 min 45 s (1605 s) | 30 days |
+
+Every gap is far inside the 48-hour window, so no result is `honored_distant`.
+
+**Part 2, cross-check.** 6 stored live snapshots (4 `ibm_fez`, 1 `ibm_kingston`, 1
+`ibm_marrakesh`): 5 `match` and 1 `different_document:lag_consistent`. No
+`different_document:inconsistent`.
+
+- The `lag_consistent` result is `ibm_fez` snapshot `01M53VD2ZQWXPP8FZYKN4SJEEE`: stored
+  document stamped `L` = 2026-10-17T02:18:24Z, first captured at `T` =
+  2026-10-17T02:35:08.008Z, and the lookup as of `T` returned a document stamped `R` =
+  2026-10-17T02:29:35Z, 11 min 11 s after `L`. The capture at `T` received the `L` document,
+  so the `R` document was not yet being served at `T`: it was published at least 5 min 33 s
+  (333 s) after its own stamp. This is the publication lag noted in section 2, observed a
+  second time (first in M1.3b, ADR 0005 Findings).
+- **Consequence, per the decision rule:** backfilled history for these devices is documents
+  by stamp time, not what a user would have seen at a given time. A document returned for a
+  requested time can have been published after that time. M1.5c's documentation and
+  `--help` must say so (section 8).
+
+**Observation.** Every returned document, including the cross-checks, was stamped within
+1 h 41 min before an arbitrary requested time. This is consistent with documents being
+published at least every couple of hours for these devices. It rests on 24 requested times
+and does not establish a publication schedule.
+
+**Decision (section 1 rule): proceed for all three devices.** Each device has a verified
+depth of 365 days, the deepest offset tested (lookups further back were not tested), an
+identical repeat, no `raises`, no `non_monotonic` and no `different_document:inconsistent`.
+D21 is resolved: `properties(datetime=...)` is honored for `ibm_fez`, `ibm_kingston` and
+`ibm_marrakesh` back to at least 365 days, by stamp time. M1.5c's per-device depth cap is
+365 days. M1.5c remains gated on the user's terms-of-service check (section 6), which is
+still open.
+
+Full output (`~/qci-m15b/d21.txt`, 34 lines, verbatim):
+
+```text
+protocol=qci.d21.verify.3  anchor=2026-10-18T20:14:58+00:00  pause_s=5
+store_sha256_before=23fc1a7e987110d31af08cbb8e0141612746a680953daa6d9ffa950a2f4aad06
+stored_live_snapshots  ibm_fez=4  ibm_kingston=1  ibm_marrakesh=1
+ibm_fez  requested_before=current  returned_last_update=2026-10-18T19:53:52+00:00  properties_hash=sha256:e2dd2c5b16f21a171acb32b265d599519e100f689fbb091ded05fc70397eb7c9  outcome=current
+ibm_fez  requested_before=2026-10-17T20:14:58+00:00  returned_last_update=2026-10-17T18:48:16+00:00  properties_hash=sha256:e35e65a6bc9689daa1bed212abb36473d2b58b728c6f6a8841dfa4eabb5cda75  outcome=honored
+ibm_fez  requested_before=2026-10-11T20:14:58+00:00  returned_last_update=2026-10-11T19:57:40+00:00  properties_hash=sha256:602a9a46427b23fca1ef08b5587dd03a54ac6272fa66eddc48c7667e2af9a4a6  outcome=honored
+ibm_fez  requested_before=2026-09-18T20:14:58+00:00  returned_last_update=2026-09-18T19:16:58+00:00  properties_hash=sha256:502c4729f172d1b85ad544e163fa9a74bdf64a2ad484550b9240a284d543d475  outcome=honored
+ibm_fez  requested_before=2026-07-20T20:14:58+00:00  returned_last_update=2026-07-20T19:56:33+00:00  properties_hash=sha256:64971ca4d854024c71a5ce959a7f077c6fe003dfeb2158d9e6c584a08271ce5a  outcome=honored
+ibm_fez  requested_before=2026-04-21T20:14:58+00:00  returned_last_update=2026-04-21T20:05:34+00:00  properties_hash=sha256:3789196f149c723af1223b079272f29192a437489a7efb18315e279a3807153f  outcome=honored
+ibm_fez  requested_before=2025-10-18T20:14:58+00:00  returned_last_update=2025-10-18T19:59:53+00:00  properties_hash=sha256:369280e8c79857bc48a86a6797be2afb442036919295a8d9cd9c40b11bec0b60  outcome=honored
+ibm_fez  requested_before=2026-09-18T20:14:58+00:00  returned_last_update=2026-09-18T19:16:58+00:00  properties_hash=sha256:502c4729f172d1b85ad544e163fa9a74bdf64a2ad484550b9240a284d543d475  outcome=repeat:identical
+ibm_fez  cross_check  snapshot=01M53VD2ZQWXPP8FZYKN4SJEEE  requested_before=2026-10-17T02:35:08.008325+00:00  stored_last_update=2026-10-17T02:18:24+00:00  returned_last_update=2026-10-17T02:29:35+00:00  stored_hash=sha256:1c39ff8093e24aa404ab8d88665bdf369d2373e530f1971d79a85f4da50c5799  returned_hash=sha256:1696d2291b18473b64fab0549077de24c82b0d2d913cf8c2b67bb83e0533f945  outcome=different_document:lag_consistent
+ibm_fez  cross_check  snapshot=01M53QQFQBDDB5W0RXXCZR68YM  requested_before=2026-10-17T01:30:54.419065+00:00  stored_last_update=2026-10-17T01:04:01+00:00  returned_last_update=2026-10-17T01:04:01+00:00  stored_hash=sha256:87904f0247dc346946c8e2617840d48239f42377c1a4313f9387e0aebc8fa154  returned_hash=sha256:87904f0247dc346946c8e2617840d48239f42377c1a4313f9387e0aebc8fa154  outcome=match
+ibm_fez  cross_check  snapshot=01M4HSD6AMXB4RWC1JSEHE6BYY  requested_before=2026-10-10T02:13:54.557965+00:00  stored_last_update=2026-10-10T01:48:16+00:00  returned_last_update=2026-10-10T01:48:16+00:00  stored_hash=sha256:9fb65a417377212566ccfd2a6df08d8223e9544fcdf9e67dede8f6b562a9fb9f  returned_hash=sha256:9fb65a417377212566ccfd2a6df08d8223e9544fcdf9e67dede8f6b562a9fb9f  outcome=match
+ibm_fez  cross_check  snapshot=01M4HQ5J939C5ZCK43M51EX1CF  requested_before=2026-10-10T01:34:47.502074+00:00  stored_last_update=2026-10-10T00:58:58+00:00  returned_last_update=2026-10-10T00:58:58+00:00  stored_hash=sha256:43993ae1bfddde277ce87fe3b82b459dcddcb73a4e8700c9233a019497ce730a  returned_hash=sha256:43993ae1bfddde277ce87fe3b82b459dcddcb73a4e8700c9233a019497ce730a  outcome=match
+ibm_kingston  requested_before=current  returned_last_update=2026-10-18T19:19:44+00:00  properties_hash=sha256:194f18944c5344e58c0fda09609097b9417a18e6a85997b8d63e0833e96fa6f2  outcome=current
+ibm_kingston  requested_before=2026-10-17T20:14:58+00:00  returned_last_update=2026-10-17T19:27:27+00:00  properties_hash=sha256:4bee75926c9117541906e9461c48b536b1cb56e8c7869091ee0048470300b722  outcome=honored
+ibm_kingston  requested_before=2026-10-11T20:14:58+00:00  returned_last_update=2026-10-11T19:18:00+00:00  properties_hash=sha256:e1f18d0f996c38c729e43f8b7a291870d682b0f86c53d9bc1e1d8dc0a27b7c57  outcome=honored
+ibm_kingston  requested_before=2026-09-18T20:14:58+00:00  returned_last_update=2026-09-18T18:34:10+00:00  properties_hash=sha256:e5c93470e4968f55e66a4e621e5f873b1f629206822f85979cd84b3d51933568  outcome=honored
+ibm_kingston  requested_before=2026-07-20T20:14:58+00:00  returned_last_update=2026-07-20T19:23:56+00:00  properties_hash=sha256:63bdb432c1710c866ba62189f60b02bff243cb0399ec7fcaa51ef20500ef4619  outcome=honored
+ibm_kingston  requested_before=2026-04-21T20:14:58+00:00  returned_last_update=2026-04-21T19:41:19+00:00  properties_hash=sha256:d549f790f4bd09b8d0180e3ee1059ffcb3a0eac07e8052aa5e5bc0e1e072dc7d  outcome=honored
+ibm_kingston  requested_before=2025-10-18T20:14:58+00:00  returned_last_update=2025-10-18T19:48:58+00:00  properties_hash=sha256:52210bcbb2a67a20948b6a6fa4be5966d8099a55b464b0112d253a34cc1cd8b0  outcome=honored
+ibm_kingston  requested_before=2026-09-18T20:14:58+00:00  returned_last_update=2026-09-18T18:34:10+00:00  properties_hash=sha256:e5c93470e4968f55e66a4e621e5f873b1f629206822f85979cd84b3d51933568  outcome=repeat:identical
+ibm_kingston  cross_check  snapshot=01M53VD7HEW073D41KACG554YG  requested_before=2026-10-17T02:35:12.679883+00:00  stored_last_update=2026-10-17T02:17:17+00:00  returned_last_update=2026-10-17T02:17:17+00:00  stored_hash=sha256:6beb5cb71219cdc95ccc42c8ad5e28df8576e6a1e04c2697aee84d11bc4b6cb4  returned_hash=sha256:6beb5cb71219cdc95ccc42c8ad5e28df8576e6a1e04c2697aee84d11bc4b6cb4  outcome=match
+ibm_marrakesh  requested_before=current  returned_last_update=2026-10-18T19:28:29+00:00  properties_hash=sha256:23338ac3fff3a868129d757043aadbd477f418b0b150388beaae6f3e56f4a8df  outcome=current
+ibm_marrakesh  requested_before=2026-10-17T20:14:58+00:00  returned_last_update=2026-10-17T19:10:04+00:00  properties_hash=sha256:0e92502f1c72e5fb92a1cdc180b8cd86c89d1843bc197e3e43de0b691ec873b9  outcome=honored
+ibm_marrakesh  requested_before=2026-10-11T20:14:58+00:00  returned_last_update=2026-10-11T19:45:56+00:00  properties_hash=sha256:ec754add72c5dc0873e2d12727b8220af44152dea35eb08edaee5eeecce2a002  outcome=honored
+ibm_marrakesh  requested_before=2026-09-18T20:14:58+00:00  returned_last_update=2026-09-18T19:48:13+00:00  properties_hash=sha256:5f61716435e3e01cafe393d81cbfd3cca4d7c99c6e05d26f1d33baa32293eeb5  outcome=honored
+ibm_marrakesh  requested_before=2026-07-20T20:14:58+00:00  returned_last_update=2026-07-20T19:41:33+00:00  properties_hash=sha256:ee0e4e006f65646cbdc6c8efe2b7f7f2955448b3680a3a7b2fd857cdfba42577  outcome=honored
+ibm_marrakesh  requested_before=2026-04-21T20:14:58+00:00  returned_last_update=2026-04-21T19:40:24+00:00  properties_hash=sha256:1bd250e9591aca73c9d5a6713ab3dd94e60dab73e34712dd683aed9fa91b6e5e  outcome=honored
+ibm_marrakesh  requested_before=2025-10-18T20:14:58+00:00  returned_last_update=2025-10-18T18:58:22+00:00  properties_hash=sha256:b58a4ec4021f13bf324100ca02031a9d84279dd075ba53c6132c597398d69a0c  outcome=honored
+ibm_marrakesh  requested_before=2026-09-18T20:14:58+00:00  returned_last_update=2026-09-18T19:48:13+00:00  properties_hash=sha256:5f61716435e3e01cafe393d81cbfd3cca4d7c99c6e05d26f1d33baa32293eeb5  outcome=repeat:identical
+ibm_marrakesh  cross_check  snapshot=01M53VDC75KJ0WPXRE20KN2XGC  requested_before=2026-10-17T02:35:17.466147+00:00  stored_last_update=2026-10-17T01:18:11+00:00  returned_last_update=2026-10-17T01:18:11+00:00  stored_hash=sha256:9c199ab98e4da73b581bfd84a01f33b49d95b05425a92f2afe6753d131db007a  returned_hash=sha256:9c199ab98e4da73b581bfd84a01f33b49d95b05425a92f2afe6753d131db007a  outcome=match
+store_sha256_after=23fc1a7e987110d31af08cbb8e0141612746a680953daa6d9ffa950a2f4aad06
+```
 
 ## Decision
 
@@ -325,27 +421,28 @@ Each parameter keeps its own provider date, as in every snapshot.
 
 #### M1.5b: verification of D21, run by the user
 
-- [ ] The user runs the commands in section 2 (protocol `qci.d21.verify.3`) on the three
+- [x] The user runs the commands in section 2 (protocol `qci.d21.verify.3`) on the three
       devices. The full output is recorded verbatim in Findings ("D21 verification
       (M1.5b)"), with the anchor time.
-- [ ] Findings record, per device: each offset's outcome, the returned `last_update_date`,
+- [x] Findings record, per device: each offset's outcome, the returned `last_update_date`,
       whether the repeat is identical, any `honored_distant` or `non_monotonic` outcome, and
       the verified depth.
-- [ ] Findings record every cross-check outcome with `L`, `R` and `T`, and classify each
+- [x] Findings record every cross-check outcome with `L`, `R` and `T`, and classify each
       `different_document` as `lag_consistent` or `inconsistent`. Any
       `different_document:inconsistent` disqualifies its device. If any
       `different_document:lag_consistent` occurs on a qualifying device, Findings state that
       backfilled history for that device is documents by stamp time, not what a user would
       have seen at a given time.
-- [ ] The store hash is identical in the script's `store_sha256_before` and
+- [x] The store hash is identical in the script's `store_sha256_before` and
       `store_sha256_after` lines and in both `shasum` lines.
-- [ ] If the script stopped at a too-many-requests response, that is recorded, and the run is
-      not repeated before the terms check.
-- [ ] The terms-of-service finding completes section 6.
-- [ ] The decision rule in section 1 is applied and its result (proceed, narrow or stop, per
+- [x] If the script stopped at a too-many-requests response, that is recorded, and the run is
+      not repeated before the terms check. (It did not occur.)
+- [ ] The terms-of-service finding completes section 6. **Open:** moved by the user on
+      2026-10-18 to a gate before M1.5c; M1.5b is closed without it.
+- [x] The decision rule in section 1 is applied and its result (proceed, narrow or stop, per
       device) is recorded. `PLAN.md` is updated to match: on stop, D21 is resolved, M1.5c is
       removed and M1.5d is marked for redesign or dropped.
-- [ ] No QCI code changes in M1.5b.
+- [x] No QCI code changes in M1.5b.
 
 #### M1.5c: `qci snapshot backfill` (only if M1.5b supports it)
 
