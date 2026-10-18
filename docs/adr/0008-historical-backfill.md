@@ -6,7 +6,8 @@
   recorded (sections 1, 2, 6 and 8).
 - **Date:** 2026-10-16 (proposed), 2026-10-16 (accepted), 2026-10-18 (M1.5b verification
   recorded in Findings; cross-check rule amended 2026-10-18 before the run), 2026-10-18
-  (terms finding recorded in section 6)
+  (terms finding recorded in section 6), 2026-10-18 (M1.5c manual live check recorded in
+  Findings)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -150,6 +151,87 @@ ibm_marrakesh  requested_before=2026-09-18T20:14:58+00:00  returned_last_update=
 ibm_marrakesh  cross_check  snapshot=01M53VDC75KJ0WPXRE20KN2XGC  requested_before=2026-10-17T02:35:17.466147+00:00  stored_last_update=2026-10-17T01:18:11+00:00  returned_last_update=2026-10-17T01:18:11+00:00  stored_hash=sha256:9c199ab98e4da73b581bfd84a01f33b49d95b05425a92f2afe6753d131db007a  returned_hash=sha256:9c199ab98e4da73b581bfd84a01f33b49d95b05425a92f2afe6753d131db007a  outcome=match
 store_sha256_after=23fc1a7e987110d31af08cbb8e0141612746a680953daa6d9ffa950a2f4aad06
 ```
+
+## M1.5c manual live check
+
+Run by the user on 2026-10-18 on `~/.qci-live/qci.db` from commit `7633752`, with the
+commands of the M1.5c report: (a) backup, (b) a 3-day daily backfill of `ibm_fez`, (c) the
+offline check `scripts/check_backfill_against_live.py`, then an hourly fill of the same 3
+days and the check again. Outputs are in the user's local files (`~/qci-m15c/`). Recorded here
+are IDs, times, hashes, counts and outcomes only; no parameter value is recorded, and no
+backfilled data is committed (section 6, D29).
+
+**Backup and store.** Before the run the backup and the live store had the same SHA-256,
+`23fc1a7e987110d31af08cbb8e0141612746a680953daa6d9ffa950a2f4aad06`, which is also the store
+hash of the M1.5b run. After the run the store hash is
+`2fc55a9da533c0562faed69f04302a0bd650f3c77023817e3a4021c4a99245c6`; a read-only check
+afterwards left it unchanged. Both checks report `snapshot_db_schema` 1 before and 2 after
+(the upcast) and `store_diff outcome=only_backfill_additions`: every schema object and row of
+the backup is unchanged, `runs` has 4 rows before and after, the 6 live snapshots and their 6
+captures are unchanged, and every added capture is a lookup capture.
+
+**Backfill.**
+
+| Invocation | Grid | Requested | New snapshots | Already stored |
+|---|---|---|---|---|
+| `--days 3` (daily) | 3 midnights, 2026-10-16 to 2026-10-18 | 3 | 3 | 0 |
+| `--days 3 --step-hours 1`, first | 51 hourly times, 2026-10-15T22:00Z to 2026-10-18T00:00Z | 30 | 28 | 3 grid times skipped |
+| `--days 3 --step-hours 1`, second | the same 51 | 18 | 16 | 33 grid times skipped |
+| `--days 3 --step-hours 1`, third | the same 51 | 0 | 0 | 51 grid times skipped; "Nothing to request." |
+
+In total there are 51 lookup captures (3 + 48) of 47 distinct documents. Four documents were
+returned for two consecutive hourly times each (stamps 2026-10-17T18:48:16Z,
+2026-10-17T03:37:35Z, 2026-10-16T00:44:19Z and 2026-10-15T21:20:44Z); each is stored once,
+with two lookup captures. Every returned stamp is at or before its requested time. There was
+no error and no too-many-requests response. The store gained 47 snapshots, 51 captures, 51
+`snapshot_lookups` rows and 312,644 measurement rows.
+
+**Live cross-check: `inconclusive:no_overlapping_lookup`.** Two stored live `ibm_fez`
+snapshots fall in the backfilled window; the other two (2026-10-10) are older than it. The
+check compares a live snapshot with a lookup only when the lookup's requested time G lies in
+the live snapshot's covering window `L <= G <= T` (stored stamp to first capture), or when the
+lookup returned the same stamp L.
+
+| Live snapshot | L | T | Window `[L, T]` | Next stamp returned by the backfill | L to next stamp |
+|---|---|---|---|---|---|
+| `01M53QQFQBDDB5W0RXXCZR68YM` | 01:04:01Z | 01:30:54Z | 26 min 53 s | 01:55:06Z | 51 min 5 s |
+| `01M53VD2ZQWXPP8FZYKN4SJEEE` | 02:18:24Z | 02:35:08Z | 16 min 44 s | 02:29:35Z | 11 min 11 s |
+
+(All times on 2026-10-17.) No whole hour falls in either window, so no lookup covers a live
+capture. Nor does any hourly time fall between a stored stamp and the next document stamp
+(about 51 and 11 minutes), so no lookup returned a live document's stamp: the 01:00Z lookup
+returned 2026-10-16T23:59:08Z, the 02:00Z lookup 01:55:06Z and the 03:00Z lookup 02:29:35Z.
+This is a sampling outcome, not evidence either way.
+
+**Consistency check (offline, item 1 of the review).** For the two `ibm_fez` documents that
+both the backfill and M1.5b fetched, the properties hash of the stored backfilled snapshot was
+computed through a read-only repository with the verification script's hash
+(`hash_json` of the stored, normalized `provider_raw["properties"]`) and compared with the
+full hash in the M1.5b output:
+
+| Backfilled snapshot | Stamp | Lookup captures (`requested_before`) | M1.5b line | Hash | Outcome |
+|---|---|---|---|---|---|
+| `01M58DGGV5N2MFWQBT5ZFR7820` | 2026-10-17T18:48:16Z | 19:00Z, 20:00Z | part 1, 1-day offset | `sha256:e35e65a6bc9689daa1bed212abb36473d2b58b728c6f6a8841dfa4eabb5cda75` | `match` |
+| `01M58DP7VDKX0PMA95X7RBAG5G` | 2026-10-17T02:29:35Z | 03:00Z | cross-check `returned_hash` for `01M53VD2ZQWXPP8FZYKN4SJEEE` | `sha256:1696d2291b18473b64fab0549077de24c82b0d2d913cf8c2b67bb83e0533f945` | `match` |
+
+Both are `historical_lookup` snapshots with `configuration: null`. No other stored lookup
+document's hash appears in the M1.5b output. Together with M1.5b's 5 of 6 cross-check matches
+between lookups and stored live captures, this is the ground-truth evidence: a lookup returns
+the same document, byte for byte after normalization, as a live capture or an earlier lookup
+of the same stamp, and `qci snapshot backfill` stores it unchanged.
+
+**Observation (calculated from the backfill output; not a publication schedule).** The 47
+distinct `ibm_fez` documents are stamped from 2026-10-15T21:20:44Z to 2026-10-17T23:21:10Z.
+The 46 intervals between consecutive stamps range from 17 min 22 s to 2 h 16 min 36 s
+(quartiles 46 min 16 s, 61 min 21 s and 78 min 3 s); 33 of them are between 40 and 90 minutes.
+An hourly grid returns at most one document per hour, so documents superseded within an hour
+are not counted, and these are intervals between observed documents. At this rate a daily grid
+samples about one document in 23. The store grew by 98,697,216 bytes for 47 documents (about
+2.1 MB and 6,652 measurement rows per document, calculated). **M1.5d must choose its sampling
+grid and window explicitly, with an estimate of storage size, before any larger backfill.**
+
+**Decision.** The consistency check matches for both documents, so the last M1.5c criterion
+is met and M1.5c is done.
 
 ## Decision
 
@@ -501,9 +583,9 @@ and `--max-requests` 30 (at most 100).
       for a device, they and `qci snapshot backfill --help` state that its backfilled history
       is documents by stamp time, not what a user would have seen at a given time. All gates
       pass, and the neutral-wording check has no unexplained hit.
-- [ ] Manual live check by the user: one small backfill (for example `--days 3`) on one
+- [x] Manual live check by the user: one small backfill (for example `--days 3`) on one
       qualifying device, recorded in Findings, with the store hash changing only through
-      the backfill.
+      the backfill. (2026-10-18, `ibm_fez`; "M1.5c manual live check" in Findings.)
 
 #### M1.5d: research experiment, with predictions pre-registered
 

@@ -1,9 +1,10 @@
 # PLAN
 
-**Current milestone: M1.5 (historical backfill). Current step: M1.5c (`qci snapshot
-backfill`), implemented on branch `feat/m1.5c-historical-backfill` and pending the user's
-manual live check (ADR 0008 section 8).** The terms-of-service finding was recorded on
-2026-10-18 (ADR 0008 section 6): personal, local research use only (D29). M1.5b is done (D21
+**Current milestone: M1.5 (historical backfill). Current step: M1.5d (design of the research
+experiment on D27 and the calibration side of H2).** M1.5c is done (`qci snapshot backfill`,
+branch `feat/m1.5c-historical-backfill`; manual live check on `ibm_fez` 2026-10-18, ADR 0008
+Findings). The terms-of-service finding was recorded on 2026-10-18 (ADR 0008 section 6):
+personal, local research use only (D29). M1.5b is done (D21
 verified 2026-10-18 on `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` to 365 days; ADR 0008
 Findings). M1.5a is done (ADR 0008 accepted 2026-10-16 with amendments, branch
 `docs/m1.5a-historical-backfill-design`).
@@ -673,7 +674,7 @@ Sub-steps, each reviewed separately:
 - [x] `docs/architecture.md`, `docs/data-model.md` and README describe the command, and all
       gates pass.
 
-## M1.5: Historical backfill (CURRENT: M1.5c, pending the manual live check)
+## M1.5: Historical backfill (CURRENT: M1.5d, design)
 
 **Goal:** calibration history from before the first capture, if the provider honors
 historical lookups. Resolves D21 first, then captures past calibrations. Feeds research
@@ -690,15 +691,21 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
   ground-truth cross-check against the stored live snapshots. All 18 offsets `honored`,
   repeats identical, 5 `match` and 1 `different_document:lag_consistent`; proceed for all
   three devices. The terms-of-service check was moved to a gate before M1.5c. No code.
-- **M1.5c: `qci snapshot backfill` (CURRENT: implemented on branch
-  `feat/m1.5c-historical-backfill`, pending the user's manual live check).** Terms finding
-  recorded 2026-10-18: personal, local research use only (D29).
+- **M1.5c: `qci snapshot backfill` (DONE, 2026-10-18; ADR 0008 Findings).** Branch
+  `feat/m1.5c-historical-backfill`. Terms finding recorded 2026-10-18: personal, local
+  research use only (D29). Manual live check on `ibm_fez`: 51 lookups of 47 distinct
+  documents, store changed only by backfill additions, and both documents fetched by M1.5b
+  and the backfill have identical properties hashes.
   M1.5b supports it for all three devices, each with a depth cap of 365 days. Backfilled
   history is documents by stamp time, not what a user would have seen at a given time
   (publication lag observed: at least 5 min 33 s).
-- **M1.5d: research experiment on D27 and the calibration side of H2.** Predictions P1-P4
-  are pre-registered in ADR 0008 section 8; the analysis script is committed before any
-  backfilled value is analyzed.
+- **M1.5d: research experiment on D27 and the calibration side of H2 (CURRENT: design).**
+  Predictions P1-P4 are pre-registered in ADR 0008 section 8; the analysis script is committed
+  before any backfilled value is analyzed. The design must choose the sampling grid and window
+  explicitly, with an estimate of storage size, before any larger backfill: `ibm_fez`
+  documents were stamped about every 46 to 78 minutes (interquartile range over 3 days), so a
+  daily grid samples about one document in 23, and each document took about 2.1 MB in the
+  store (ADR 0008 Findings).
 
 **Decision rule after M1.5b** (ADR 0008 section 1): per device, the verified depth is the
 largest offset that is `honored` (at or before the requested time, different from the
@@ -749,7 +756,7 @@ shasum -a 256 ~/.qci-live/qci.db
       M1.5c is removed and M1.5d is marked for redesign or dropped.
 - [x] No QCI code changes in M1.5b.
 
-### M1.5c acceptance criteria (approved 2026-10-16, amended 2026-10-18; only if M1.5b supports it)
+### M1.5c acceptance criteria (approved 2026-10-16, amended 2026-10-18; all met 2026-10-18)
 
 - [x] `SnapshotSource.HISTORICAL_LOOKUP`, `SnapshotCapture.method` and
       `SnapshotCapture.requested_before` exist as in ADR 0008 section 3, with the validator. The
@@ -791,9 +798,9 @@ shasum -a 256 ~/.qci-live/qci.db
       they and `qci snapshot backfill --help` state that its backfilled history is documents by
       stamp time, not what a user would have seen at a given time. All gates pass, and the
       neutral-wording check has no unexplained hit.
-- [ ] Manual live check by the user: one small backfill (for example `--days 3`) on one
+- [x] Manual live check by the user: one small backfill (for example `--days 3`) on one
       qualifying device, recorded in ADR 0008 Findings, with the store hash changing only
-      through the backfill.
+      through the backfill. (2026-10-18, `ibm_fez`.)
 
 ## M1.6: Footprint staleness and pre-flight
 
