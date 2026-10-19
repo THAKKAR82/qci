@@ -6,9 +6,14 @@ const section = document.querySelector(".quotes");
 if (section) {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const mobile = window.matchMedia("(max-width: 767px)");
-  const canHover = window.matchMedia("(hover: hover) and (pointer: fine)");
 
   const PORTRAITS = {
+    lloyd: {
+      label: "Pixel portrait of Seth Lloyd",
+      name: "Seth Lloyd",
+      body: "Professor at MIT who proposed one of the first practical designs for a quantum computer.",
+      credit: null, // TODO: add the source photo's credit and license before launch.
+    },
     jensen: {
       label: "Pixel portrait of Jensen Huang",
       name: "Jensen Huang",
@@ -23,6 +28,7 @@ if (section) {
     },
     chip: {
       label: "Pixel illustration of qubits on a chip",
+      ask: "What's this?", // a chip, not a person
       name: "Google Quantum AI",
       body: "Google's quantum computing lab. This pixel grid is an illustration of qubits on a chip, not a real chip layout.",
       credit: null, // An illustration, so no photo credit.
@@ -51,7 +57,7 @@ if (section) {
   const credit = section.querySelector("[data-credit]");
   const whoName = section.querySelector("[data-who-name]");
   const whoBody = section.querySelector("[data-who-body]");
-  const caption = section.querySelector(".portrait-caption");
+  const whoLabel = section.querySelector("[data-who-label]");
   let current = 0;
   let timer = 0;
   let userPaused = reducedMotion.matches;
@@ -62,6 +68,7 @@ if (section) {
   function describe(key) {
     const info = PORTRAITS[key];
     canvas.setAttribute("aria-label", info.label);
+    whoLabel.textContent = info.ask ?? "Who is this?";
     whoName.textContent = info.name;
     whoBody.textContent = info.body;
     credit.textContent = info.credit ?? "";
@@ -155,11 +162,16 @@ if (section) {
     return cells;
   }
 
+  // Every cell is a whole number of device pixels: the backing size is a multiple of 96 (and so of
+  // 48, 24 and 12), and the CSS size is set to match, so squares stay crisp and identical.
   function sizeCanvas() {
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const width = canvas.getBoundingClientRect().width || 1;
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(width * ratio);
+    const available = canvas.parentElement.getBoundingClientRect().width || 1;
+    const cellPx = Math.max(1, Math.floor((available * ratio) / 96));
+    const backing = cellPx * 96;
+    canvas.width = backing;
+    canvas.height = backing;
+    canvas.style.width = `${backing / ratio}px`;
   }
 
   // Draw a plain bit map (used for the 12 → 24 → 48 → 96 resolve and for reduced motion).
@@ -194,7 +206,7 @@ if (section) {
     for (const [key, list] of buckets) {
       const [tint, alpha] = key.split("|").map((v) => Number(v) / 8);
       context.fillStyle = `rgba(${mix(INK, Q, tint)}, ${alpha})`;
-      for (const p of list) context.fillRect(p.x * cell, p.y * cell, cell + 0.5, cell + 0.5);
+      for (const p of list) context.fillRect(Math.round(p.x * cell), Math.round(p.y * cell), cell, cell);
     }
   }
 
@@ -429,7 +441,7 @@ if (section) {
   }
 
   let inView = false;
-  new ResizeObserver(relayout).observe(canvas);
+  new ResizeObserver(relayout).observe(canvas.parentElement);
   mobile.addEventListener("change", relayout);
   new IntersectionObserver(([entry]) => {
     onScreen = entry.isIntersecting;
@@ -443,7 +455,6 @@ if (section) {
     if (ready && !revealed) resolve();
   }, { threshold: 0.4 }).observe(canvas);
 
-  caption.hidden = reducedMotion.matches || !canHover.matches;
   describe(slides[current].dataset.portrait);
   dots.forEach((dot, i) => dot.setAttribute("aria-current", String(i === current)));
   setPaused(userPaused);

@@ -63,9 +63,9 @@
           </div>
         </div>
         <div class="hero-copy">
-          <p class="hero-meta">Open source · Works with Qiskit</p>
-          <h1>Know what changed.</h1>
-          <p class="hero-description">Quantum computers can give a different answer every time you run them. Bloq shows you what changed between runs.</p>
+          <h1><span class="hero-h1-line">Why did my quantum</span> <span class="hero-h1-line">result change?</span></h1>
+          <p class="hero-description">Bloq keeps a record of every run, so you can compare them and find out.</p>
+          <p class="hero-what">Bloq is a free, open-source command-line tool for Qiskit.</p>
           <div class="install">
             <div class="install-command" tabindex="0" role="region" aria-label="Install command"><code><span class="install-prompt" aria-hidden="true">$ </span>pip install [PACKAGE]</code></div>
             <button class="copy-button" type="button" data-copy="pip install [PACKAGE]"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" /></svg><span data-copy-label>Copy</span></button>
@@ -78,62 +78,38 @@
         </div>
       </section>
 
-      <section class="race" id="race" aria-labelledby="race-title">
-        <div class="race-inner">
-          <header class="race-head">
-            <div class="race-head-copy">
-              <p class="race-kicker">How the math works</p>
-              <h2 id="race-title">Find one dot in a million.</h2>
-              <p class="race-sub">A normal computer checks them one at a time. A quantum computer makes the right answer stand out.</p>
-            </div>
-            <div class="race-head-side">
-              <button class="race-start" type="button" data-race="start">Start the race</button>
-              <p class="race-assumption">If both took one step per millisecond. <span data-dot-caption>Each dot is 100 items.</span></p>
-            </div>
-          </header>
+      <section class="qubits" id="qubits" aria-labelledby="qubits-title">
+        <div class="qubits-inner shell">
+          <h2 class="qubits-title" id="qubits-title">Every qubit doubles it.</h2>
+          <p class="qubits-sub">To keep track of qubits exactly, a normal computer needs memory. Each qubit you add doubles how much.</p>
 
-          <div class="race-panels">
-            <figure class="race-panel race-panel-classical" data-side="classical">
-              <figcaption class="race-label">Normal computer</figcaption>
-              <canvas class="race-field" aria-hidden="true"></canvas>
-              <div class="race-clock">
-                <span class="race-timer" data-timer>00:00.000</span>
-                <span class="race-found-label" data-found hidden>Found it</span>
-              </div>
-              <div class="race-meta">
-                <span class="race-expect">Expected: about 8 min</span>
-                <button class="race-text-button" type="button" data-race="skip" hidden>Skip to the end</button>
-              </div>
-            </figure>
-            <figure class="race-panel race-panel-quantum" data-side="quantum">
-              <figcaption class="race-label">Quantum computer</figcaption>
-              <canvas class="race-field" aria-hidden="true"></canvas>
-              <div class="race-clock">
-                <span class="race-timer" data-timer>00:00.000</span>
-                <span class="race-found-label" data-found hidden>Found it.</span>
-              </div>
-              <div class="race-meta">
-                <button class="race-text-button" type="button" data-race="replay" hidden>Replay</button>
-              </div>
-            </figure>
+          <div class="qubits-stops" role="radiogroup" aria-label="Number of qubits">
+            <button type="button" role="radio" class="qubits-stop" data-q-stop="30" aria-checked="false" tabindex="-1">30</button>
+            <button type="button" role="radio" class="qubits-stop" data-q-stop="40" aria-checked="false" tabindex="-1">40</button>
+            <button type="button" role="radio" class="qubits-stop" data-q-stop="50" aria-checked="false" tabindex="-1">50</button>
+            <button type="button" role="radio" class="qubits-stop" data-q-stop="70" aria-checked="false" tabindex="-1">70</button>
+            <button type="button" role="radio" class="qubits-stop qubits-stop-key" data-q-stop="105" aria-checked="false" tabindex="-1">105</button>
           </div>
-          <p class="visually-hidden" aria-live="polite" data-race-status></p>
-        </div>
-      </section>
 
-      <section class="race-scale" aria-labelledby="scale-title">
-        <div class="race-inner">
-          <h2 id="scale-title">And the gap grows.</h2>
-          <table class="race-table">
-            <thead><tr><th scope="col">Items</th><th scope="col">Normal computer</th><th scope="col">Quantum computer</th></tr></thead>
-            <tbody>
-              <tr style="--i: 0"><th scope="row">1,000</th><td>0.5 sec</td><td>0.02 sec</td></tr>
-              <tr style="--i: 1"><th scope="row">1 million</th><td>8 min</td><td>0.8 sec</td></tr>
-              <tr style="--i: 2"><th scope="row">1 billion</th><td>6 days</td><td>25 sec</td></tr>
-              <tr style="--i: 3"><th scope="row">1 trillion</th><td>16 years</td><td>13 min</td></tr>
-            </tbody>
-          </table>
-          <p class="race-footnote">At one step per millisecond for both. Real quantum hardware is slower per step and can't run searches this large yet. This shows how the math scales, not a benchmark.</p>
+          <div class="qubits-stage" aria-live="polite">
+            <div class="qubits-card" data-q-card>
+              <span class="qubits-icon" data-q-icon aria-hidden="true"></span>
+              <p class="qubits-count" data-q-count></p>
+              <p class="qubits-line" data-q-line></p>
+              <p class="qubits-memory" data-q-memory></p>
+              <p class="qubits-extra" data-q-extra hidden></p>
+            </div>
+          </div>
+
+          <div class="qubits-speed">
+            <p class="qubits-speed-lead">And it's fast. Searching <strong class="qubits-trillion">a trillion</strong> items for one answer:</p>
+            <div class="qubits-speed-stats">
+              <div class="qubits-speed-stat"><p class="qubits-speed-value">16 years</p><p class="qubits-speed-label">Normal computer, one by one</p></div>
+              <div class="qubits-speed-stat is-quantum"><p class="qubits-speed-value">13 minutes</p><p class="qubits-speed-label">Quantum computer</p></div>
+            </div>
+          </div>
+
+          <p class="qubits-note">Memory: every value of the quantum state stored exactly, at 16 bytes per value. Real simulations use tricks to need less, but the doubling still wins. Speed: one step per millisecond for both. Real quantum hardware is slower per step and can't run searches this large yet. This shows how the math scales, not a benchmark.</p>
         </div>
       </section>
 
@@ -144,10 +120,9 @@
             <figure class="portrait">
               <div class="portrait-stage">
                 <canvas class="portrait-canvas" role="img" aria-label="Pixel portrait"></canvas>
-                <p class="portrait-caption" aria-hidden="true">Look closer.</p>
                 <button class="who-trigger sphere-help-trigger" type="button" aria-expanded="false" aria-controls="who-help">
                   <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.5" /><path d="M6.2 6.2a1.9 1.9 0 0 1 3.7.5c0 1.3-1.9 1.6-1.9 2.8" /><circle class="dot" cx="8" cy="11.6" r=".55" /></svg>
-                  <span>Who is this?</span>
+                  <span data-who-label>Who is this?</span>
                 </button>
                 <div class="sphere-help-backdrop who-help-backdrop" hidden></div>
                 <div class="sphere-help who-help" id="who-help" role="dialog" aria-labelledby="who-name" hidden>
@@ -164,17 +139,17 @@
 
             <div class="quotes-carousel" aria-roledescription="carousel" aria-label="Quotes about quantum computing">
               <div class="quote-slides" aria-live="off">
-                <figure class="quote-slide is-current" data-portrait="jensen" aria-roledescription="slide" aria-label="1 of 5">
+                <figure class="quote-slide is-current" data-portrait="lloyd" aria-roledescription="slide" aria-label="1 of 5">
+                  <blockquote><p><span class="quote-lead">“When we build quantum computers, we’re hijacking that underlying computation in order to make it do things we want…</span> <strong class="quote-land">We’re hacking into the universe.”</strong></p></blockquote>
+                  <figcaption>Seth Lloyd, Professor at MIT, 2006</figcaption>
+                </figure>
+                <figure class="quote-slide" data-portrait="jensen" aria-roledescription="slide" aria-label="2 of 5" hidden>
                   <blockquote><p>“Quantum computing is reaching an inflection point.”</p></blockquote>
                   <figcaption>Jensen Huang, CEO of NVIDIA, 2025</figcaption>
                 </figure>
-                <figure class="quote-slide" data-portrait="pichai" aria-roledescription="slide" aria-label="2 of 5" hidden>
+                <figure class="quote-slide" data-portrait="pichai" aria-roledescription="slide" aria-label="3 of 5" hidden>
                   <blockquote><p>“The quantum moment reminds me of where AI was in the 2010s.”</p></blockquote>
                   <figcaption>Sundar Pichai, CEO of Google, 2025</figcaption>
-                </figure>
-                <figure class="quote-slide quote-slide-long" data-portrait="pichai" aria-roledescription="slide" aria-label="3 of 5" hidden>
-                  <blockquote><p>“We see Willow as an important step in our journey to build a useful quantum computer with practical applications in areas like drug discovery, fusion energy, battery design + more.”</p></blockquote>
-                  <figcaption>Sundar Pichai, CEO of Google, 2024</figcaption>
                 </figure>
                 <figure class="quote-slide" data-portrait="chip" aria-roledescription="slide" aria-label="4 of 5" hidden>
                   <blockquote><p><span class="quote-said">“In under five minutes”</span> <span class="quote-plain">Google’s Willow chip ran a computation</span> <span class="quote-said">“that would take one of today’s fastest supercomputers 10 septillion years.”</span></p></blockquote>
@@ -228,90 +203,54 @@
         </div>
       </section>
 
-      <section class="cmp" id="example" aria-labelledby="cmp-title">
-        <div class="cmp-inner">
-          <header class="cmp-header">
-            <h2 id="cmp-title">Here's what bloq compare tells you.</h2>
-            <div class="segmented segmented-wrap" role="group" aria-label="Choose an example scenario">
-              <span class="segmented-thumb" aria-hidden="true"></span>
-              <button type="button" data-demo="code" aria-pressed="true">Someone edited the code</button>
-              <button type="button" data-demo="qubits" aria-pressed="false">Different qubits</button>
-              <button type="button" data-demo="machine" aria-pressed="false">The machine drifted</button>
-              <button type="button" data-demo="chance" aria-pressed="false">Nothing else changed</button>
-              <button type="button" data-demo="missing" aria-pressed="false">Missing info</button>
-            </div>
+      <section class="demo" id="example" aria-labelledby="demo-title">
+        <div class="demo-inner shell">
+          <header class="demo-head">
+            <h2 id="demo-title">Try it.</h2>
+            <p class="demo-sub">Four commands. Click one.</p>
+            <p class="demo-note">Bloq's command-line tool is called qci.</p>
           </header>
 
-          <p class="cmp-verdict-summary" data-verdict-summary aria-live="polite"></p>
-          <p class="cmp-command"><code>$ bloq compare [RUN_A] [RUN_B]</code></p>
-
-          <div class="effect-strip">
-            <p class="effect-title"><span class="effect-name">The answers</span> <span class="effect-sub">Run 1 vs Run 2</span></p>
-            <div class="effect-bars" data-effect-bars></div>
-            <p class="effect-number"><span data-effect-number>0%</span> different</p>
-          </div>
-
-          <p class="suspects-label">What else changed?</p>
-          <ol class="suspect-tiles" data-tiles aria-label="What else changed"></ol>
-          <p class="cmp-made-up">Made-up example data.</p>
-
-          <button class="cmp-disclosure" type="button" aria-expanded="false" aria-controls="cmp-details">Show the data <span aria-hidden="true">↓</span></button>
-          <div class="cmp-details" id="cmp-details" inert>
-            <div class="cmp-details-inner">
-              <div class="cmp-surface">
-                <div class="cmp-col cmp-changed cmp-fade" data-changed></div>
-                <div class="cmp-col cmp-result cmp-fade" data-result></div>
-                <div class="cmp-col cmp-matched">
-                  <p class="col-label matched-label">What stayed the same</p>
-                  <button class="matched-toggle" type="button" aria-expanded="false" aria-controls="matched-list">
-                    <span data-matched-count></span>
-                    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4" /></svg>
-                  </button>
-                  <ul class="matched-list cmp-fade" id="matched-list" data-matched></ul>
-                </div>
+          <div class="demo-grid">
+            <div class="demo-commands">
+              <div class="demo-command-list" role="group" aria-label="Commands">
+                <button type="button" class="demo-cmd" data-cmd="run" aria-pressed="false"><code>qci run</code><span>Save an experiment</span></button>
+                <button type="button" class="demo-cmd" data-cmd="runs" aria-pressed="false"><code>qci runs</code><span>See them all</span></button>
+                <button type="button" class="demo-cmd" data-cmd="show" aria-pressed="false"><code>qci show</code><span>Look inside one</span></button>
+                <button type="button" class="demo-cmd" data-cmd="compare" aria-pressed="false"><code>qci compare</code><span>Ask what changed</span></button>
+              </div>
+              <div class="demo-scenarios" role="group" aria-label="Compare scenario" hidden>
+                <button type="button" class="demo-chip" data-scenario="code" aria-pressed="true">Code edited</button>
+                <button type="button" class="demo-chip" data-scenario="qubits" aria-pressed="false">Different qubits</button>
+                <button type="button" class="demo-chip" data-scenario="machine" aria-pressed="false">Machine drifted</button>
+                <button type="button" class="demo-chip" data-scenario="nothing" aria-pressed="false">Nothing else</button>
+                <button type="button" class="demo-chip" data-scenario="missing" aria-pressed="false">Missing info</button>
               </div>
             </div>
+
+            <div class="demo-stage">
+              <div class="term">
+                <div class="term-bar">
+                  <span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                  <span class="term-title">bloq — zsh</span>
+                </div>
+                <div class="term-viewport">
+                  <div class="term-body" aria-hidden="true"></div>
+                </div>
+              </div>
+              <div class="term-callout" hidden><span class="term-callout-dot" aria-hidden="true"></span><p data-callout-text></p></div>
+              <p class="visually-hidden" aria-live="polite" data-term-live></p>
+              <p class="demo-caption">Example output with made-up data.</p>
+            </div>
           </div>
-        </div>
-      </section>
 
-
-      <section class="cli" id="how-it-works" aria-labelledby="cli-title">
-        <div class="cli-inner shell">
-          <header class="cli-head">
-            <h2 id="cli-title">Four commands.</h2>
-            <p class="cli-sub">Bloq runs from your terminal, alongside the code you already have.</p>
-          </header>
-          <ol class="cli-grid">
-            <li class="cli-item">
-              <span class="cli-chip"><code>bloq run</code><button class="cli-copy" type="button" aria-label="Copy command" data-copy="bloq run"></button></span>
-              <h3 class="cli-title">Save an experiment.</h3>
-              <p class="cli-line">Records everything Bloq can capture about it.</p>
-            </li>
-            <li class="cli-item">
-              <span class="cli-chip"><code>bloq runs</code><button class="cli-copy" type="button" aria-label="Copy command" data-copy="bloq runs"></button></span>
-              <h3 class="cli-title">See them all.</h3>
-              <p class="cli-line">Every experiment you've saved, in one list.</p>
-            </li>
-            <li class="cli-item">
-              <span class="cli-chip"><code>bloq show</code><button class="cli-copy" type="button" aria-label="Copy command" data-copy="bloq show"></button></span>
-              <h3 class="cli-title">Look inside one.</h3>
-              <p class="cli-line">What ran, where, and what came back.</p>
-            </li>
-            <li class="cli-item">
-              <span class="cli-chip cli-chip-key"><code>bloq compare</code><button class="cli-copy" type="button" aria-label="Copy command" data-copy="bloq compare"></button></span>
-              <h3 class="cli-title">Ask what changed.</h3>
-              <p class="cli-line">Puts two experiments side by side.</p>
-            </li>
-          </ol>
-          <div class="cli-foot">
+          <div class="demo-foot">
             <div class="install">
               <div class="install-command" tabindex="0" role="region" aria-label="Install command"><code><span class="install-prompt" aria-hidden="true">$ </span>pip install [PACKAGE]</code></div>
               <button class="copy-button" type="button" data-copy="pip install [PACKAGE]"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" /></svg><span data-copy-label>Copy</span></button>
             </div>
-            <a class="cli-docs" href="#" data-link="docs">Read the docs <span aria-hidden="true">→</span></a>
+            <a class="demo-docs" href="#" data-link="docs">Read the docs <span aria-hidden="true">→</span></a>
           </div>
-          <p class="visually-hidden" role="status" aria-live="polite" data-cli-status></p>
         </div>
       </section>
 
