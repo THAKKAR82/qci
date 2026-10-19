@@ -537,3 +537,9 @@ None yet. This file is the design. Results are added only after the procedure ab
   not testable for a reason unrelated to the data. The unit is used only for the
   `mixed_units` check, where no unit counts as one unit value. No threshold, window,
   statistic or marking rule changes.
+- **2026-10-18, before collection, interpretation only** (branch `exp/m1.5d-analysis`): with
+  5 untied qubits, tau-b < 0.5 means at least 3 of 10 pairs discordant. Under a uniformly
+  random relative ordering, P(tau-b < 0.5) = 106/120 ≈ 0.88 (only 14 of 120 permutations have
+  at most 2 inversions). A 'supported' P3 is therefore weak evidence of rank instability; a
+  'not supported' result is the more informative outcome. The analysis report states this
+  probability next to P3's result. No threshold or marking rule changes.

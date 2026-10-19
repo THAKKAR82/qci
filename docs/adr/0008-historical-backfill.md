@@ -9,6 +9,7 @@
   (terms finding recorded in section 6), 2026-10-18 (M1.5c manual live check recorded in
   Findings), 2026-10-18 (design clarification of P1 and P2 recorded in section 8, before
   M1.5d collection), 2026-10-18 (unit rule clarification recorded in section 8, before M1.5d
+  collection), 2026-10-18 (interpretation note on P3 recorded in section 8, before M1.5d
   collection)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
@@ -648,6 +649,14 @@ analyzed).** 2026-10-18, before collection: unit rule clarified in
 [docs/experiments/2026-10-calibration-history.md](../experiments/2026-10-calibration-history.md)
 (Change history): a reading is usable without a unit; no unit counts as one unit value in the
 `mixed_units` check. Thresholds unchanged.
+
+**Note (2026-10-18, interpretation of P3, made before any M1.5d data was collected or
+analyzed).** 2026-10-18, before collection, interpretation only: with 5 untied qubits,
+tau-b < 0.5 means at least 3 of 10 pairs discordant. Under a uniformly random relative
+ordering, P(tau-b < 0.5) = 106/120 ≈ 0.88 (only 14 of 120 permutations have at most 2
+inversions). A 'supported' P3 is therefore weak evidence of rank instability; a 'not
+supported' result is the more informative outcome. The analysis report states this
+probability next to P3's result. No threshold or marking rule changes.
 
 ## Consequences
 

@@ -11,6 +11,7 @@ import statistics
 from collections import Counter
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
+from itertools import combinations, permutations
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,7 @@ from history_stats import (
     max_min_ratio,
     median,
     quartiles,
+    random_order_below,
     successive_spread,
 )
 
@@ -472,9 +474,41 @@ def test_p2_marking() -> None:
     assert mark_p2(5, cvs(2.9, 1.5, None, None, None))["mark"] == NOT_TESTABLE
 
 
-def pair(tau: float | None, *, available: bool = True) -> LagPair:
+def pair(tau: float | None, *, available: bool = True, untied: bool = True) -> LagPair:
     stat = Stat(tau) if tau is not None else Stat(None, "all_values_tied")
-    return LagPair(available, stat, 5, False, 0)
+    return LagPair(available, stat, 5, False, 0, untied)
+
+
+def inversions(order: Sequence[int]) -> int:
+    return sum(1 for i, j in combinations(range(len(order)), 2) if order[i] > order[j])
+
+
+def test_random_order_probability_by_enumerating_120_permutations() -> None:
+    # Without ties, tau-b = (10 - 2 * inversions) / 10 for 5 items, so tau-b < 0.5 exactly
+    # when there are at least 3 inversions (at least 3 of 10 pairs discordant).
+    orders = list(permutations(range(5)))
+    assert len(orders) == 120
+    at_most_two = sum(1 for o in orders if inversions(o) <= 2)
+    assert at_most_two == 14
+    below = len(orders) - at_most_two
+    assert below == 106
+    assert random_order_below(5, 0.5) == (below, len(orders))
+
+
+def test_p3_states_the_random_order_probability() -> None:
+    stated = mark_p3(5, pair(0.4))["random_order_probability_below_0.5"]
+    assert stated == {
+        "untied_items": 5,
+        "below": 106,
+        "orderings": 120,
+        "probability": pytest.approx(106 / 120),
+    }
+    assert mark_p3(5, pair(0.4, untied=False))["random_order_probability_below_0.5"] == (
+        "undefined: ties"
+    )
+    assert mark_p3(5, pair(None, available=False))["random_order_probability_below_0.5"] == (
+        "undefined: lookup_missing"
+    )
 
 
 def test_p3_marking() -> None:
@@ -607,8 +641,12 @@ def test_predictions_end_to_end(builder: StoreBuilder) -> None:
     assert fez3["outcome"] == BELOW
     assert fez3["same_document"] is False
     assert fez3["distinct_documents_g0_to_g6"] == 7
+    assert fez3["random_order_probability_below_0.5"]["probability"] == pytest.approx(106 / 120)
     assert p3["per_device"]["ibm_kingston"]["outcome"] == NOT_TESTABLE  # type: ignore[index]
     assert p3["overall"] == NOT_TESTABLE
+    reference = p3["random_order_reference"]
+    assert reference["below"] == 106  # type: ignore[index]
+    assert reference["orderings"] == 120  # type: ignore[index]
 
     p4 = prediction(result, "P4")["per_device"]
     assert p4["ibm_fez"]["mark"] == SUPPORTED  # type: ignore[index]
@@ -682,6 +720,7 @@ def test_runner_leaves_the_store_byte_identical_and_reports_no_values(
         for cell in line.strip("|").split("|")
     }
     assert not {f"{v:.4g}" for v in stored} & cells
+    assert "106/120 = 0.8833" in (out / "results.md").read_text()
     # A second run refuses to overwrite.
     assert (
         run_analysis.main(

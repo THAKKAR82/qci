@@ -86,6 +86,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     after = sha256_file(store)
     print(f"store SHA-256 after:  {after}")
     print(f"git commit: {git.commit}  dirty: {git.dirty}")
+    p3 = result["predictions"]["P3"]
+    reference = p3["random_order_reference"]
+    print(
+        f"P3 overall: {p3['overall']}; P(tau-b < 0.5) under a uniformly random relative "
+        f"ordering of {reference['untied_items']} untied qubits: "
+        f"{reference['below']}/{reference['orderings']} = {reference['probability']:.4g} "
+        "(interpretation only)"
+    )
 
     result["provenance"] = {
         "store_path": str(store),

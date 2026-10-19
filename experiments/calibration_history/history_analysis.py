@@ -25,6 +25,7 @@ from history_stats import (
     max_min_ratio,
     median,
     quartiles,
+    random_order_below,
     successive_spread,
 )
 
@@ -523,6 +524,8 @@ class LagPair:
     n: int
     same_document: bool | None
     same_date: int
+    untied: bool = False
+    """No tie among the values on either document."""
 
     def to_json(self) -> Json:
         if not self.available:
@@ -550,7 +553,8 @@ def lag_pair(sparse: DataSet, k: int, keys: Sequence[SeriesKey]) -> LagPair:
             b.append(rk.value)
             same_date += r0.measured_at == rk.measured_at
     same = doc0.content_hash == dock.content_hash
-    return LagPair(True, kendall_tau_b(a, b), len(a), same, same_date)
+    untied = len(set(a)) == len(a) and len(set(b)) == len(b)
+    return LagPair(True, kendall_tau_b(a, b), len(a), same, same_date, untied)
 
 
 def window_documents(sparse: DataSet, last_step: int) -> int:
@@ -645,12 +649,43 @@ def mark_p2(distinct_documents: int, ratios: Sequence[Stat]) -> Json:
     }
 
 
+P3_REFERENCE_QUBITS = 5
+P3_INTERPRETATION = (
+    "Interpretation only (2026-10-18, before collection): under a uniformly random relative "
+    "ordering of 5 untied qubits, P(tau-b < 0.5) = 106/120, about 0.88. A 'supported' P3 is "
+    "therefore weak evidence of rank instability; 'not supported' is the more informative "
+    "outcome. Not used for marking."
+)
+
+
+def random_order_probability(n: int) -> Json:
+    below, total = random_order_below(n, P3_THRESHOLD)
+    return {"untied_items": n, "below": below, "orderings": total, "probability": below / total}
+
+
+def p3_random_order(pair: LagPair) -> Json | str:
+    """P(tau-b < 0.5) under a uniformly random relative ordering of this pair's n untied
+    qubits. Interpretation only."""
+    if not pair.available:
+        return "undefined: lookup_missing"
+    if pair.n < 3:
+        return "undefined: too_few_measurements"
+    if not pair.untied:
+        return "undefined: ties"
+    return random_order_probability(pair.n)
+
+
 def mark_p3(window_docs: int, pair: LagPair) -> Json:
     if window_docs < MIN_DOCUMENTS or not pair.available or pair.tau.value is None:
         outcome = NOT_TESTABLE
     else:
         outcome = BELOW if pair.tau.value < P3_THRESHOLD else AT_OR_ABOVE
-    return {"outcome": outcome, "distinct_documents_g0_to_g6": window_docs, **pair.to_json()}
+    return {
+        "outcome": outcome,
+        "distinct_documents_g0_to_g6": window_docs,
+        **pair.to_json(),
+        "random_order_probability_below_0.5": p3_random_order(pair),
+    }
 
 
 def mark_p4(c: P4Counts) -> Json:
@@ -782,6 +817,10 @@ def analyze(repository: SqliteSnapshotRepository, collection_date: date) -> Json
         "P3": {
             "per_device": {b: d.p3 for b, d in devices.items()},
             "overall": overall_p3(d.p3["outcome"] for d in devices.values()),
+            "random_order_reference": {
+                **random_order_probability(P3_REFERENCE_QUBITS),
+                "note": P3_INTERPRETATION,
+            },
         },
         "P4": {
             "per_device": {b: d.p4 for b, d in devices.items()},
@@ -810,6 +849,8 @@ def fmt(value: object) -> str:
         return "yes" if value else "no"
     if isinstance(value, float):
         return f"{value:.4g}"
+    if isinstance(value, dict) and "probability" in value:
+        return f"{value['below']}/{value['orderings']} = {value['probability']:.4g}"
     return str(value)
 
 
@@ -861,6 +902,13 @@ def render_markdown(result: Json) -> str:
             for name in ("P1", "P2", "P3", "P4")
         ],
     )
+    reference = preds["P3"]["random_order_reference"]
+    lines += [
+        f"P3 overall: {preds['P3']['overall']}. Beside it, P(tau-b < 0.5) under a uniformly "
+        f"random relative ordering of {reference['untied_items']} untied qubits: "
+        f"{fmt(reference)}. {reference['note']}",
+        "",
+    ]
     for name, fields in (
         ("P1", ("distinct_documents", "qubits_with_defined_cv", "median_cv")),
         (
@@ -880,6 +928,7 @@ def render_markdown(result: Json) -> str:
                 "n",
                 "same_document",
                 "resources_with_same_date",
+                "random_order_probability_below_0.5",
             ),
         ),
         (

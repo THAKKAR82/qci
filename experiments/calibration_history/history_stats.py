@@ -9,6 +9,7 @@ import math
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import permutations
 
 import numpy as np
 
@@ -117,3 +118,18 @@ def kendall_tau_b(a: Sequence[float], b: Sequence[float]) -> Stat:
     if denominator <= 0:
         return Stat(None, ALL_TIED)
     return Stat((n_c - n_d) / math.sqrt(denominator))
+
+
+def random_order_below(n: int, threshold: float) -> tuple[int, int]:
+    """Of the n! relative orderings of n untied items, how many give tau-b below
+    ``threshold``, by enumeration: (below, n!). Interpretation only, never used for marking."""
+    if n < 3:
+        raise ValueError("tau-b is defined for n >= 3")
+    ranks = list(range(n))
+    below = total = 0
+    for order in permutations(ranks):
+        total += 1
+        tau = kendall_tau_b(ranks, order).value
+        assert tau is not None
+        below += tau < threshold
+    return below, total
