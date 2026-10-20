@@ -2,7 +2,10 @@
 
 **Current milestone: none. M1.5 (historical backfill) is done. Next step: to be decided by
 the user.** Candidates: P1 packaging (not yet scoped in this plan, and unrelated to
-prediction P1), M1.6 (footprint staleness and pre-flight), or the D24 adapter list. M1.5d is
+prediction P1), M1.6 (footprint staleness and pre-flight), or the D24 adapter list. The M1.5d data manifest and
+reproducibility check are done (branch `chore/m1.5d-data-manifest`,
+`docs/experiments/2026-10-calibration-history-manifest.csv`; an offline rerun on the
+frozen archive gave identical results). M1.5d is
 done: collected and analyzed 2026-10-19, results and discussion
 recorded (`docs/experiments/2026-10-calibration-history.md`, branch `docs/m1.5d-results`;
 ADR 0008 section 8 Findings). P1, P2 and P4 were supported and P3 was not supported. The
@@ -889,6 +892,8 @@ None of these is scheduled. M0.5 stays unscheduled. The rest have no planned ord
 - Long-term backend snapshot history beyond M1.3's forward-only capture log, such as
   historical capture by datetime (D10; ADR 0005). Historical capture is now sketched in M1.5.
 - Research datasets. See `docs/research.md` and `docs/product.md`.
+- Revisit data version control tooling (for example DVC) when there are multiple datasets,
+  collaborators, or a storage location D29 permits.
 
 ### M0.5: Archival and richer measurement (deferred, not started)
 

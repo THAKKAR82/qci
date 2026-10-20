@@ -8,7 +8,8 @@ Status: done. Design accepted 2026-10-18. The analysis script is committed
 (`experiments/calibration_history/`, branch `exp/m1.5d-analysis`), with a dated
 clarification of the reading rule (Change history). Collected by the user and analyzed once on
 2026-10-19. Results and Discussion recorded 2026-10-19 (branch `docs/m1.5d-results`): P1, P2
-and P4 supported, P3 not supported.
+and P4 supported, P3 not supported. Data manifest and reproducibility check recorded 2026-10-19
+(branch `chore/m1.5d-data-manifest`, "Data and reproducibility").
 
 ## Purpose
 
@@ -665,6 +666,76 @@ differ.
    share `G_0`, so they are not independent. No trend with lag can be read from the
    profile.
 
+## Data and reproducibility
+
+**Frozen archive.** After collection, the store was copied to a read-only file,
+`~/qci-archive/m15d-store-9be8d4bd.db` (1,365,135,360 bytes), with SHA-256
+`9be8d4bd12e9cfac29b3e5f66ab94dcb38ff557ec665becfa790246c6e205b1b`. That is the hash the
+analysis recorded before and after its run, so the archive is byte-identical to the store
+that was analyzed. Every later check reads the archive, never `~/.qci-live`.
+
+**Never committed or redistributed (D29).** The archive holds backfilled calibration data. It
+stays on the user's machine for personal, local research use only. It is never committed,
+exported as a fixture, uploaded or shared (ADR 0008 section 6, D29). The repository holds the
+aggregate results and the manifest below, never the store.
+
+**Manifest.**
+[2026-10-calibration-history-manifest.csv](2026-10-calibration-history-manifest.csv) lists
+every lookup the analysis used: one row per device, set (`dense` or `sparse`) and grid time,
+with the lookup's capture ID, the snapshot ID, the provider stamp (`last_update_date`, the
+snapshot's `calibrated_at`) and the snapshot's content hash. The rows are selected the same
+way `history_analysis.analyze` selects them for `D` = 2026-10-19 (earliest capture at each
+grid time), and sorted. It has 726 rows: 3 devices with 169 dense and 73 sparse grid times
+each. A grid time in both windows has one row per set. Leading `#` lines record the method
+version (`qci.m15d.manifest.1`), `D`, the store file name, the store's SHA-256 and the commit
+of the export. The per-device distinct content hashes (213, 226 and 222; dense 142, 157 and
+151; sparse 73, 71 and 73) equal the distinct-document counts in `results.json`.
+
+The manifest holds no parameter value. Every cell was checked against its column's pattern:
+device name, set name, whole-hour UTC grid time, 26-character capture and snapshot IDs, UTC
+stamp, and `sha256:` with 64 hex digits. All 5,082 cells match, so no cell can hold a
+value. The export reads only snapshot and capture records, never measurement rows, and its
+tests check that no stored value appears in a synthetic manifest.
+
+It was written and is checked with
+`experiments/calibration_history/export_manifest.py`. Both modes open the store read-only,
+and `export` writes nothing if the store's SHA-256 changes while it is read:
+
+```bash
+PYTHONPATH=src:experiments/calibration_history .venv/bin/python experiments/calibration_history/export_manifest.py export --store ~/qci-archive/m15d-store-9be8d4bd.db --collection-date 2026-10-19 --out MANIFEST.csv
+PYTHONPATH=src:experiments/calibration_history .venv/bin/python experiments/calibration_history/export_manifest.py verify --manifest docs/experiments/2026-10-calibration-history-manifest.csv --store ~/qci-archive/m15d-store-9be8d4bd.db
+```
+
+`verify` reports each row as `present` (the store has a lookup at that grid time that
+returned a snapshot with that content hash), `differs` (it has lookups at that grid time, none
+with that hash) or `missing` (no lookup at that grid time). It does not compare snapshot or
+capture IDs, which are new in every store. On the archive, all 726 rows are present.
+
+**Reproducibility check (2026-10-19, offline).** `run_analysis.py` was run again on the
+archive, from commit `85be2e7` on a clean tree, into `~/qci-m15d/repro/`. The analysis code
+(`history_analysis.py`, `history_stats.py`, `run_analysis.py`) and `src/` are unchanged
+since `5ba0d8e`. A field-by-field comparison of the two `results.json` files, with exact
+equality on every number, found only three differing fields, all in `provenance`:
+`store_path` (the archive's path), `git_commit` and `git_branch`. Every result field is
+identical. `results.json` has no run-time field.
+
+**Re-fetching the data.** Anyone with IBM Quantum access to these devices can rebuild an
+equivalent store in an empty `QCI_HOME`. The commands are the dense and sparse commands in the
+Procedure, with that `QCI_HOME`, their own account, and a `--days` large enough to reach
+2026-10-12 for the dense set. `qci snapshot backfill` requests fixed instants (whole multiples
+of `--step-hours` since 1970-01-01T00:00Z), so a later run requests the same grid times as
+the manifest. `verify` then checks the new store against the manifest's content hashes. Two
+limits apply:
+
+- **Reach.** Lookups are capped at the verified depth of 365 days. Sparse grid times older
+  than 365 days before the re-fetch cannot be requested and are reported as `missing`. The
+  oldest, `G_72` (2025-10-24T00:00Z), is out of reach from about 2026-10-24.
+- **What a matching hash means.** The content hash covers the provider, the backend name, the
+  capture options, and the redacted, UTC-normalized payload. It does not cover the capture
+  time. Equal hashes mean IBM returned the same document and the same QCI extraction and
+  redaction processed it. A `differs` row means the documents or the processing differ, and
+  says neither which one, nor why.
+
 ## Change history
 
 - **2026-10-16.** P1-P4 frozen in ADR 0008 section 8.
@@ -692,3 +763,9 @@ differ.
   [2026-10-calibration-history-results.md](2026-10-calibration-history-results.md). P1, P2 and
   P4 supported, P3 not supported. Exploratory observations are labeled as not pre-registered.
   No threshold, statistic or marking rule changed.
+- **2026-10-19, data manifest and reproducibility check** (branch
+  `chore/m1.5d-data-manifest`): "Data and reproducibility" added, with the frozen archive,
+  the committed manifest of every lookup used, the `export_manifest.py` export and verify
+  modes, an offline rerun of the analysis on the archive (every result field identical), and
+  how to re-fetch and verify the data. No threshold, statistic, marking rule or result
+  changed.
