@@ -9,7 +9,9 @@ Status: done. Design accepted 2026-10-18. The analysis script is committed
 clarification of the reading rule (Change history). Collected by the user and analyzed once on
 2026-10-19. Results and Discussion recorded 2026-10-19 (branch `docs/m1.5d-results`): P1, P2
 and P4 supported, P3 not supported. Data manifest and reproducibility check recorded 2026-10-19
-(branch `chore/m1.5d-data-manifest`, "Data and reproducibility").
+(branch `chore/m1.5d-data-manifest`, "Data and reproducibility"). Independent re-fetch
+check of the sparse sets recorded 2026-10-20 (branch `docs/m1.5d-refetch-check`): 0 rows
+differ.
 
 ## Purpose
 
@@ -736,6 +738,36 @@ limits apply:
   redaction processed it. A `differs` row means the documents or the processing differ, and
   says neither which one, nor why.
 
+**Independent re-fetch check (2026-10-20).** One day after the original collection, the user
+re-fetched the sparse sets for `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` independently,
+from `main`, into a separate, freshly created store (`~/qci-refetch`), with
+`qci snapshot backfill --days 365 --step-hours 120`. The dense sets were not re-fetched. On
+that day the sparse grid is unchanged (`E_s` is still 2026-10-19), so the re-fetch requested
+the same 73 grid times per device. Verifying the committed manifest against that store gave:
+
+```
+rows: 726; present 225, missing 501, differs 0
+```
+
+- **Present: 225.** These are the 219 sparse rows (73 per device) and 6 dense rows. `verify`
+  matches by device and grid time, whatever the set. The sparse `G_0` (2026-10-19T00:00Z)
+  and `G_1` (2026-10-14T00:00Z) fall inside the dense window, so each device's dense rows at
+  those two times are matched by the re-fetched sparse lookups.
+- **Missing: 501.** These are the other 501 dense rows (3 × 169 − 6). They were not
+  re-fetched, so they are missing by design. Nothing is known about them from this check.
+- **Differs: 0.** Every row the re-fetch covers has a lookup with the manifest's content hash.
+
+The two stores' SHA-256 hashes differ (`bd85c39c...` for `~/qci-refetch` versus
+`9be8d4bd...` for the archive). A fresh store assigns new snapshot and capture IDs, so equal
+store files are not expected. `verify` compares content hashes per grid time, not store files
+or IDs.
+
+Conclusion: an independent re-fetch, one day later and into a new store, reproduced every
+covered document byte for byte. That includes the oldest grid time, `G_72`
+(2025-10-24T00:00Z), checked before it leaves the 365-day lookup depth. Per the limit above,
+this means IBM returned the same documents and the same QCI extraction and redaction processed
+them. It says nothing about the dense set beyond `G_0` and `G_1`.
+
 ## Change history
 
 - **2026-10-16.** P1-P4 frozen in ADR 0008 section 8.
@@ -769,3 +801,7 @@ limits apply:
   modes, an offline rerun of the analysis on the archive (every result field identical), and
   how to re-fetch and verify the data. No threshold, statistic, marking rule or result
   changed.
+- **2026-10-20, independent re-fetch check** (branch `docs/m1.5d-refetch-check`): the sparse
+  sets of all three devices were re-fetched into a fresh store. `verify` reported 225 present,
+  501 missing (dense rows not re-fetched, by design) and 0 differing ("Data and
+  reproducibility"). No threshold, statistic, marking rule or result changed.

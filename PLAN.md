@@ -5,7 +5,9 @@ the user.** Candidates: P1 packaging (not yet scoped in this plan, and unrelated
 prediction P1), M1.6 (footprint staleness and pre-flight), or the D24 adapter list. The M1.5d data manifest and
 reproducibility check are done (branch `chore/m1.5d-data-manifest`,
 `docs/experiments/2026-10-calibration-history-manifest.csv`; an offline rerun on the
-frozen archive gave identical results). M1.5d is
+frozen archive gave identical results). The M1.5d independent re-fetch check is done
+(2026-10-20, branch `docs/m1.5d-refetch-check`: sparse sets re-fetched into a fresh store,
+0 manifest rows differ). M1.5d is
 done: collected and analyzed 2026-10-19, results and discussion
 recorded (`docs/experiments/2026-10-calibration-history.md`, branch `docs/m1.5d-results`;
 ADR 0008 section 8 Findings). P1, P2 and P4 were supported and P3 was not supported. The

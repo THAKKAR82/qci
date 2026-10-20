@@ -10,7 +10,8 @@
   Findings), 2026-10-18 (design clarification of P1 and P2 recorded in section 8, before
   M1.5d collection), 2026-10-18 (unit rule clarification recorded in section 8, before M1.5d
   collection), 2026-10-18 (interpretation note on P3 recorded in section 8, before M1.5d
-  collection), 2026-10-19 (M1.5d findings recorded in section 8)
+  collection), 2026-10-19 (M1.5d findings recorded in section 8), 2026-10-20 (M1.5d
+  independent re-fetch check recorded in section 8)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -687,6 +688,11 @@ contain no value, and the Discussion are in
   footprint series (D22). `cz(a,b)` and `cz(b,a)` have the same statistics. `init_error` is
   present on only 16 of 73 sparse documents (16 of 71 on `ibm_kingston`). One `ibm_kingston`
   sparse lookup returned a document 166.8 h older than its requested time.
+- Independent re-fetch (2026-10-20): the sparse sets of all three devices were re-fetched into
+  a fresh store, and `verify` against the committed manifest found 225 rows present, 0
+  differing, and 501 missing (dense rows not re-fetched). Every covered document, including
+  `G_72` (2025-10-24), was reproduced byte for byte (experiment doc, "Data and
+  reproducibility").
 
 **Decision.** M1.5d is done, and with it M1.5.
 
