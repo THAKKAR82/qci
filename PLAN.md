@@ -1,7 +1,11 @@
 # PLAN
 
-**Current milestone: M1.5 (historical backfill). Current step: M1.5d collection by the user
-(research experiment on D27 and the calibration side of H2), with the design's commands.** The
+**Current milestone: none. M1.5 (historical backfill) is done. Next step: to be decided by
+the user.** Candidates: P1 packaging (not yet scoped in this plan, and unrelated to
+prediction P1), M1.6 (footprint staleness and pre-flight), or the D24 adapter list. M1.5d is
+done: collected and analyzed 2026-10-19, results and discussion
+recorded (`docs/experiments/2026-10-calibration-history.md`, branch `docs/m1.5d-results`;
+ADR 0008 section 8 Findings). P1, P2 and P4 were supported and P3 was not supported. The
 M1.5d analysis script is done (`experiments/calibration_history/`, branch
 `exp/m1.5d-analysis`, committed before any data set is collected or read, with a dated
 clarification of the reading rule in the design's change history). The M1.5d design is
@@ -680,7 +684,7 @@ Sub-steps, each reviewed separately:
 - [x] `docs/architecture.md`, `docs/data-model.md` and README describe the command, and all
       gates pass.
 
-## M1.5: Historical backfill (CURRENT: M1.5d, collection)
+## M1.5: Historical backfill (DONE)
 
 **Goal:** calibration history from before the first capture, if the provider honors
 historical lookups. Resolves D21 first, then captures past calibrations. Feeds research
@@ -705,8 +709,10 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
   M1.5b supports it for all three devices, each with a depth cap of 365 days. Backfilled
   history is documents by stamp time, not what a user would have seen at a given time
   (publication lag observed: at least 5 min 33 s).
-- **M1.5d: research experiment on D27 and the calibration side of H2 (CURRENT: collection;
-  design accepted 2026-10-18; analysis script done).**
+- **M1.5d: research experiment on D27 and the calibration side of H2 (DONE, 2026-10-19;
+  results and discussion in the design file, branch `docs/m1.5d-results`; ADR 0008 section 8
+  Findings).** P1, P2 and P4 supported, P3 not supported. Exploratory observations, labeled
+  as not pre-registered, inform D22, D24, D25 and D27.
   Predictions P1-P4 are pre-registered in ADR 0008 section 8; the analysis script is committed
   before any backfilled value is analyzed. The design must choose the sampling grid and window
   explicitly, with an estimate of storage size, before any larger backfill: `ibm_fez`
@@ -729,9 +735,8 @@ amendments to the M1.5b protocol. Sub-steps, each reviewed separately:
   with offline tests on synthetic stores before any data set is collected or read; the design
   records a dated clarification (2026-10-18): a reading needs no unit, since IBM reports an
   empty unit for dimensionless parameters; (2) collection by the user with the design's
-  commands (CURRENT); (3) one analysis run from a clean tree, with the aggregate results and
-  marks
-  recorded in the design file.
+  commands (DONE, 2026-10-19); (3) one analysis run from a clean tree, with the aggregate
+  results and marks recorded in the design file (DONE, 2026-10-19).
 
 **Decision rule after M1.5b** (ADR 0008 section 1): per device, the verified depth is the
 largest offset that is `honored` (at or before the requested time, different from the
@@ -925,11 +930,11 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D19 | How should standalone calibration snapshots be stored, and how is their history kept? | **Resolved by [ADR 0005](docs/adr/0005-live-calibration-snapshots.md).** An insert-only snapshot store beside the runs table, deduplicated by content hash. History is a forward-only capture log. Measurements are stored as generic rows with adapter-defined resource identifiers, and the raw payload is kept. |
 | D20 | Run comparison does not check that baseline and candidate units agree. | Open. Fix at the next policy bump. Snapshot comparison (M1.3c) will report a unit mismatch as `not_comparable` for that parameter and never converts units (ADR 0005 section 7). |
 | D21 | Historical calibration backfill. | **Resolved by M1.5b (2026-10-18, [ADR 0008](docs/adr/0008-historical-backfill.md) Findings).** `properties(datetime=...)` is honored on `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` at 1, 7, 30, 90, 180 and 365 days back: every returned document is older than the requested time by at most 1 h 41 min, monotonic, and repeatable, and 5 of 6 cross-checks against stored captures match. The sixth shows publication lag (at least 5 min 33 s), so backfilled history is documents by stamp time, not what a user would have seen at a given time. `configuration()` has no history. Backfill (M1.5c) was gated on the user's terms-of-service check, recorded 2026-10-18 (ADR 0008 section 6): personal, local research use only (D29). |
-| D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). |
+| D22 | The calibration reader ignores `measure` gate entries (`gate_error`, `gate_length`, `threshold`). Should snapshot comparison report them? | Open. Out of scope for M1.3b and M1.3c. Observed on `ibm_fez` (ADR 0005, section 6). M1.5d (2026-10-19, exploratory): `measure` `gate_error` has statistics identical to `readout_error` on all 15 footprint qubits in both data sets, which is evidence that it duplicates `readout_error` there ([results](docs/experiments/2026-10-calibration-history.md#c-exploratory-observations-not-pre-registered)). |
 | D23 | Run comparison reports unchanged parameter values the same way whether or not they were re-measured; make the distinction at the next policy bump. | Open. Snapshot comparison (M1.3c) makes the distinction; run comparison output stays unchanged until the next policy bump. |
-| D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). |
-| D25 | Report, for a footprint, the age of each relevant measurement at capture time and the oldest one, as a calculated value. | Open. Scheduled in M1.6. In the first live comparison, values that were not re-measured were about 1 h (T2) to about 22 h (cz) old at the later capture. |
+| D24 | Some provider parameters are not physically measured: virtual gates such as `rz` (IBM reports `gate_error` 0 and `gate_length` 0, dated with the document timestamp) and configured durations such as `gate_length`. Their date can change without a measurement. | Open. Classify them through an explicit adapter list and exclude them from the "re-measured, same value" evidence. Observed in the first live comparison (ADR 0005, section 6). Supported by M1.5d P4 (2026-10-19): on 3,305 of 3,305 (document, footprint qubit) pairs on three devices, `rz` `gate_error` is exactly 0 and dated with the document's stamp, so `rz` is never physically measured. The adapter list can proceed in a future step. |
+| D25 | Report, for a footprint, the age of each relevant measurement at capture time and the oldest one, as a calculated value. | Open. Scheduled in M1.6. In the first live comparison, values that were not re-measured were about 1 h (T2) to about 22 h (cz) old at the later capture. Informed by M1.5d (2026-10-19, exploratory): over one week on three devices, `T1`, `T2`, `sx` and `cz` were re-measured about daily, and `readout_error`, `prob_meas*` and `init_error` every 1.3 to 4.9 h on most series, so measurement ages depend on the parameter. |
 | D26 | Show units in the text renderer (T1 and T2 in microseconds, lengths in nanoseconds). | Open. Checked on 2026-10-10: the JSON carries `unit` on every `hardware.shared_resource_parameters` entry (`us`, `ns`, or null for dimensionless values and unit mismatches). `unchanged_values` and `error_values_at_one` entries have no unit field. The text renderer shows the unit only on changed lines. `qci snapshot compare-run` (M1.4b, ADR 0007) shows the unit on every value line. |
-| D27 | Research: estimate the noise in provider calibration estimates by tracking the same parameter across many recalibrations. | Open. IBM publishes no uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and `date`. A `changed` value means only that the reported value changed. |
+| D27 | Research: estimate the noise in provider calibration estimates by tracking the same parameter across many recalibrations. | Partially addressed by M1.5d (2026-10-19, [results](docs/experiments/2026-10-calibration-history.md#results)). IBM publishes no uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and `date`. A `changed` value means only that the reported value changed. The spread across re-measurements is now quantified on 15 footprint qubits over one week (P1: median `T1` CV 0.19 to 0.27; `readout_error` CV and `d / m` larger on every device). Physical change and estimation noise are not separated. |
 | D28 | Historical snapshots have no configuration (ADR 0008 section 3): `qci snapshot compare` with `--allow-footprint-backend-mismatch` lists every footprint resource as missing, and `elapsed_between_captures` is the difference of request times. | Open. Raised in M1.5a. Comparison code is unchanged in M1.5. Decide in a later step whether presence for a historical snapshot may use another snapshot's configuration, and how elapsed time is reported for lookups. |
 | D29 | Review the IBM Quantum service agreement for redistribution of calibration data and commercial use under the Open Plan before any public release, hosted service, or shared dataset. | Open. Raised 2026-10-18 by the terms finding in [ADR 0008](docs/adr/0008-historical-backfill.md) section 6: M1.5c proceeds for personal, local research use only, and backfilled data is never committed to the repository or redistributed. |

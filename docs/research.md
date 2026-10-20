@@ -28,6 +28,11 @@ of provider calibration estimates across re-measurements, `PLAN.md` open decisio
 studied in `docs/experiments/2026-10-calibration-history.md`, with predictions P1-P4
 pre-registered in ADR 0008 section 8. That experiment uses backfilled calibration documents
 only and has no hardware executions, so it does not test H2 itself.
+Results (2026-10-19, [results and discussion](experiments/2026-10-calibration-history.md#results)):
+for D27, the spread across re-measurements is quantified (P1 and P2 supported; median `T1` CV
+0.19 to 0.27), but physical change and estimation noise are not separated. For the calibration
+side of H2, P3 was not supported: on two of three devices the footprint's `readout_error`
+order 30 days apart had tau-b at or above 0.5, from one time pair per device.
 
 H5 and H6 are **post-hoc and untested**. Both were formed after seeing the results they
 describe, so those results cannot count as evidence for them.

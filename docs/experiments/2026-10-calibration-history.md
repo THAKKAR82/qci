@@ -4,10 +4,11 @@ Date: 2026-10-18 (design). Branch: `docs/m1.5d-experiment-design`. Milestone: M1
 `PLAN.md`. Predictions: P1-P4, frozen in [ADR 0008](../adr/0008-historical-backfill.md)
 section 8 on 2026-10-16.
 
-Status: design, accepted 2026-10-18. The analysis script is committed
+Status: done. Design accepted 2026-10-18. The analysis script is committed
 (`experiments/calibration_history/`, branch `exp/m1.5d-analysis`), with a dated
-clarification of the reading rule (Change history). No data set has been collected or read.
-The next step is collection by the user (Procedure).
+clarification of the reading rule (Change history). Collected by the user and analyzed once on
+2026-10-19. Results and Discussion recorded 2026-10-19 (branch `docs/m1.5d-results`): P1, P2
+and P4 supported, P3 not supported.
 
 ## Purpose
 
@@ -519,7 +520,150 @@ Results section of this file, in a separate commit.
 
 ## Results
 
-None yet. This file is the design. Results are added only after the procedure above.
+**Collection.** Run by the user with the Procedure's commands on `D` = 2026-10-19, from
+12:38:23Z to 16:33:39Z. Every command was rerun until it printed `Nothing to request.`, and
+the local logs (`~/qci-m15d/`) contain no error and no too-many-requests response. Every
+device has all 169 dense and all 73 sparse grid times. `E_d` = `E_s` = 2026-10-19T00:00Z.
+
+**Analysis.** Run once on 2026-10-19 with the Procedure's command, from commit `5ba0d8e` on a
+clean tree. The store's SHA-256 was
+`9be8d4bd12e9cfac29b3e5f66ab94dcb38ff557ec665becfa790246c6e205b1b` before and after, so the
+store was unchanged. Method `qci.m15d.analysis.1`; every number is `calculated`.
+
+| Prediction | `ibm_fez` | `ibm_kingston` | `ibm_marrakesh` | Overall |
+|---|---|---|---|---|
+| P1 (D27) | supported (median T1 CV 0.1857) | supported (0.2199) | supported (0.2697) | **supported** |
+| P2 (D27) | supported (5 of 5 qubits at least 3) | supported (5 of 5) | supported (5 of 5) | **supported** |
+| P3 (H2, calibration side) | at or above 0.5 (tau-b 0.7379, ties) | below 0.5 (0.4) | at or above 0.5 (0.6) | **not supported** |
+| P4 (D24) | supported (1,065 of 1,065 pairs) | supported (1,130 of 1,130) | supported (1,110 of 1,110) | **supported** |
+
+The full aggregate output, with per-device set overviews, per-series statistics, D27 classes
+and the lag profile, is in
+[2026-10-calibration-history-results.md](2026-10-calibration-history-results.md). It is the
+script's `results.md` copied verbatim, with one introductory paragraph added (checked with
+`diff`).
+
+**No parameter value in the results (checked 2026-10-19).** The store was not opened for this
+check. Only the script's output files in `~/qci-m15d/` were read.
+
+1. **By construction.** The script's output contract ("What the output contains") excludes
+   values, and means, medians, extremes and quantiles of values in a parameter's unit.
+2. **Field by field.** Every numeric field of `results.json` was classified by its field name
+   and path. Of 5,377 numeric fields, 3,612 are counts, 544 are durations in hours (intervals
+   between measurement dates, and requested time minus returned stamp), 1,137 are
+   dimensionless statistics (CV, maximum-to-minimum ratio, `d / m`, tau-b, fractions,
+   probabilities) and 84 are medians of dimensionless statistics. None is left unclassified.
+   The string fields are labels, the collection date and grid anchors, the commit, the store
+   path and hashes, and `undefined` reasons. The tables in `results.md` have the same columns.
+3. **Coincidence scan.** Every decimal number in `results.md` was compared, at 4 significant
+   digits, with the 1,718 non-zero values in the committed `ibm_fez` fixture, which is a live
+   document and not backfilled data. There were 6 coincidences (0.5423, 0.661, 0.8036, 0.8729,
+   0.9353 and 116.6). Each is in a CV, `d / m` or maximum-to-minimum column, and a few chance
+   matches are expected at this precision. This scan cannot see backfilled values, so check 2
+   is the check that matters.
+
+## Discussion
+
+### (a) Pre-registered outcomes
+
+Marked by the rules committed before collection. No threshold or rule was changed after the
+data was seen.
+
+- **P1: supported.** The median over footprint qubits of the `T1` CV is 0.19 (`ibm_fez`),
+  0.22 (`ibm_kingston`) and 0.27 (`ibm_marrakesh`), each at least 0.10. All 15 qubits have a
+  defined CV.
+- **P2: supported, on all 15 footprint qubits.** Every footprint qubit on every device has a
+  defined `readout_error` maximum-to-minimum ratio of at least 3. The largest are 74.75, 46.55
+  and 47.3. Caveat (b) applies to ratios. The `readout_error` CVs point the same way (dense
+  medians 1.58, 0.47 and 1.23), so the outcome does not rest on the ratio alone.
+- **P3: not supported.** Kendall's tau-b between the footprint `readout_error` values on the
+  documents for `G_0` and `G_6` (30 days apart) is 0.74 on `ibm_fez` (with ties), 0.40 on
+  `ibm_kingston` and 0.60 on `ibm_marrakesh`. Only one device is below 0.5, and the
+  prediction needs two. Pre-registered interpretation (2026-10-18, before collection):
+  under a uniformly random relative ordering of 5 untied qubits, P(tau-b < 0.5) = 106/120,
+  about 0.88. A "supported" P3 would therefore have been weak evidence of rank instability,
+  and "not supported" is the more informative outcome. On `ibm_fez` and `ibm_marrakesh`, the
+  footprint's order by `readout_error` on the newest document and its order 30 days earlier
+  have tau-b at or above 0.5, which only 14 of the 120 random orderings reach (P(tau-b >= 0.5)
+  = 14/120, about 0.12; the `ibm_fez` value has ties, so this reference is approximate
+  there).
+  This is one time pair per device (caveat (b)).
+- **P4: supported, on 3,305 of 3,305 (document, qubit) pairs.** On all 661 distinct documents
+  (213, 226 and 222), `rz` `gate_error` is exactly 0 on every footprint qubit, and its date
+  equals the document's stamp on every pair. No pair lacks a value or a date.
+
+### (b) Caveats
+
+- **Maximum-to-minimum ratios are dominated by minima near zero.** The extreme `init_error`
+  ratios in the sparse set, 4.786e+06 (`ibm_fez` qubit 144), 9.624e+48 (`ibm_marrakesh` qubit
+  18) and 3,852 (`ibm_marrakesh` qubit 11), are artifacts of a minimum close to 0. They do not
+  measure the size of the variation: the same series have CVs of 0.73, 1.55 and 1.63. Another 18
+  series have an undefined ratio (`non_positive_minimum`). CV and `d / m` are the robust
+  figures here. P2's ratio threshold should be read together with the CVs in (a).
+- **Physical change and estimation noise are not separated.** Every spread here (CV, ratio,
+  `d / m`) includes any physical change between measurements, any estimation noise in the
+  provider's estimate, and any change in the provider's procedure. `d / m` reacts less to
+  slow drift but still includes change between consecutive measurements. This experiment does
+  not estimate the provider's estimation noise on its own (D27).
+- **Scope.** 5 qubits per device on 3 devices, taken from one GHZ-star layout recorded at
+  M1.4c, not sampled from the device. Nothing here describes a whole device or other devices.
+- **One dense week** (2026-10-12T00:00Z to 2026-10-19T00:00Z). Another week may give
+  different spreads and cadences.
+- **A single P3 time pair per device** (`G_0` and `G_6`). With 5 items, tau-b moves in steps
+  of 0.2 (without ties), and one swapped pair moves it by 0.2.
+- **`T1` has 7 or 8 measurements per qubit** in the dense week, so each `T1` CV in P1 rests on
+  6 or 7 intervals.
+- **Observed documents only.** Documents published and superseded within one grid step are
+  not seen, so measurement intervals are upper bounds on the provider's intervals (Integrity
+  notes).
+
+### (c) Exploratory observations (not pre-registered)
+
+None of these was predicted, and none is marked. All come from the same aggregate output,
+and each is a description of reported values and dates, not a statement about why they
+differ.
+
+1. **Re-measurement cadence differs by parameter** (median interval between consecutive
+   measurement dates in the dense set, per series). `T1`, `T2`, `sx` `gate_error` and `cz`
+   `gate_error` are about daily: 24.5 to 25.8 h on all 60 series. `readout_error`,
+   `prob_meas0_prep1` and `prob_meas1_prep0` are every 1.4 to 4.4 h on 44 of 45 series, with
+   a median that differs by device (about 1.4 h on `ibm_marrakesh`, 1.5 h on `ibm_fez` and
+   4.4 h on `ibm_kingston`). The exception is `ibm_kingston` qubit 152 `prob_meas0_prep1`,
+   at 24.5 h. `init_error` is every 1.3 to 4.9 h on 12 of 15 series. The exceptions are
+   `ibm_marrakesh` qubit 11, at 26.0 h, and `ibm_fez` qubit 141 and `ibm_marrakesh` qubit 13,
+   each with a single measurement in the week. This bears on D25: a footprint's measurement
+   ages depend on the parameter.
+2. **`measure` `gate_error` has the same statistics as `readout_error` in every footprint
+   series.** On all 15 footprint qubits, in both sets (30 of 30 series pairs), every reported
+   statistic is identical to full float precision: `n`, D27 class counts, intervals, CV,
+   ratio and `d / m`. The analysis does not compare values directly, so this is consistent
+   with `measure` `gate_error` repeating `readout_error`, not a value-by-value proof (D22).
+3. **`cz(a,b)` and `cz(b,a)` have the same statistics.** Each device's footprint contains one
+   connection in both directions: `ibm_fez` (142,143), `ibm_kingston` (150,151) and
+   `ibm_marrakesh` (11,12). Their two series have identical statistics in both sets (6 of 6),
+   with the same limit as item 2.
+4. **`init_error` appears on only 16 of 73 sparse documents** on `ibm_fez` and
+   `ibm_marrakesh`, and on 16 of 71 on `ibm_kingston`, which has 71 distinct sparse documents.
+   The other documents have no `init_error` row for any footprint qubit (`missing_row` 285,
+   275 and 285, that is 5 times 57, 55 and 57). In the dense set it is present on every
+   document.
+5. **One `ibm_kingston` sparse lookup returned a document stamped 166.8 h (about 7 days)
+   before its requested time.** The maximum on the other two devices is 68.6 h, and the
+   sparse medians are 0.6 to 0.9 h. `ibm_kingston` also has 71 distinct documents for 73
+   sparse grid times. M1.5b's 18 offsets were all within 1 h 41 min, so gaps this long were
+   not seen there.
+6. **`ibm_marrakesh` `cz` `gate_error` spreads more in the dense week than on the other
+   devices.** The dense median CV is 1.99 (per series 1.401 to 2.215), the ratios are 11.9 to
+   34.8 and `d / m` is 1.46 to 1.68. On `ibm_fez` and `ibm_kingston` the medians are 0.22 and
+   0.26. The same five `ibm_marrakesh` series have sparse CVs of 0.31 to 0.54 over the year at
+   120-hour spacing.
+7. **Lag profile.** Tau-b between `G_0` and `G_k` for k = 1 to 72 ranges from -0.78 to 1. It
+   is positive in 19 of 21 entries for `readout_error`, 17 of 21 for `T1` and 14 of 21 for
+   `cz` `gate_error`. Six of the seven negative `cz` entries are on `ibm_fez`. With 5 items
+   and no relationship, tau-b has mean 0 and standard deviation sqrt(2(2n+5)/(9n(n-1))) =
+   sqrt(1/6), about 0.41. Single entries therefore carry little information. The entries also
+   share `G_0`, so they are not independent. No trend with lag can be read from the
+   profile.
 
 ## Change history
 
@@ -543,3 +687,8 @@ None yet. This file is the design. Results are added only after the procedure ab
   at most 2 inversions). A 'supported' P3 is therefore weak evidence of rank instability; a
   'not supported' result is the more informative outcome. The analysis report states this
   probability next to P3's result. No threshold or marking rule changes.
+- **2026-10-19, after collection and the single analysis run** (branch `docs/m1.5d-results`):
+  Results and Discussion added. The aggregate output is copied verbatim to
+  [2026-10-calibration-history-results.md](2026-10-calibration-history-results.md). P1, P2 and
+  P4 supported, P3 not supported. Exploratory observations are labeled as not pre-registered.
+  No threshold, statistic or marking rule changed.

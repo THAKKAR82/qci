@@ -10,7 +10,7 @@
   Findings), 2026-10-18 (design clarification of P1 and P2 recorded in section 8, before
   M1.5d collection), 2026-10-18 (unit rule clarification recorded in section 8, before M1.5d
   collection), 2026-10-18 (interpretation note on P3 recorded in section 8, before M1.5d
-  collection)
+  collection), 2026-10-19 (M1.5d findings recorded in section 8)
 - **Milestone:** M1.5 (`PLAN.md`). This ADR is M1.5a. It resolves D21's verification protocol,
   and designs backfill only conditionally on that verification.
 
@@ -657,6 +657,38 @@ ordering, P(tau-b < 0.5) = 106/120 ≈ 0.88 (only 14 of 120 permutations have at
 inversions). A 'supported' P3 is therefore weak evidence of rank instability; a 'not
 supported' result is the more informative outcome. The analysis report states this
 probability next to P3's result. No threshold or marking rule changes.
+
+**Findings (2026-10-19, M1.5d, aggregates only).** Collected by the user on 2026-10-19 with the
+design's commands: all 169 dense and 73 sparse grid times on each of the three devices, and no
+too-many-requests response. Analyzed once from commit `5ba0d8e` on a clean tree, with the store
+unchanged (SHA-256 `9be8d4bd12e9cfac29b3e5f66ab94dcb38ff557ec665becfa790246c6e205b1b` before
+and after). Method `qci.m15d.analysis.1`; every number is `calculated`. No parameter value is
+recorded, and no backfilled data is committed (section 6, D29). Results, the check that they
+contain no value, and the Discussion are in
+[docs/experiments/2026-10-calibration-history.md](../experiments/2026-10-calibration-history.md).
+
+| Prediction | `ibm_fez` | `ibm_kingston` | `ibm_marrakesh` | Overall |
+|---|---|---|---|---|
+| P1 | supported, median T1 CV 0.19 | supported, 0.22 | supported, 0.27 | supported |
+| P2 | supported, 5 of 5 qubits | supported, 5 of 5 | supported, 5 of 5 | supported |
+| P3 | at or above 0.5, tau-b 0.74 (ties) | below 0.5, 0.40 | at or above 0.5, 0.60 | not supported |
+| P4 | supported, 1,065 of 1,065 pairs | supported, 1,130 of 1,130 | supported, 1,110 of 1,110 | supported |
+
+- P3 "not supported" is, by the interpretation note above, the more informative outcome. On
+  two of three devices, the 30-day `readout_error` ordering of the footprint has tau-b at or
+  above 0.5, which a uniformly random ordering of 5 untied qubits reaches with probability
+  14/120. It rests on one time pair per device.
+- None of the spreads separates physical change from provider estimation noise (D27). The
+  maximum-to-minimum ratios are dominated by minima near zero (sparse `init_error` ratios up to
+  9.6e+48), so CV and `d / m` are the robust figures.
+- Exploratory, not pre-registered: `T1`, `T2`, `sx` and `cz` are re-measured about daily, while
+  `readout_error`, `prob_meas*` and `init_error` are re-measured every 1.3 to 4.9 h on most
+  series (D25). `measure` `gate_error` has the same statistics as `readout_error` on every
+  footprint series (D22). `cz(a,b)` and `cz(b,a)` have the same statistics. `init_error` is
+  present on only 16 of 73 sparse documents (16 of 71 on `ibm_kingston`). One `ibm_kingston`
+  sparse lookup returned a document 166.8 h older than its requested time.
+
+**Decision.** M1.5d is done, and with it M1.5.
 
 ## Consequences
 
