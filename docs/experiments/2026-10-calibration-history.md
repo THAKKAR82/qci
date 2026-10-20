@@ -740,7 +740,7 @@ limits apply:
 
 **Independent re-fetch check (2026-10-20).** One day after the original collection, the user
 re-fetched the sparse sets for `ibm_fez`, `ibm_kingston` and `ibm_marrakesh` independently,
-from `main`, into a separate, freshly created store (`~/qci-refetch`), with
+from `main` at commit `7faf598`, into a separate, freshly created store (`~/qci-refetch`), with
 `qci snapshot backfill --days 365 --step-hours 120`. The dense sets were not re-fetched. On
 that day the sparse grid is unchanged (`E_s` is still 2026-10-19), so the re-fetch requested
 the same 73 grid times per device. Verifying the committed manifest against that store gave:
@@ -757,7 +757,7 @@ rows: 726; present 225, missing 501, differs 0
   re-fetched, so they are missing by design. Nothing is known about them from this check.
 - **Differs: 0.** Every row the re-fetch covers has a lookup with the manifest's content hash.
 
-The two stores' SHA-256 hashes differ (`bd85c39c...` for `~/qci-refetch` versus
+The two stores' SHA-256 hashes differ (`bd85c39ce884d68b38898457cb942fd13a9c9a32a7a6861925543281c40308dc` for `~/qci-refetch` versus
 `9be8d4bd...` for the archive). A fresh store assigns new snapshot and capture IDs, so equal
 store files are not expected. `verify` compares content hashes per grid time, not store files
 or IDs.
