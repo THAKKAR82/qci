@@ -10,7 +10,7 @@ website in site/ is outside the product and its gates.
 ## Commands
 
 ```bash
-python3.13 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+python3.13 -m venv .venv && .venv/bin/pip install -e '.[ibm,dev]'
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy --strict src tests scripts
 MYPYPATH=src:experiments/repeated_sampling:experiments/calibration_history .venv/bin/mypy --strict experiments
@@ -96,7 +96,10 @@ Work is delivered in small, reviewed steps. For every step:
    git provenance with `dirty=false`.
 7. Do not weaken, skip, xfail or delete an existing test to make a gate pass. If an existing
    test must change because a spec changed, say which test and why.
-8. Commit on the branch with a conventional commit message. Never push, merge or rebase `main`.
+8. Commit on the branch with a conventional commit message. Every commit carries a
+   `Signed-off-by:` line (Developer Certificate of Origin 1.1, `CONTRIBUTING.md`): use
+   `git commit -s`, including for commits made through Claude Code. Never push, merge or
+   rebase `main`.
 9. Stop and print a report with exactly these headings: Summary / Files changed / Design
    decisions / Deviations from PLAN.md / Gate results / Manual verification commands / Open
    questions. Manual verification commands are run in zsh (the macOS default), so write them

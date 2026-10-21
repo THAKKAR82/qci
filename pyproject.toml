@@ -1,39 +1,71 @@
 [build-system]
-requires = ["hatchling>=1.25"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "qci"
-version = "0.0.1"
+name = "bloq-qci"
+dynamic = ["version"]
 description = "Vendor-neutral reliability and execution intelligence for quantum workloads (V1: Quantum CI)."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.12,<3",
     "typer>=0.20",
     "sqlalchemy>=2.0,<3",
     # Seeded resampling for the TVD sampling floor (qci/compare/sampling.py).
     "numpy>=2,<3",
-    "qiskit>=2.5,<3",
-    "qiskit-ibm-runtime>=0.50",
-    "qiskit-aer>=0.17",
     # OpenQASM 3 reference parser (vendor-neutral). Its AST API is an external compatibility
     # boundary isolated in qci/compare/footprint.py; see docs/adr/0004.
     "openqasm3[parser]>=1.0.1,<2",
 ]
 
 [project.optional-dependencies]
+# Provider SDKs: needed by qci run, snapshot capture, snapshot backfill and snapshot export
+# (ADR 0009, section 2). qiskit-ibm-runtime is capped at the minor version whose behavior was
+# verified; raising the cap is a reviewed step.
+ibm = [
+    "qiskit>=2.5,<3",
+    "qiskit-ibm-runtime>=0.50,<0.51",
+    "qiskit-aer>=0.17",
+]
 dev = [
     "pytest>=8.4",
     "ruff>=0.12",
     "mypy>=1.17",
+    "build",
+    "hatchling>=1.27",
 ]
 
 [project.scripts]
 qci = "qci.cli.app:main"
 
+[tool.hatch.version]
+path = "src/qci/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/qci"]
+
+# An allow-list (ADR 0009, section 1): a new top-level file or directory stays out of the
+# sdist unless it is added here on purpose. tests/test_distribution_contents.py checks both
+# archives.
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "pyproject.toml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "AUTHORS",
+    "src/qci",
+]
 
 [tool.ruff]
 line-length = 100

@@ -1,0 +1,7 @@
+The QCI Authors are the authors of the commits in this project's git history.
+
+To list them, run in a clone of the repository:
+
+    git shortlog -sne
+
+This file names no one, so it never goes out of date.

@@ -125,3 +125,14 @@ def test_collect_environment_reports_requested_packages() -> None:
         env.config_hash
         == collect_environment(["pydantic", "definitely-not-installed-pkg"]).config_hash
     )
+
+
+def test_environment_records_the_bloq_qci_version_under_the_key_qci() -> None:
+    from importlib import metadata
+
+    import qci
+    from qci.provenance.environment import collect_environment
+
+    env = collect_environment(())
+    assert list(env.packages) == ["qci"]
+    assert env.packages["qci"] == metadata.version("bloq-qci") == qci.__version__

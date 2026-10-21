@@ -11,7 +11,6 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from importlib import metadata
 from typing import Any, Protocol
 
 from pydantic import JsonValue
@@ -28,6 +27,7 @@ from qci.adapters.qiskit_ibm.redact import redact_payload
 from qci.core.errors import CaptureRejectedError
 from qci.core.ports import CapturedCalibration
 from qci.domain.backend import SnapshotSource
+from qci.provenance.environment import package_version
 
 DEFAULT_ACCOUNT = "default-ibm-quantum-platform"
 ENVIRONMENT_PACKAGES = ("qci", "qiskit", "qiskit-ibm-runtime")
@@ -80,15 +80,8 @@ def utc_datetimes(value: Any) -> Any:
     return value
 
 
-def _version(distribution: str) -> str:
-    try:
-        return metadata.version(distribution)
-    except metadata.PackageNotFoundError:
-        return "not installed"
-
-
 def capture_environment() -> dict[str, str]:
-    return {name: _version(name) for name in ENVIRONMENT_PACKAGES}
+    return {name: package_version(name) or "not installed" for name in ENVIRONMENT_PACKAGES}
 
 
 def build_captured_calibration(
