@@ -166,5 +166,5 @@ def test_missing_workload_records_nothing(runner: CliRunner, tmp_path: Path) -> 
 
 
 def test_show_unknown_run_fails(runner: CliRunner) -> None:
-    result = runner.invoke(app, ["show", "NOPE"])
+    result = runner.invoke(app, ["show", "NOPE0000000000000000000000"])
     assert result.exit_code == 1

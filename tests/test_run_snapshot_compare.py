@@ -847,7 +847,7 @@ def test_cli_json_is_deterministic_and_nothing_is_persisted(store: Path) -> None
 def test_cli_unknown_ids_exit_1(store: Path) -> None:
     run_id = fake_fez_run().run_id
     before = (store / "qci.db").read_bytes()
-    for args in (("NOPE", "LIVE"), (run_id, "NOPE")):
+    for args in (("NOPE0000000000000000000000", "LIVE"), (run_id, "NOPE0000000000000000000000")):
         result = CliRunner().invoke(app, ["snapshot", "compare-run", *args])
         assert result.exit_code == 1
         assert "error:" in result.stderr
@@ -857,7 +857,9 @@ def test_cli_unknown_ids_exit_1(store: Path) -> None:
 def test_cli_never_creates_a_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "absent"
     monkeypatch.setenv("QCI_HOME", str(home))
-    result = CliRunner().invoke(app, ["snapshot", "compare-run", "RUN", "SNAP"])
+    result = CliRunner().invoke(
+        app, ["snapshot", "compare-run", "RUN00000000000000000000000", "SNAP0000000000000000000000"]
+    )
     assert result.exit_code == 1
     assert not home.exists()
 

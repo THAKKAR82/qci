@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -23,6 +24,14 @@ from qci.core.errors import (
     SnapshotNotFoundError,
     TooManyRequestsError,
     WorkloadLoadError,
+)
+from qci.core.selectors import (
+    Entry,
+    Kind,
+    SelectorAmbiguousError,
+    SelectorNotFoundError,
+    SelectorUsageError,
+    resolve,
 )
 from qci.domain.circuit import CircuitSummary, CompileConfig
 from qci.domain.comparison import ObservableSpec
@@ -95,6 +104,56 @@ def _require_ibm_extra() -> None:
     if missing_sdk_modules():
         typer.echo(f"error: {EXTRA_MESSAGE}", err=True)
         raise typer.Exit(code=2)
+
+
+def _calibration_stamp(value: datetime | None) -> str | None:
+    """A fixed-width UTC string, so stamps order as text in the same order as in time."""
+    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f") if value else None
+
+
+def _run_entries(repository: SqliteRunRepository) -> list[Entry]:
+    return [(item.run_id, item.backend_name, item.run_id) for item in repository.list_runs()]
+
+
+def _snapshot_entries(repository: SqliteSnapshotRepository) -> list[Entry]:
+    return [
+        (item.snapshot_id, item.backend_name, _calibration_stamp(item.calibrated_at))
+        for item in repository.list_snapshots()
+    ]
+
+
+def _select(selector: str, entries: list[Entry], kind: Kind, role: str) -> str:
+    """Resolve a selector (ADR 0009, section 5). Prints ``role: selector -> ID`` on stderr
+    when the argument was not the ID itself; stdout is never touched."""
+    try:
+        chosen = resolve(selector, entries, kind)
+    except SelectorUsageError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except (SelectorNotFoundError, SelectorAmbiguousError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    if chosen != selector:
+        typer.echo(f"{role}: {selector} -> {chosen}", err=True)
+    return chosen
+
+
+def _select_run(repository: SqliteRunRepository, selector: str, role: str) -> str:
+    return _select(selector, _run_entries(repository), "run", role)
+
+
+def _select_snapshot(repository: SqliteSnapshotRepository, selector: str, role: str) -> str:
+    return _select(selector, _snapshot_entries(repository), "snapshot", role)
+
+
+RUN_SELECTOR = (
+    "a run ID, a unique ID prefix of 8 or more characters, or [BACKEND:]latest[~N] "
+    "(latest is the newest run, latest~1 the one before)"
+)
+SNAPSHOT_SELECTOR = (
+    "a snapshot ID, a unique ID prefix of 8 or more characters, or BACKEND:latest[~N] "
+    "(by calibrated_at: the newest calibration, then the one before)"
+)
 
 
 snapshot_app = typer.Typer(
@@ -355,8 +414,11 @@ def render_run(r: Run) -> str:
 
 @app.command()
 def compare(
-    baseline: Annotated[str, typer.Argument(help="Baseline run ID (the reference).")],
-    candidate: Annotated[str, typer.Argument(help="Candidate run ID (compared against baseline).")],
+    baseline: Annotated[str, typer.Argument(help=f"Baseline run (the reference): {RUN_SELECTOR}.")],
+    candidate: Annotated[
+        str,
+        typer.Argument(help="Candidate run (compared against baseline), selected the same way."),
+    ],
     as_json: Annotated[
         bool, typer.Option("--json", help="Print the full comparison as JSON.")
     ] = False,
@@ -383,6 +445,8 @@ def compare(
 
     repository = _repository(read_only=True)
     try:
+        baseline = _select_run(repository, baseline, "baseline")
+        candidate = _select_run(repository, candidate, "candidate")
         result = CompareService(
             repository, {PROVIDER_ID: IbmPropertiesCalibrationReader()}
         ).compare(baseline, candidate, specs)
@@ -399,13 +463,13 @@ def compare(
 
 @app.command()
 def show(
-    run_id: Annotated[str, typer.Argument(help="Run ID.")],
+    run_id: Annotated[str, typer.Argument(help=f"The run: {RUN_SELECTOR}.")],
     as_json: Annotated[bool, typer.Option("--json", help="Print the full record as JSON.")] = False,
 ) -> None:
     """Display a persisted run."""
     repository = _repository(read_only=True)
     try:
-        record = repository.get(run_id)
+        record = repository.get(_select_run(repository, run_id, "run"))
     except RunNotFoundError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -670,12 +734,13 @@ def render_snapshot(
 
 @snapshot_app.command("show")
 def snapshot_show(
-    snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID.")],
+    snapshot_id: Annotated[str, typer.Argument(help=f"The snapshot: {SNAPSHOT_SELECTOR}.")],
     as_json: Annotated[bool, typer.Option("--json", help="Print the full record as JSON.")] = False,
 ) -> None:
     """Display a stored calibration snapshot."""
     repository = _snapshot_repository(read_only=True)
     try:
+        snapshot_id = _select_snapshot(repository, snapshot_id, "snapshot")
         snap = repository.get(snapshot_id)
         captures = repository.captures(snapshot_id)
         measurement_count = len(repository.measurements(snapshot_id))
@@ -693,7 +758,7 @@ def snapshot_show(
 
 @snapshot_app.command("export")
 def snapshot_export(
-    snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID.")],
+    snapshot_id: Annotated[str, typer.Argument(help=f"The snapshot: {SNAPSHOT_SELECTOR}.")],
     fixture: Annotated[Path, typer.Option(help="Path of the fixture JSON file to write.")],
     account: AccountOption = ibm_live.DEFAULT_ACCOUNT,
 ) -> None:
@@ -716,6 +781,7 @@ def snapshot_export(
         raise typer.Exit(code=1) from exc
     repository = _snapshot_repository(read_only=True)
     try:
+        snapshot_id = _select_snapshot(repository, snapshot_id, "snapshot")
         text = SnapshotService(repository).export_fixture(
             snapshot_id, redact=redact_payload, secrets=secrets
         )
@@ -731,13 +797,15 @@ def snapshot_export(
 
 @snapshot_app.command("compare")
 def snapshot_compare(
-    baseline: Annotated[str, typer.Argument(help="Baseline snapshot ID (the reference).")],
-    candidate: Annotated[str, typer.Argument(help="Candidate snapshot ID.")],
+    baseline: Annotated[
+        str, typer.Argument(help=f"Baseline snapshot (the reference): {SNAPSHOT_SELECTOR}.")
+    ],
+    candidate: Annotated[str, typer.Argument(help="Candidate snapshot, selected the same way.")],
     footprint_run: Annotated[
         str,
         typer.Option(
             help="Run whose physical footprint selects the resources to compare. The run is "
-            "not compared with either snapshot."
+            f"not compared with either snapshot. {RUN_SELECTOR[0].upper()}{RUN_SELECTOR[1:]}."
         ),
     ],
     allow_footprint_backend_mismatch: Annotated[
@@ -768,6 +836,9 @@ def snapshot_compare(
         runs.close()
         raise
     try:
+        baseline = _select_snapshot(snapshots_repo, baseline, "baseline")
+        candidate = _select_snapshot(snapshots_repo, candidate, "candidate")
+        footprint_run = _select_run(runs, footprint_run, "footprint run")
         result = SnapshotCompareService(
             runs, snapshots_repo, {PROVIDER_ID: snapshot_comparison_support()}
         ).compare(
@@ -788,12 +859,16 @@ def snapshot_compare(
 @snapshot_app.command("compare-run")
 def snapshot_compare_run(
     run_id: Annotated[
-        str, typer.Argument(help="Baseline: a stored run on a fake backend (the reference).")
+        str,
+        typer.Argument(
+            help=f"Baseline: a stored run on a fake backend (the reference); {RUN_SELECTOR}."
+        ),
     ],
     snapshot_id: Annotated[
         str,
         typer.Argument(
-            help="Candidate: a stored live snapshot of the device the fake was built from."
+            help="Candidate: a stored live snapshot of the device the fake was built from; "
+            f"{SNAPSHOT_SELECTOR}."
         ),
     ],
     as_json: Annotated[
@@ -818,6 +893,8 @@ def snapshot_compare_run(
         runs.close()
         raise
     try:
+        run_id = _select_run(runs, run_id, "run")
+        snapshot_id = _select_snapshot(snapshots_repo, snapshot_id, "snapshot")
         result = RunSnapshotCompareService(
             runs, snapshots_repo, {PROVIDER_ID: run_snapshot_comparison_support()}
         ).compare(run_id, snapshot_id)

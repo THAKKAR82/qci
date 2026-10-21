@@ -27,16 +27,21 @@ from qci.storage.snapshots import SqliteSnapshotRepository
 from qci.storage.sqlite import SqliteRunRepository
 from snapshot_stubs import CALIBRATED, captured
 
+# Unknown 26-character IDs: a shorter text that is not a stored ID is a malformed selector,
+# a usage error (ADR 0009, section 5).
+NOPE = "NOPE" + "0" * 22
+NOPE2 = "NOPE2" + "0" * 21
+
 # Each read-only snapshot command, with its expected exit code against a store that has no
 # snapshot tables.
 COMMANDS: list[tuple[list[str], int]] = [
     (["snapshots"], 0),
     (["snapshots", "--backend", "ibm_fez"], 0),
-    (["snapshot", "show", "NOPE"], 1),
-    (["snapshot", "show", "NOPE", "--json"], 1),
-    (["snapshot", "export", "NOPE", "--fixture", "OUT"], 1),
-    (["snapshot", "compare", "NOPE", "NOPE2", "--footprint-run", "RUN"], 1),
-    (["snapshot", "compare", "NOPE", "NOPE2", "--footprint-run", "RUN", "--json"], 1),
+    (["snapshot", "show", NOPE], 1),
+    (["snapshot", "show", NOPE, "--json"], 1),
+    (["snapshot", "export", NOPE, "--fixture", "OUT"], 1),
+    (["snapshot", "compare", NOPE, NOPE2, "--footprint-run", "RUN"], 1),
+    (["snapshot", "compare", NOPE, NOPE2, "--footprint-run", "RUN", "--json"], 1),
 ]
 
 
@@ -79,7 +84,7 @@ def test_read_only_snapshot_commands_leave_a_runs_only_store_byte_identical(
     if args[0] == "snapshots":
         assert out.strip() == "No snapshots recorded yet."
     else:
-        assert "error: no snapshot with id 'NOPE'" in err
+        assert f"error: no snapshot with id {NOPE!r}" in err
 
 
 @pytest.mark.parametrize(("args", "code"), COMMANDS, ids=lambda v: str(v))
@@ -124,10 +129,10 @@ def _save_snapshot(db: Path, snapshot_id: str = "SNAP") -> CalibrationSnapshot:
 # Each read-only run command, with its expected exit code against a store without runs.
 RUN_COMMANDS: list[tuple[list[str], int]] = [
     (["runs"], 0),
-    (["show", "NOPE"], 1),
-    (["show", "NOPE", "--json"], 1),
-    (["compare", "NOPE", "NOPE2"], 1),
-    (["compare", "NOPE", "NOPE2", "--json"], 1),
+    (["show", NOPE], 1),
+    (["show", NOPE, "--json"], 1),
+    (["compare", NOPE, NOPE2], 1),
+    (["compare", NOPE, NOPE2, "--json"], 1),
 ]
 
 
@@ -148,7 +153,7 @@ def test_read_only_run_commands_leave_a_snapshots_only_store_byte_identical(
     if args[0] == "runs":
         assert out.strip() == "No runs recorded yet."
     else:
-        assert "error: no run with id 'NOPE'" in err
+        assert f"error: no run with id {NOPE!r}" in err
 
 
 @pytest.mark.parametrize(("args", "code"), RUN_COMMANDS, ids=lambda v: str(v))
@@ -189,9 +194,9 @@ def test_snapshot_compare_on_a_snapshots_only_store_reports_the_unknown_run(
     snapshot = _save_snapshot(db)
     before = db.read_bytes()
     args = ["snapshot", "compare", snapshot.snapshot_id, snapshot.snapshot_id]
-    exit_code, _, err = _invoke([*args, "--footprint-run", "RUN"], tmp_path)
+    exit_code, _, err = _invoke([*args, "--footprint-run", "RUN00000000000000000000000"], tmp_path)
     assert exit_code == 1
-    assert "error: no run with id 'RUN'" in err
+    assert "error: no run with id 'RUN00000000000000000000000'" in err
     assert db.read_bytes() == before
     assert "runs" not in _tables(db)
 

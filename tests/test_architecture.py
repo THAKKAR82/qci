@@ -72,3 +72,10 @@ def test_importing_neutral_layers_does_not_load_qiskit() -> None:
         env=env,
     )
     assert out.stdout.strip() == "[]"
+
+
+def test_selectors_are_pure() -> None:
+    """Selector resolution has no SQL and no provider import (ADR 0009, section 5)."""
+    imported = _imported_modules(SRC / "core" / "selectors.py")
+    assert {m.split(".")[0] for m in imported} <= {"re", "collections", "typing", "qci"}
+    assert {m for m in imported if m.startswith("qci")} == {"qci.core.errors"}

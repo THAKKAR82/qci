@@ -119,7 +119,7 @@ def test_show_json_validates_as_calibration_snapshot(store: Path, factory: StubF
     assert text.exit_code == 0
     assert "source:         live_calibration" in text.stdout
     assert "captures:       1" in text.stdout
-    missing = runner.invoke(app, ["snapshot", "show", "NOPE"])
+    missing = runner.invoke(app, ["snapshot", "show", "NOPE0000000000000000000000"])
     assert missing.exit_code == 1
 
 

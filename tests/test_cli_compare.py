@@ -160,7 +160,12 @@ def test_compare_against_failed_run(runner: CliRunner) -> None:
 
 
 def test_unknown_run_exits_nonzero(runner: CliRunner) -> None:
-    assert runner.invoke(app, ["compare", "NOPE", "NOPE2"]).exit_code == 1
+    assert (
+        runner.invoke(
+            app, ["compare", "NOPE0000000000000000000000", "NOPE2000000000000000000000"]
+        ).exit_code
+        == 1
+    )
 
 
 def test_observable_json_is_byte_identical_and_rendered(runner: CliRunner) -> None:

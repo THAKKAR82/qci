@@ -525,8 +525,8 @@ def test_cli_rendering_of_every_exit_uses_neutral_wording(store: Path) -> None:
 
 def test_cli_unknown_ids_exit_1(store: Path) -> None:
     for args in (
-        ("NOPE", "FEZ-B", "--footprint-run", "FAKEFEZRUN"),
-        ("FEZ-A", "FEZ-B", "--footprint-run", "NOPE"),
+        ("NOPE0000000000000000000000", "FEZ-B", "--footprint-run", "FAKEFEZRUN"),
+        ("FEZ-A", "FEZ-B", "--footprint-run", "NOPE0000000000000000000000"),
     ):
         result = CliRunner().invoke(app, ["snapshot", "compare", *args])
         assert result.exit_code == 1
