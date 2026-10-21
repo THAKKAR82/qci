@@ -1044,7 +1044,7 @@ Docs:
       and no relative link (checked by a test). A test runs the quickstart's offline commands,
       extracted from `README.md`, in a temporary store. Developer material is in
       `CONTRIBUTING.md` or `docs/`, and the landing-page section in `site/README.md`. The
-      README passes the neutral-wording check in full.
+      README has no hit in the neutral-wording check, over the whole file.
 - [x] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
       per-user store, `QCI_HOME`, the extras, `qci where`, `qci doctor`, selectors, the
       summary and `--verbose`, and the exit-code rows for the extra check, `qci doctor`,

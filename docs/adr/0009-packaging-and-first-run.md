@@ -687,7 +687,7 @@ Docs:
       and no relative link (checked by a test). A test runs the quickstart's offline commands,
       extracted from `README.md`, in a temporary store. Developer material is in
       `CONTRIBUTING.md` or `docs/`, and the landing-page section in `site/README.md`. The
-      README passes the neutral-wording check in full.
+      README has no hit in the neutral-wording check, over the whole file.
 - [x] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
       per-user store, `QCI_HOME`, the extras, `qci where`, `qci doctor`, selectors, the
       summary and `--verbose`, and the exit-code rows for the extra check, `qci doctor`,
@@ -780,8 +780,8 @@ Found while implementing R1b, offline, with `hatchling` 1.32.4, `build` 1.6.1 an
   reports the fixture's text in any file, as the scanner self-test shows, and check 4 still
   reports compact payloads. The patterns are kept as written; widening them (for example
   `\{\s*"\$datetime"`) is an open question for review.
-- **Short unknown IDs.** CLI tests that passed short unknown IDs (`NOPE`, `RUN`, `SNAP`) and
-  expected exit 1 now pass 26-character unknown IDs, as the selector grammar makes short text
+- **Short unknown IDs.** CLI tests that gave short unknown IDs (`NOPE`, `RUN`, `SNAP`) and
+  expected exit 1 now give 26-character unknown IDs, as the selector grammar makes short text
   that is not a stored ID a usage error (user decision, 2026-10-20).
 
 ## Consequences

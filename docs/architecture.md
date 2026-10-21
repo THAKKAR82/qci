@@ -160,7 +160,7 @@ presentation only: comparison rules, record schemas and JSON output are unchange
   extra, the saved account (by name only), and the health of the store `qci where` names, for
   runs and snapshots separately, plus a legacy `./.qci` store as a note. Stores are summarized
   read-only (`run_store_summary`, `snapshot_store_summary`, SQLite `mode=ro`). The account
-  check calls `AccountManager.list()` only when the account file exists, because `list()`
+  check calls `AccountManager.list()` only when the account file exists, since `list()`
   creates an empty file when there is none; it uses only the returned names, and on an error
   prints only the exception type. All inputs are injected (`DoctorInputs`).
 - **Selectors** (`core/selectors.py`). `ID | PREFIX | [BACKEND:]latest[~N]`, resolved by a pure
