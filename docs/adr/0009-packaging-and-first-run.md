@@ -1,10 +1,15 @@
 # ADR 0009: Packaging and first-run usability
 
-- **Status:** Proposed
-- **Date:** 2026-10-20 (proposed)
+- **Status:** Accepted (2026-10-20), with the user's answers to six review questions: the
+  copyright holder is "The QCI Authors" (section 1); license agreements are recorded as pull
+  request comments and future contributions use the Developer Certificate of Origin
+  (section 1); the repository is private until D29 is resolved (sections 8 and 9); the README
+  is self-contained for PyPI (section 7); the `qiskit-ibm-runtime` cap stands for 0.1.0
+  (section 2); and stale docs are updated in R1b. Acceptance criteria are in section 10.
+- **Date:** 2026-10-20 (proposed), 2026-10-20 (accepted)
 - **Milestone:** R1, release 1 (`PLAN.md`). This ADR is R1a. R1b implements it, R1c is the
   clean-machine install test and the TestPyPI release, and R1d is the PyPI release.
-- **Resolves (when accepted):** D5 in `PLAN.md` (project-local or user-global store).
+- **Resolves:** D5 in `PLAN.md` (project-local or user-global store), once R1b ships it.
 
 ## Context
 
@@ -88,7 +93,10 @@ the Apache-2.0 text as `LICENSE` and a `NOTICE`:
 
 ```
 QCI (bloq-qci)
-Copyright 2026 <copyright holder, to be confirmed by the user>
+Copyright 2026 The QCI Authors
+
+The QCI Authors are the people recorded as commit authors in this project's git history
+(see AUTHORS).
 
 Data from IBM Quantum under tests/fixtures/ is not licensed by this project. It is
 provided by IBM under IBM's own terms, and it is not included in any built package.
@@ -97,11 +105,23 @@ The website in site/ is not covered by the LICENSE file until each of its author
 agreed to license it under Apache-2.0.
 ```
 
+`AUTHORS` is a short file that says the same: the authors are the commit authors in the
+git history, which `git shortlog -sne` lists. It names no one itself, so it never goes out of
+date.
+
 Licensing needs the agreement of every contributor whose work the license covers: the
 `site/` authors (Mit Thakkar and `toorha`) for `site/`, and `dhruvhptl` for the parts of
-`README.md`, `AGENTS.md` and `tests/test_architecture.py` they wrote. Until `toorha` and
-`dhruvhptl` agree, the NOTICE excludes `site/`, and the R1d gate below holds the release.
+`README.md`, `AGENTS.md` and `tests/test_architecture.py` they wrote. **Recording (accepted
+2026-10-20):** `toorha` and `dhruvhptl` each comment on the pull request that adds `LICENSE`:
+"I agree to license my contributions to this repository under the Apache License 2.0." Until
+both comments exist, the NOTICE keeps its `site/` exclusion, and R1d stays gated on both.
 `site/` is outside every built package regardless.
+
+**Future contributions** use the Developer Certificate of Origin 1.1: every commit carries a
+`Signed-off-by: Name <email>` line (`git commit -s`). `CONTRIBUTING.md` states this, with the
+DCO text, and `CLAUDE.md`'s step workflow requires it, including for commits made through
+Claude Code. Both land with `LICENSE` in R1b, and R1b's own commits carry the line from its
+first commit on.
 
 **Python versions.** `requires-python = ">=3.12"`, unchanged, with no upper bound. The tested
 versions are 3.12 and 3.13: classifiers name exactly these, R1c installs on both, and
@@ -113,8 +133,11 @@ versions are 3.12 and 3.13: classifiers name exactly these, R1c installs on both
 - `bloq_qci-0.1.0.dist-info/` with `METADATA`, `WHEEL`, `RECORD`, `entry_points.txt`,
   `licenses/LICENSE` and `licenses/NOTICE`.
 
+**Project URLs.** None in 0.1.0: the repository is private until D29 is resolved, so the
+metadata has no `[project.urls]` until its visibility is settled.
+
 **sdist contents.** Exactly `pyproject.toml`, `README.md`, `CHANGELOG.md`, `LICENSE`,
-`NOTICE`, `PKG-INFO`, `src/qci/**/*.py` and `src/qci/py.typed`, set with hatchling's
+`NOTICE`, `AUTHORS`, `PKG-INFO`, `src/qci/**/*.py` and `src/qci/py.typed`, set with hatchling's
 `[tool.hatch.build.targets.sdist] only-include`. An allow-list, not an exclude list: a new
 top-level file or directory stays out unless it is added on purpose.
 
@@ -155,8 +178,9 @@ The architecture allows a core install (Findings), so:
 
 `qiskit-ibm-runtime` gets an upper bound at the verified minor version: the snapshot,
 backfill, account and fake-backend code relies on behavior read from the 0.50.0 source
-(ADR 0005, ADR 0008), which a minor release can change. Raising the bound is a reviewed step
-that re-reads that source. `numpy` and `openqasm3` stay in core: the comparisons need them.
+(ADR 0005, ADR 0008), which a minor release can change. Accepted for 0.1.0. Raising the bound
+is a reviewed step that checks each new version against that behavior: historical requests,
+account handling, logging and redaction (backlog in `PLAN.md`). `numpy` and `openqasm3` stay in core: the comparisons need them.
 
 **Without the `ibm` extra**, these work: `qci runs`, `qci show`, `qci compare`,
 `qci snapshots`, `qci snapshot show`, `qci snapshot compare`, `qci snapshot compare-run`,
@@ -375,6 +399,17 @@ R1b replaces the README's "Quick start" with this, and moves the developer insta
 "Development" section. The offline part needs no IBM account and no network after the
 install.
 
+**Self-contained for PyPI (accepted 2026-10-20).** The README is the package's long
+description, so it must read completely on PyPI, where links into the repository do not
+resolve. It carries inline: the quickstart below; what `qci compare` reports and the two
+terms that need care (a changed result distribution, relevant hardware); observables and the
+bit order; the extras and what works without `ibm`; the store location, `QCI_HOME`,
+`qci where` and the `./.qci` note; selectors; the saved-account prerequisite and what
+`capture`, `backfill` and `compare-run` do; and the D29 note that backfilled data stays
+local. It has no relative link. Whether it gains absolute links to the repository is decided
+when the repository's visibility is settled; until then it names `PLAN.md`, `docs/` and the
+ADRs as files in the source repository, without links.
+
 ````markdown
 ## Quickstart (about five minutes)
 
@@ -471,10 +506,12 @@ qci snapshot compare-run latest ibm_fez:latest
      `bloq-qci` can be picked.
   R1c records the machine, the OS and Python versions, the wheel hash, the outputs, and
   whether the hidden `.pth` problem appeared, in this ADR's Findings.
-- **PyPI (R1d).** Gate: D29 is reviewed for a public release (section 9), the copyright
-  holder is named, and every contributor's license agreement (section 1) is recorded. Then
-  the user tags `v0.1.0`, uploads the two files whose hashes R1c recorded, and repeats the
-  quickstart's offline steps from PyPI in a fresh environment.
+- **PyPI (R1d).** Gate: D29 is resolved for a public release (section 9), and both license
+  agreement comments (section 1) are recorded. The repository stays private until D29 is
+  resolved. Then the user tags `v0.1.0`, uploads the two files whose hashes R1c recorded,
+  and repeats the quickstart's offline steps from PyPI in a fresh environment. A packaged
+  file that changes after R1c (for example README links once visibility is settled) means a
+  new build, and R1c is repeated on it before R1d.
 
 ### 9. Out of scope for R1
 
@@ -484,10 +521,176 @@ qci snapshot compare-run latest ibm_fez:latest
   hosted store. Only `qci snapshot capture` and `qci snapshot backfill` use the network.
 - Any redistribution of IBM data: no IBM calibration document, fixture, backfilled value,
   store or manifest in any package, and no change to D29's limits. The repository's
-  committed `ibm_fez` fixture is outside the packages; whether a public repository may hold
-  it is part of the D29 review that gates R1d.
+  committed `ibm_fez` fixture is outside the packages; the repository is made private until
+  D29 is resolved, and whether a public repository may hold the fixture is part of that
+  review. A mitigating fact, not a resolution: Qiskit's own fake backends distribute
+  equivalent IBM calibration snapshots under Apache-2.0.
 - New providers, a Windows-specific installer, conda packages, and a `qci` example command
   (the quickstart writes the workload file instead).
+
+### 10. Acceptance criteria
+
+#### R1b acceptance criteria (approved 2026-10-20)
+
+Commit order and provenance:
+
+- [ ] The first R1b commit changes no file under `src/` and adds the CLI-level golden files
+      of section 6 (`--json` and text, for `qci compare` over the runs of the 13
+      service-level cases, and for `qci snapshot compare` and `qci snapshot compare-run` over
+      their existing test cases on the committed fixture), in `tests/golden/cli/`, compared
+      byte for byte. They are green on unmodified `src/`.
+- [ ] Every R1b commit carries a `Signed-off-by:` line (DCO 1.1).
+
+Distribution and license:
+
+- [ ] `pyproject.toml`: name `bloq-qci`; `dynamic = ["version"]` read from
+      `src/qci/__init__.py`, where `__version__ = "0.1.0"`; `license = "Apache-2.0"` and
+      `license-files = ["LICENSE", "NOTICE"]`; build requirement `hatchling>=1.27`;
+      `requires-python = ">=3.12"`; classifiers for Python 3.12 and 3.13 only; no
+      `[project.urls]`; core dependencies, and the `ibm` and `dev` extras, exactly as in
+      section 2, with `qiskit-ibm-runtime>=0.50,<0.51`.
+- [ ] `LICENSE` is the unmodified Apache License 2.0 text. `NOTICE` is the text in section 1,
+      with "Copyright 2026 The QCI Authors". `AUTHORS` says the authors are the commit
+      authors in the git history and names no one.
+- [ ] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
+      asks for `git commit -s`. `CLAUDE.md`'s step workflow requires a `Signed-off-by:` line
+      on every commit, including commits made through Claude Code.
+- [ ] `src/qci/py.typed` exists and is in the wheel.
+- [ ] `provenance/environment.py` reads the version of the distribution `bloq-qci` and
+      records it under the package key `qci`; a test shows the key and a non-null version
+      with the package installed.
+- [ ] `tests/test_distribution_contents.py` builds the sdist and the wheel from that sdist
+      with `python -m build --no-isolation` into a temporary directory, and reports every
+      member that meets any of the five conditions of section 1; no member does. The wheel
+      and the sdist hold exactly the allow-listed members. A scanner self-test reports a
+      synthetic archive holding `ibm_fez.json` under `tests/fixtures/`, and one holding the
+      fixture's text inside a `.py` file.
+- [ ] The build test writes nothing in the working tree (`git status` is clean afterwards).
+
+Extras:
+
+- [ ] With an import hook that blocks `qiskit`, `qiskit_ibm_runtime` and `qiskit_aer`, in a
+      subprocess over a store prepared in the test session: `qci runs`, `qci show`,
+      `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot compare`,
+      `qci snapshot compare-run`, `qci where` and `qci doctor` print the same stdout and
+      exit with the same code as with the SDKs; `qci run`, `qci snapshot capture`,
+      `qci snapshot backfill` and `qci snapshot export` exit 2 with the message in
+      section 2, before opening the store or loading a workload, and the store bytes are
+      unchanged.
+- [ ] The extra check lives in `adapters/qiskit_ibm/` and uses `importlib.util.find_spec`
+      without importing the SDKs. The architecture test still holds.
+
+Store location:
+
+- [ ] The per-user directory is tested for `darwin`, `win32` with and without
+      `LOCALAPPDATA`, and another platform with `XDG_DATA_HOME` absolute, relative and unset,
+      by patching the platform and environment. `QCI_HOME` overrides it; an empty `QCI_HOME`
+      counts as unset.
+- [ ] Read-only commands on a missing per-user directory create nothing and read an empty
+      store. The first write creates the directory, with mode `0o700` on POSIX.
+- [ ] `qci where` prints exactly the absolute `qci.db` path on stdout, its source and whether
+      the file exists on stderr, opens no store, and exits 0.
+- [ ] The `./.qci` note of section 3 is printed to stderr exactly when `QCI_HOME` is unset and
+      `./.qci/qci.db` is a file in the current directory, by every command that opens a store
+      and by `qci where` and `qci doctor`; never for a parent directory. stdout and exit codes
+      are identical with and without it. The legacy file's bytes and modification time are
+      unchanged after every command.
+
+`qci doctor`:
+
+- [ ] Each check of section 4 has a test for each of its `ok`, `note` and `problem` outcomes,
+      with the account lister and the environment injected.
+- [ ] A stub saved account whose token, instance, URL and channel are sentinel strings: none of
+      them appears in stdout or stderr; the account name does. An unparseable account file
+      prints only the exception type.
+- [ ] Store outcomes `empty`, `healthy` (with schema versions and counts), `damaged` and
+      `other schema version` are each tested, for runs and snapshots separately; the store
+      bytes are unchanged after every case.
+- [ ] Exit 0 with notes only, exit 1 with any `problem`. No IBM client is constructed and no
+      connection is opened (the session guard).
+
+Selectors:
+
+- [ ] `qci/core/selectors.py` is a pure function over `(id, backend, sort_key)` lists with no
+      provider import and no SQL; the architecture test covers it.
+- [ ] Every argument listed in section 5 accepts each form: full ID, unique prefix of 8 to 25
+      characters, `latest`, `latest~N`, and `BACKEND:latest[~N]`. For runs, the order is
+      `run_id` descending and includes every status. For snapshots, it is `calibrated_at`
+      descending, a snapshot without `calibrated_at` is never selected, and `BACKEND:` is
+      required.
+- [ ] Each ambiguity of section 5 (a prefix with two or more matches, a run sharing its
+      millisecond with a neighbor, a snapshot sharing its `calibrated_at` with a neighbor)
+      exits 1, selects nothing and lists the candidates, at most 10 and then a count.
+- [ ] No match exits 1. Each malformed form of section 5 exits 2.
+- [ ] A selector echoes `<role>: <selector> -> <ID>` on stderr. For each command, stdout with a
+      selector is byte-identical to stdout with the full ID it resolved to.
+
+Summary-first output:
+
+- [ ] Default text output of the three commands is the summary of section 6. `--verbose`
+      output is that summary followed by exactly the text golden of the first commit.
+- [ ] `git diff` from the first R1b commit to the last over `tests/golden/` is empty for every
+      JSON file, the 13 service-level ones and the CLI-level ones.
+- [ ] `--json` and `--json --verbose` print identical bytes for every golden case.
+- [ ] Magnitudes: for each parameter name and unit, counts compared and changed, median and
+      largest absolute delta with unit, median and largest relative delta, each largest one
+      naming its resource. Tests cover a baseline of exactly 0 (left out of relative figures,
+      counted as "baseline 0", no infinite value) and `unavailable` and `not_comparable`
+      parameters (counted, never entered as 0).
+- [ ] Each figure is a `Metric` with `EvidenceKind.CALCULATED`, method
+      `qci.summary.magnitude`, version 1, built in `qci/compare/summary.py` from the existing
+      models. `ComparisonPolicy.version` (`qci.compare.v3`) and `ENGINE_VERSION` are
+      unchanged.
+- [ ] The existing neutral-wording tests of the three commands cover the default summary,
+      with the M1.4b word list.
+
+Docs:
+
+- [ ] README is self-contained as in section 7: the quickstart verbatim, the essential
+      explanations inline, a "Development" section with the editable install, and no relative
+      link (checked by a test).
+- [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
+      per-user store, `QCI_HOME`, the extras, `qci where`, `qci doctor`, selectors, the
+      summary and `--verbose`, and the exit-code rows for the extra check, `qci doctor`,
+      selectors and `qci where`. `CHANGELOG.md` exists with an `Unreleased` section describing
+      R1. `PLAN.md` marks D5 resolved.
+- [ ] All gates are clean, and every neutral-wording hit is justified.
+
+#### R1c acceptance criteria (approved 2026-10-20; run by the user)
+
+- [ ] Before any upload: the name `bloq-qci` is unclaimed on PyPI and TestPyPI, and a search of
+      PyPI for distributions shipping a top-level `qci` package is recorded.
+- [ ] `CHANGELOG.md` has its dated `0.1.0` entry and every packaged file is final before the
+      build. The two files are built once with `python -m build` from a clean checkout of the
+      release commit on `main`; the archive test is run over those exact files, and both
+      SHA-256 hashes are recorded.
+- [ ] The clean-machine test of section 8, steps 1 to 3, on Python 3.12 and on 3.13, outside
+      the repository, with `PYTHONPATH` unset and `HOME` a new empty directory: every command
+      and exit code is recorded; `qci where` names a path under that `HOME`; `qci doctor`
+      exits 0 with the account check as a note; the core-only environment reads the store,
+      and `qci run` there exits 2 with the extra message and the store bytes unchanged.
+- [ ] Whether the hidden `.pth` problem appeared is recorded.
+- [ ] The user uploads both files to TestPyPI. Steps 1 and 2 are repeated installing
+      `bloq-qci[ibm]==0.1.0` from TestPyPI with the index options of section 8, and the
+      installed wheel's hash equals the recorded one.
+- [ ] Machine, OS, Python versions, hashes and outputs are recorded in this ADR's Findings. No
+      IBM call is made; the quickstart's optional live part is not part of R1c.
+
+#### R1d acceptance criteria (approved 2026-10-20; run by the user)
+
+- [ ] D29 is resolved for a public release, with the date and the outcome in `PLAN.md`.
+- [ ] The comments by `toorha` and `dhruvhptl` on the pull request that adds `LICENSE`, each
+      stating "I agree to license my contributions to this repository under the Apache
+      License 2.0.", are recorded (pull request and comment links, date) in this ADR's
+      Findings. The NOTICE's `site/` exclusion is then removed in a reviewed step: before
+      R1c's build if both comments exist by then, otherwise later, with a new build and a
+      repeated R1c.
+- [ ] No packaged file changed since R1c's build; otherwise R1c is repeated on the new build.
+- [ ] The user tags `v0.1.0` on the release commit and uploads to PyPI the two files R1c
+      recorded; the hashes PyPI reports equal R1c's.
+- [ ] The quickstart's offline steps, run from PyPI in a fresh environment with an empty
+      `HOME`, give the same exit codes as in R1c, recorded in this ADR's Findings.
+- [ ] `PLAN.md` marks R1 done.
 
 ## Consequences
 

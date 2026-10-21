@@ -1,9 +1,9 @@
 # PLAN
 
-**Current milestone: R1 (release 1: packaging and first-run usability). Current step: R1a
-(design): [ADR 0009](docs/adr/0009-packaging-and-first-run.md) proposed 2026-10-20 on branch
-`docs/r1a-packaging-design`, awaiting review. Next: R1b (implementation), after ADR 0009 is
-accepted.** M1.5 (historical backfill) is done. The M1.5d data manifest and
+**Current milestone: R1 (release 1: packaging and first-run usability). Current step: R1b
+(implementation).** R1a is done: [ADR 0009](docs/adr/0009-packaging-and-first-run.md)
+accepted 2026-10-20 with the user's answers (branch `docs/r1a-packaging-design`).
+M1.5 (historical backfill) is done. The M1.5d data manifest and
 reproducibility check are done (branch `chore/m1.5d-data-manifest`,
 `docs/experiments/2026-10-calibration-history-manifest.csv`; an offline rerun on the
 frozen archive gave identical results). The M1.5d independent re-fetch check is done
@@ -846,19 +846,22 @@ simulations offline within about five minutes, and optionally compares a run wit
 calibration. Packaging, store location and presentation only: comparison rules, record
 schemas and JSON output are unchanged.
 
-Designed in [ADR 0009](docs/adr/0009-packaging-and-first-run.md) (proposed 2026-10-20). Its
-sections resolve:
+Designed in [ADR 0009](docs/adr/0009-packaging-and-first-run.md), accepted 2026-10-20 with
+the user's answers to six review questions. Its sections resolve:
 
 1. **Distribution:** PyPI name `bloq-qci`, import name `qci`, command `qci`, version `0.1.0`
-   single-sourced from `qci.__version__`. Apache-2.0 with `LICENSE`, `NOTICE` and PEP 639
-   metadata; every contributor's agreement is recorded before R1d, and `site/` stays outside
-   the license grant until its authors agree. Python 3.12 or later, tested on 3.12 and 3.13.
+   single-sourced from `qci.__version__`. Apache-2.0 with `LICENSE`, `NOTICE` ("Copyright
+   2026 The QCI Authors", the commit authors in the git history; see `AUTHORS`) and PEP 639
+   metadata. `toorha` and `dhruvhptl` record their agreement as comments on the pull request
+   that adds `LICENSE`; `site/` stays outside the license grant until then. Future
+   contributions use the Developer Certificate of Origin (`Signed-off-by:`), documented in
+   `CONTRIBUTING.md` and `CLAUDE.md`. No project URLs while the repository is private. Python 3.12 or later, tested on 3.12 and 3.13.
    Wheel and sdist contents are explicit allow-lists that exclude `tests/` (including the
    `ibm_fez` fixture), `experiments/`, `docs/`, `site/`, `examples/` and `scripts/`, enforced
    by an archive test that also scans for IBM payloads (D29).
 2. **Extras:** a core install without provider SDKs, which can list, show and compare
    stored runs and snapshots; an `ibm` extra (`qiskit`, `qiskit-ibm-runtime` capped below
-   0.51, `qiskit-aer`) for `run`, `snapshot capture`, `snapshot backfill` and
+   0.51 for 0.1.0, `qiskit-aer`) for `run`, `snapshot capture`, `snapshot backfill` and
    `snapshot export`, which exit 2 without it. Non-editable installs are the documented user
    path, which avoids the macOS hidden `.pth` problem.
 3. **Store:** per user (`~/Library/Application Support/qci` on macOS, `%LOCALAPPDATA%\qci` on
@@ -876,15 +879,16 @@ sections resolve:
    calibration magnitudes (absolute and relative deltas, labeled calculated); `--verbose`
    adds today's full text, byte for byte. JSON and golden files are unchanged, guaranteed by
    CLI-level goldens committed before any `src/` change.
-7. **Quickstart** for the README (text in the ADR).
+7. **Quickstart** for the README (text in the ADR). The README is self-contained for PyPI,
+   with no relative links; absolute links wait until the repository's visibility is settled.
 8. **Release process:** versioning, `CHANGELOG.md`, build once, TestPyPI before PyPI, and the
    clean-machine test.
 9. **Out of scope:** new comparison features, hosted services, any redistribution of IBM data.
 
 Sub-steps, each reviewed separately:
 
-- **R1a: design, ADR 0009 only, no code.** Branch `docs/r1a-packaging-design`. Done when
-  ADR 0009 is accepted.
+- **R1a: design, ADR 0009 only, no code (DONE: ADR 0009 accepted 2026-10-20).** Branch
+  `docs/r1a-packaging-design`.
 - **R1b: implementation,** with offline tests. Branch to be named in the R1b prompt. Commit
   order: CLI-level golden files first, on unmodified `src/` (ADR 0009 section 6); then
   packaging and license; then store location, `qci where` and `qci doctor`; then selectors;
@@ -895,12 +899,171 @@ Sub-steps, each reviewed separately:
   section 8): the built wheel in fresh environments on Python 3.12 and 3.13 with an isolated
   `HOME`, the quickstart's offline steps, a core-only install, then the same from TestPyPI.
   Includes the PyPI name checks. Recorded in ADR 0009 Findings.
-- **R1d: PyPI release,** by the user. Gated on the D29 review for a public release, the
-  copyright holder, and the recorded license agreements. Uploads the exact files R1c tested
+- **R1d: PyPI release,** by the user. Gated on D29 being resolved for a public release (the
+  repository stays private until then) and on both recorded license agreements. Uploads the exact files R1c tested
   (hashes checked) and repeats the offline quickstart from PyPI.
 
-Acceptance criteria for R1b to R1d are drafted at ADR 0009's review and copied here when it is
-accepted.
+### R1b acceptance criteria (approved 2026-10-20; ADR 0009 section 10)
+
+Commit order and provenance:
+
+- [ ] The first R1b commit changes no file under `src/` and adds the CLI-level golden files
+      of section 6 (`--json` and text, for `qci compare` over the runs of the 13
+      service-level cases, and for `qci snapshot compare` and `qci snapshot compare-run` over
+      their existing test cases on the committed fixture), in `tests/golden/cli/`, compared
+      byte for byte. They are green on unmodified `src/`.
+- [ ] Every R1b commit carries a `Signed-off-by:` line (DCO 1.1).
+
+Distribution and license:
+
+- [ ] `pyproject.toml`: name `bloq-qci`; `dynamic = ["version"]` read from
+      `src/qci/__init__.py`, where `__version__ = "0.1.0"`; `license = "Apache-2.0"` and
+      `license-files = ["LICENSE", "NOTICE"]`; build requirement `hatchling>=1.27`;
+      `requires-python = ">=3.12"`; classifiers for Python 3.12 and 3.13 only; no
+      `[project.urls]`; core dependencies, and the `ibm` and `dev` extras, exactly as in
+      section 2, with `qiskit-ibm-runtime>=0.50,<0.51`.
+- [ ] `LICENSE` is the unmodified Apache License 2.0 text. `NOTICE` is the text in section 1,
+      with "Copyright 2026 The QCI Authors". `AUTHORS` says the authors are the commit
+      authors in the git history and names no one.
+- [ ] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
+      asks for `git commit -s`. `CLAUDE.md`'s step workflow requires a `Signed-off-by:` line
+      on every commit, including commits made through Claude Code.
+- [ ] `src/qci/py.typed` exists and is in the wheel.
+- [ ] `provenance/environment.py` reads the version of the distribution `bloq-qci` and
+      records it under the package key `qci`; a test shows the key and a non-null version
+      with the package installed.
+- [ ] `tests/test_distribution_contents.py` builds the sdist and the wheel from that sdist
+      with `python -m build --no-isolation` into a temporary directory, and reports every
+      member that meets any of the five conditions of section 1; no member does. The wheel
+      and the sdist hold exactly the allow-listed members. A scanner self-test reports a
+      synthetic archive holding `ibm_fez.json` under `tests/fixtures/`, and one holding the
+      fixture's text inside a `.py` file.
+- [ ] The build test writes nothing in the working tree (`git status` is clean afterwards).
+
+Extras:
+
+- [ ] With an import hook that blocks `qiskit`, `qiskit_ibm_runtime` and `qiskit_aer`, in a
+      subprocess over a store prepared in the test session: `qci runs`, `qci show`,
+      `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot compare`,
+      `qci snapshot compare-run`, `qci where` and `qci doctor` print the same stdout and
+      exit with the same code as with the SDKs; `qci run`, `qci snapshot capture`,
+      `qci snapshot backfill` and `qci snapshot export` exit 2 with the message in
+      section 2, before opening the store or loading a workload, and the store bytes are
+      unchanged.
+- [ ] The extra check lives in `adapters/qiskit_ibm/` and uses `importlib.util.find_spec`
+      without importing the SDKs. The architecture test still holds.
+
+Store location:
+
+- [ ] The per-user directory is tested for `darwin`, `win32` with and without
+      `LOCALAPPDATA`, and another platform with `XDG_DATA_HOME` absolute, relative and unset,
+      by patching the platform and environment. `QCI_HOME` overrides it; an empty `QCI_HOME`
+      counts as unset.
+- [ ] Read-only commands on a missing per-user directory create nothing and read an empty
+      store. The first write creates the directory, with mode `0o700` on POSIX.
+- [ ] `qci where` prints exactly the absolute `qci.db` path on stdout, its source and whether
+      the file exists on stderr, opens no store, and exits 0.
+- [ ] The `./.qci` note of section 3 is printed to stderr exactly when `QCI_HOME` is unset and
+      `./.qci/qci.db` is a file in the current directory, by every command that opens a store
+      and by `qci where` and `qci doctor`; never for a parent directory. stdout and exit codes
+      are identical with and without it. The legacy file's bytes and modification time are
+      unchanged after every command.
+
+`qci doctor`:
+
+- [ ] Each check of section 4 has a test for each of its `ok`, `note` and `problem` outcomes,
+      with the account lister and the environment injected.
+- [ ] A stub saved account whose token, instance, URL and channel are sentinel strings: none of
+      them appears in stdout or stderr; the account name does. An unparseable account file
+      prints only the exception type.
+- [ ] Store outcomes `empty`, `healthy` (with schema versions and counts), `damaged` and
+      `other schema version` are each tested, for runs and snapshots separately; the store
+      bytes are unchanged after every case.
+- [ ] Exit 0 with notes only, exit 1 with any `problem`. No IBM client is constructed and no
+      connection is opened (the session guard).
+
+Selectors:
+
+- [ ] `qci/core/selectors.py` is a pure function over `(id, backend, sort_key)` lists with no
+      provider import and no SQL; the architecture test covers it.
+- [ ] Every argument listed in section 5 accepts each form: full ID, unique prefix of 8 to 25
+      characters, `latest`, `latest~N`, and `BACKEND:latest[~N]`. For runs, the order is
+      `run_id` descending and includes every status. For snapshots, it is `calibrated_at`
+      descending, a snapshot without `calibrated_at` is never selected, and `BACKEND:` is
+      required.
+- [ ] Each ambiguity of section 5 (a prefix with two or more matches, a run sharing its
+      millisecond with a neighbor, a snapshot sharing its `calibrated_at` with a neighbor)
+      exits 1, selects nothing and lists the candidates, at most 10 and then a count.
+- [ ] No match exits 1. Each malformed form of section 5 exits 2.
+- [ ] A selector echoes `<role>: <selector> -> <ID>` on stderr. For each command, stdout with a
+      selector is byte-identical to stdout with the full ID it resolved to.
+
+Summary-first output:
+
+- [ ] Default text output of the three commands is the summary of section 6. `--verbose`
+      output is that summary followed by exactly the text golden of the first commit.
+- [ ] `git diff` from the first R1b commit to the last over `tests/golden/` is empty for every
+      JSON file, the 13 service-level ones and the CLI-level ones.
+- [ ] `--json` and `--json --verbose` print identical bytes for every golden case.
+- [ ] Magnitudes: for each parameter name and unit, counts compared and changed, median and
+      largest absolute delta with unit, median and largest relative delta, each largest one
+      naming its resource. Tests cover a baseline of exactly 0 (left out of relative figures,
+      counted as "baseline 0", no infinite value) and `unavailable` and `not_comparable`
+      parameters (counted, never entered as 0).
+- [ ] Each figure is a `Metric` with `EvidenceKind.CALCULATED`, method
+      `qci.summary.magnitude`, version 1, built in `qci/compare/summary.py` from the existing
+      models. `ComparisonPolicy.version` (`qci.compare.v3`) and `ENGINE_VERSION` are
+      unchanged.
+- [ ] The existing neutral-wording tests of the three commands cover the default summary,
+      with the M1.4b word list.
+
+Docs:
+
+- [ ] README is self-contained as in section 7: the quickstart verbatim, the essential
+      explanations inline, a "Development" section with the editable install, and no relative
+      link (checked by a test).
+- [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
+      per-user store, `QCI_HOME`, the extras, `qci where`, `qci doctor`, selectors, the
+      summary and `--verbose`, and the exit-code rows for the extra check, `qci doctor`,
+      selectors and `qci where`. `CHANGELOG.md` exists with an `Unreleased` section describing
+      R1. `PLAN.md` marks D5 resolved.
+- [ ] All gates are clean, and every neutral-wording hit is justified.
+
+### R1c acceptance criteria (approved 2026-10-20; ADR 0009 section 10; run by the user)
+
+- [ ] Before any upload: the name `bloq-qci` is unclaimed on PyPI and TestPyPI, and a search of
+      PyPI for distributions shipping a top-level `qci` package is recorded.
+- [ ] `CHANGELOG.md` has its dated `0.1.0` entry and every packaged file is final before the
+      build. The two files are built once with `python -m build` from a clean checkout of the
+      release commit on `main`; the archive test is run over those exact files, and both
+      SHA-256 hashes are recorded.
+- [ ] The clean-machine test of section 8, steps 1 to 3, on Python 3.12 and on 3.13, outside
+      the repository, with `PYTHONPATH` unset and `HOME` a new empty directory: every command
+      and exit code is recorded; `qci where` names a path under that `HOME`; `qci doctor`
+      exits 0 with the account check as a note; the core-only environment reads the store,
+      and `qci run` there exits 2 with the extra message and the store bytes unchanged.
+- [ ] Whether the hidden `.pth` problem appeared is recorded.
+- [ ] The user uploads both files to TestPyPI. Steps 1 and 2 are repeated installing
+      `bloq-qci[ibm]==0.1.0` from TestPyPI with the index options of section 8, and the
+      installed wheel's hash equals the recorded one.
+- [ ] Machine, OS, Python versions, hashes and outputs are recorded in this ADR's Findings. No
+      IBM call is made; the quickstart's optional live part is not part of R1c.
+
+### R1d acceptance criteria (approved 2026-10-20; ADR 0009 section 10; run by the user)
+
+- [ ] D29 is resolved for a public release, with the date and the outcome in `PLAN.md`.
+- [ ] The comments by `toorha` and `dhruvhptl` on the pull request that adds `LICENSE`, each
+      stating "I agree to license my contributions to this repository under the Apache
+      License 2.0.", are recorded (pull request and comment links, date) in this ADR's
+      Findings. The NOTICE's `site/` exclusion is then removed in a reviewed step: before
+      R1c's build if both comments exist by then, otherwise later, with a new build and a
+      repeated R1c.
+- [ ] No packaged file changed since R1c's build; otherwise R1c is repeated on the new build.
+- [ ] The user tags `v0.1.0` on the release commit and uploads to PyPI the two files R1c
+      recorded; the hashes PyPI reports equal R1c's.
+- [ ] The quickstart's offline steps, run from PyPI in a fresh environment with an empty
+      `HOME`, give the same exit codes as in R1c, recorded in this ADR's Findings.
+- [ ] `PLAN.md` marks R1 done.
 
 ## M1.6: Footprint staleness and pre-flight
 
@@ -955,6 +1118,11 @@ None of these is scheduled. M0.5 stays unscheduled. The rest have no planned ord
 - Evidence-based attribution.
 - Repeated executions and experiment grouping (D7).
 - More providers.
+- Widen the `qiskit-ibm-runtime<0.51` cap (ADR 0009 section 2) only after checking each new
+  version against the behavior QCI depends on: historical requests, account handling,
+  logging and redaction.
+- Summary-first text output for `qci show` and `qci snapshot show` (ADR 0009 section 6 covers
+  only the three comparison commands).
 - CUDA-Q adapter as the second provider (after M1.6): tests vendor neutrality; needs a Linux
   NVIDIA-GPU environment for GPU features.
 - Run provenance: record simulator method, device (CPU or GPU) and numerical precision.
@@ -990,7 +1158,7 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D2 | Workload contract: `build()`, a decorator, or observe mode wrapping user code? | M0 uses `build()`. The rest is open. |
 | D3 | What does "reproducible" mean? | A reconstructable record. Identical results are expected only for seeded simulators. |
 | D4 | Should raw payloads stay inline or move to blobs? | Inline in M0, measured at about 560 KB per `fake_sherbrooke` run. Blobs in M0.5, where identical snapshots should also dedupe. |
-| D5 | Project-local or user-global store? | Project-local `.qci/` with a `QCI_HOME` override. Proposed in [ADR 0009](docs/adr/0009-packaging-and-first-run.md) section 3 (2026-10-20): a per-user store, `QCI_HOME` still overriding, existing `./.qci` stores never moved. Resolved when ADR 0009 is accepted and R1b ships it. |
+| D5 | Project-local or user-global store? | Project-local `.qci/` with a `QCI_HOME` override. Decided in [ADR 0009](docs/adr/0009-packaging-and-first-run.md) section 3 (accepted 2026-10-20): a per-user store, `QCI_HOME` still overriding, existing `./.qci` stores never moved. Resolved when R1b ships it. |
 | D6 | Migration tooling? | Hand-rolled when the first migration exists. Alembic waits for hosted storage. |
 | D7 | Multiple circuits, sweeps and repeated executions per run? | One circuit per run in M0. The modeling is open. |
 | D8 | Why does `SamplerV2` warn on fake backends? | **Resolved.** It is a `DeprecationWarning` from qiskit-ibm-runtime 0.50. M0 uses `qiskit.primitives.BackendSamplerV2`. The client-side `executor_sampler.Sampler` targets IBM cloud execution and should be re-evaluated when live hardware is added. |
@@ -1014,4 +1182,4 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D26 | Show units in the text renderer (T1 and T2 in microseconds, lengths in nanoseconds). | Open. Checked on 2026-10-10: the JSON carries `unit` on every `hardware.shared_resource_parameters` entry (`us`, `ns`, or null for dimensionless values and unit mismatches). `unchanged_values` and `error_values_at_one` entries have no unit field. The text renderer shows the unit only on changed lines. `qci snapshot compare-run` (M1.4b, ADR 0007) shows the unit on every value line. |
 | D27 | Research: estimate the noise in provider calibration estimates by tracking the same parameter across many recalibrations. | Partially addressed by M1.5d (2026-10-19, [results](docs/experiments/2026-10-calibration-history.md#results)). IBM publishes no uncertainty for these estimates: each parameter carries only `name`, `value`, `unit` and `date`. A `changed` value means only that the reported value changed. The spread across re-measurements is now quantified on 15 footprint qubits over one week (P1: median `T1` CV 0.19 to 0.27; `readout_error` CV and `d / m` larger on every device). Physical change and estimation noise are not separated. |
 | D28 | Historical snapshots have no configuration (ADR 0008 section 3): `qci snapshot compare` with `--allow-footprint-backend-mismatch` lists every footprint resource as missing, and `elapsed_between_captures` is the difference of request times. | Open. Raised in M1.5a. Comparison code is unchanged in M1.5. Decide in a later step whether presence for a historical snapshot may use another snapshot's configuration, and how elapsed time is reported for lookups. |
-| D29 | Review the IBM Quantum service agreement for redistribution of calibration data and commercial use under the Open Plan before any public release, hosted service, or shared dataset. | Open. Raised 2026-10-18 by the terms finding in [ADR 0008](docs/adr/0008-historical-backfill.md) section 6: M1.5c proceeds for personal, local research use only, and backfilled data is never committed to the repository or redistributed. The committed M1.5d manifest contains, per backfilled document, IBM's last_update_date and QCI's content hash, but no parameter values. These are treated as identifying metadata, not IBM data content; if the D29 review concludes otherwise, the provider_stamp column is removed. The PyPI release (R1d, [ADR 0009](docs/adr/0009-packaging-and-first-run.md)) is a public release and is gated on this review. The built packages contain no IBM data, enforced by an archive test; whether the public repository may keep the committed `ibm_fez` fixture is part of the review. |
+| D29 | Review the IBM Quantum service agreement for redistribution of calibration data and commercial use under the Open Plan before any public release, hosted service, or shared dataset. | Open. Raised 2026-10-18 by the terms finding in [ADR 0008](docs/adr/0008-historical-backfill.md) section 6: M1.5c proceeds for personal, local research use only, and backfilled data is never committed to the repository or redistributed. The committed M1.5d manifest contains, per backfilled document, IBM's last_update_date and QCI's content hash, but no parameter values. These are treated as identifying metadata, not IBM data content; if the D29 review concludes otherwise, the provider_stamp column is removed. The PyPI release (R1d, [ADR 0009](docs/adr/0009-packaging-and-first-run.md)) is a public release and is gated on this review. The built packages contain no IBM data, enforced by an archive test. The repository is made private until D29 is resolved (user decision, 2026-10-20); whether a public repository may keep the committed `ibm_fez` fixture is part of the review. Mitigating fact, not a resolution: Qiskit's own fake backends distribute equivalent IBM calibration snapshots under Apache-2.0. |
