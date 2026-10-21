@@ -1,0 +1,23 @@
+Comparison sha256:82a881800ef7eaf78c4e910e75fa60284fdd47bc68d1ffd10ca93214fc261694
+  baseline:  BASE  stub_backend
+  candidate: CAND  stub_backend
+  status:    partially_comparable
+Sections (deltas are candidate minus baseline):
+  source: unchanged
+  environment: unchanged
+  logical circuit: unchanged
+  compilation: changed (initial_layout, final_layout, transpiled.qasm3_sha256)
+  execution: unchanged
+  backend: unchanged
+  physical footprint: changed (qubits, measured_qubits, initial_layout, final_layout, operations)
+  hardware (footprint-scoped): partially_comparable (qubit T1): physical footprints differ: relevant_hardware_changed is undetermined; calibration is compared only for physical resources present on both sides
+  result distribution: unchanged
+  note: relevant hardware is the calibration of the physical resources the workload used; it is not a claim that a parameter affects the result
+Result distribution:
+  tvd = 0 [calculated]
+  hellinger_distance = 0 [calculated]
+  sampling floor unavailable: both samples were drawn with the same simulator seed (7), so they are not independent; the sampling floor assumes independent samples
+Calibration magnitudes of footprint parameters (candidate minus baseline; |delta| in the parameter's unit, relative = |delta| / |baseline|; calculated):
+  qubit T1 [us]: 1 compared, 1 changed; |delta| median 10, largest 10 (qubit 1); relative median 0.1, largest 0.1 (qubit 1)
+  qubit readout_error [no unit]: 1 compared, 0 changed; every |delta| is 0
+Full detail: rerun with --verbose. Machine-readable: --json.

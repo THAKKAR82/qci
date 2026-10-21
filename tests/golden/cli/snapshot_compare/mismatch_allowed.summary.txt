@@ -1,0 +1,24 @@
+Snapshot comparison sha256:320005ee14c3b09b8401987527ad7f37f837e030db5c62b828d0570b16aaaae7
+  baseline:  FEZ-A  qiskit_ibm/ibm_fez  calibrated 2026-10-10T00:19:17+00:00
+  candidate: FEZ-B  qiskit_ibm/ibm_fez  calibrated 2026-10-10T00:19:17+00:00
+  footprint run: FAKEFEZRUN on fake_fez  qubits=2 operations=5
+  status:    partially_comparable
+Calibration (footprint-scoped): partially_comparable: footprint taken from run FAKEFEZRUN on fake_fez; snapshots are of ibm_fez; qubit 0 T2: units differ (baseline us, candidate ms); not compared
+  parameters of footprint resources: 19: 0 changed, 18 unchanged, 0 unavailable, 1 not compared (units differ)
+  unchanged values: 1 re-measured with the same value, 17 not re-measured, 0 without a measurement date
+  note: a value that was not re-measured is one measurement reported twice, not evidence that the value held constant
+  error-type parameters equal to 1 (gate_error, readout_error, init_error): 0
+Calibration magnitudes of footprint parameters (candidate minus baseline; |delta| in the parameter's unit, relative = |delta| / |baseline|; calculated):
+  qubit T1 [us]: 2 compared, 0 changed; every |delta| is 0
+  qubit T2 [us]: 1 compared, 0 changed; every |delta| is 0
+  qubit T2 units differ: 1 compared, 0 changed, 1 not compared (units differ)
+  qubit init_error [no unit]: 1 compared, 0 changed; every |delta| is 0
+  qubit prob_meas0_prep1 [no unit]: 2 compared, 0 changed; every |delta| is 0
+  qubit prob_meas1_prep0 [no unit]: 2 compared, 0 changed; every |delta| is 0
+  qubit readout_error [no unit]: 2 compared, 0 changed; every |delta| is 0
+  qubit readout_length [ns]: 2 compared, 0 changed; every |delta| is 0
+  cz gate_error [no unit]: 1 compared, 0 changed; every |delta| is 0
+  cz gate_length [ns]: 1 compared, 0 changed; every |delta| is 0
+  sx gate_error [no unit]: 2 compared, 0 changed; every |delta| is 0
+  sx gate_length [ns]: 2 compared, 0 changed; every |delta| is 0
+Full detail: rerun with --verbose. Machine-readable: --json.

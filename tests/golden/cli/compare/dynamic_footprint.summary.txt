@@ -1,0 +1,17 @@
+Comparison sha256:82a881800ef7eaf78c4e910e75fa60284fdd47bc68d1ffd10ca93214fc261694
+  baseline:  BASE  stub_backend
+  candidate: CAND  stub_backend
+  status:    partially_comparable
+Sections (deltas are candidate minus baseline):
+  source: unchanged
+  environment: unchanged
+  logical circuit: unchanged
+  compilation: changed (transpiled.qasm3_sha256)
+  execution: unchanged
+  backend: unchanged
+  physical footprint: not_comparable: candidate footprint unsupported_dynamic: control flow (BranchingStatement) is not supported by this comparison policy
+  hardware (footprint-scoped): not_comparable: candidate footprint unsupported_dynamic: control flow (BranchingStatement) is not supported by this comparison policy
+  result distribution: not_comparable
+Result distribution:
+  note: dynamic circuits are not supported by this comparison policy
+Full detail: rerun with --verbose. Machine-readable: --json.

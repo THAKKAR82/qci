@@ -1,0 +1,25 @@
+Run-to-snapshot calibration comparison sha256:7995c85865a73fedf6f8de5b5db776a5ae61f2542714be54f846ab7dcfafc66c
+  baseline:  run 01R1B00000000FAKEFEZRVN000  qiskit_ibm/fake_fez  calibrated 2025-02-26T20:16:25+00:00
+  candidate: snapshot LIVE-EDITED  qiskit_ibm/ibm_fez  calibrated 2026-10-10T00:19:17+00:00
+  device mapping: fake_fez -> ibm_fez
+  status:    changed
+Calibration (footprint-scoped): changed (qubit T2, qubit prob_meas0_prep1, qubit prob_meas1_prep0, qubit readout_error, qubit readout_length, qubit T1, cz gate_error, cz gate_length, sx gate_error)
+  parameters of footprint resources: 65: 44 changed, 15 unchanged, 5 unavailable, 1 not compared (units differ)
+  parameters reported by one side only: 5; unit differences: 1; error-type parameters equal to 1: 1
+  measurement dates, live minus fake, over 65 parameters: min 5.09337e+07 s (589.5 days), max 5.11889e+07 s (592.5 days) [calculated]
+Calibration magnitudes of footprint parameters (live minus fake; |delta| in the parameter's unit, relative = |delta| / |baseline|; calculated):
+  qubit T1 [us]: 4 compared, 4 changed; |delta| median 49.1, largest 74.5 (qubit 141); relative median 0.33, largest 0.635 (qubit 144)
+  qubit T1 units differ: 1 compared, 0 changed, 1 not compared (units differ)
+  qubit T2 [us]: 5 compared, 5 changed; |delta| median 28, largest 152 (qubit 144); relative median 0.229, largest 1.36 (qubit 144)
+  qubit init_error [no unit]: 5 compared, 0 changed, 5 unavailable
+  qubit prob_meas0_prep1 [no unit]: 5 compared, 5 changed; |delta| median 0.00488, largest 0.00732 (qubit 141); relative median 0.455, largest 1.07 (qubit 141)
+  qubit prob_meas1_prep0 [no unit]: 5 compared, 5 changed, 1 baseline 0; |delta| median 0.00195, largest 0.0083 (qubit 136); relative median 0.708, largest 2 (qubit 143)
+  qubit readout_error [no unit]: 5 compared, 5 changed; |delta| median 0.00293, largest 0.995 (qubit 136); relative median 0.48, largest 215 (qubit 136)
+  qubit readout_length [ns]: 5 compared, 5 changed; |delta| median 100, largest 100 (qubit 136); relative median 0.0641, largest 0.0641 (qubit 136)
+  cz gate_error [no unit]: 5 compared, 5 changed; |delta| median 0.00102, largest 0.00143 (cz[142, 143]); relative median 0.35, largest 0.432 (cz[142, 143])
+  cz gate_length [ns]: 5 compared, 5 changed; |delta| median 16, largest 16 (cz[142, 141]); relative median 0.19, largest 0.19 (cz[142, 141])
+  rz gate_error [no unit]: 5 compared, 0 changed, 5 baseline 0; every |delta| is 0
+  rz gate_length [ns]: 5 compared, 0 changed, 5 baseline 0; every |delta| is 0
+  sx gate_error [no unit]: 5 compared, 5 changed; |delta| median 7.11e-05, largest 0.000224 (sx[144]); relative median 0.388, largest 1.74 (sx[144])
+  sx gate_length [ns]: 5 compared, 0 changed; every |delta| is 0
+Full detail: rerun with --verbose. Machine-readable: --json.

@@ -1,0 +1,17 @@
+Comparison sha256:82a881800ef7eaf78c4e910e75fa60284fdd47bc68d1ffd10ca93214fc261694
+  baseline:  BASE  -
+  candidate: CAND  -
+  status:    partially_comparable
+Sections (deltas are candidate minus baseline):
+  source: unchanged
+  environment: unchanged
+  logical circuit: changed (qasm3_sha256)
+  compilation: unavailable: candidate run has no compilation record
+  execution: unavailable: candidate run has no execution record
+  backend: unavailable: candidate run has no backend
+  physical footprint: unavailable: candidate footprint unavailable: run has no compilation record
+  hardware (footprint-scoped): unavailable: candidate run has no backend snapshot
+  result distribution: unavailable
+Result distribution:
+  note: candidate run has no successful result
+Full detail: rerun with --verbose. Machine-readable: --json.

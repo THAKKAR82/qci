@@ -1,0 +1,19 @@
+Comparison sha256:82a881800ef7eaf78c4e910e75fa60284fdd47bc68d1ffd10ca93214fc261694
+  baseline:  BASE  stub_backend
+  candidate: CAND  stub_backend
+  status:    partially_comparable
+Sections (deltas are candidate minus baseline):
+  source: unchanged
+  environment: unchanged
+  logical circuit: unchanged
+  compilation: unchanged
+  execution: unchanged
+  backend: unchanged
+  physical footprint: unchanged
+  hardware (footprint-scoped): unavailable: no calibration reader for provider 'unknown'
+  result distribution: unchanged
+Result distribution:
+  tvd = 0 [calculated]
+  hellinger_distance = 0 [calculated]
+  sampling floor unavailable: both samples were drawn with the same simulator seed (7), so they are not independent; the sampling floor assumes independent samples
+Full detail: rerun with --verbose. Machine-readable: --json.

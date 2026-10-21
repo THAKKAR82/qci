@@ -834,14 +834,17 @@ def test_cli_json_is_deterministic_and_nothing_is_persisted(store: Path) -> None
     run_id = fake_fez_run().run_id
     first = _invoke(run_id, "LIVE", "--json")
     second = _invoke(run_id, "LIVE", "--json")
-    text = _invoke(run_id, "LIVE")
+    summary = _invoke(run_id, "LIVE")
+    text = _invoke(run_id, "LIVE", "--verbose")
     assert first == second
     assert db.read_bytes() == before
     assert sorted(p.name for p in store.iterdir()) == ["qci.db"]
     c = RunSnapshotComparison.model_validate_json(first)
     assert c == compare()
-    assert text.rstrip("\n") == render_run_snapshot_comparison(c)
+    assert text == summary + "\n" + render_run_snapshot_comparison(c) + "\n"
     assert FORBIDDEN.search(first) is None and FORBIDDEN.search(text) is None
+    assert FORBIDDEN.search(summary) is None
+    assert "Calibration magnitudes of footprint parameters (live minus fake;" in summary
 
 
 def test_cli_unknown_ids_exit_1(store: Path) -> None:

@@ -146,6 +146,20 @@ def _select_snapshot(repository: SqliteSnapshotRepository, selector: str, role: 
     return _select(selector, _snapshot_entries(repository), "snapshot", role)
 
 
+VerboseOption = Annotated[
+    bool,
+    typer.Option(
+        "--verbose",
+        help="Print the summary, then the full comparison text. No effect with --json.",
+    ),
+]
+
+
+def _comparison_text(summary: str, full: Callable[[], str], verbose: bool) -> str:
+    """The summary, or with --verbose the summary, a blank line and the full text."""
+    return f"{summary}\n\n{full()}" if verbose else summary
+
+
 RUN_SELECTOR = (
     "a run ID, a unique ID prefix of 8 or more characters, or [BACKEND:]latest[~N] "
     "(latest is the newest run, latest~1 the one before)"
@@ -431,6 +445,7 @@ def compare(
             "classical bit 0 is the rightmost character). Repeatable.",
         ),
     ] = None,
+    verbose: VerboseOption = False,
 ) -> None:
     """Report what changed from BASELINE to CANDIDATE. Deltas are candidate minus baseline.
 
@@ -441,6 +456,7 @@ def compare(
     from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
     from qci.adapters.qiskit_ibm.calibration import IbmPropertiesCalibrationReader
     from qci.cli.render_compare import render_comparison
+    from qci.cli.render_summary import render_comparison_summary
     from qci.services.compare_service import CompareService
 
     repository = _repository(read_only=True)
@@ -458,7 +474,13 @@ def compare(
         raise typer.Exit(code=2) from exc
     finally:
         repository.close()
-    typer.echo(result.model_dump_json(indent=2) if as_json else render_comparison(result))
+    typer.echo(
+        result.model_dump_json(indent=2)
+        if as_json
+        else _comparison_text(
+            render_comparison_summary(result), lambda: render_comparison(result), verbose
+        )
+    )
 
 
 @app.command()
@@ -819,6 +841,7 @@ def snapshot_compare(
     as_json: Annotated[
         bool, typer.Option("--json", help="Print the full comparison as JSON.")
     ] = False,
+    verbose: VerboseOption = False,
 ) -> None:
     """Report what differs from BASELINE to CANDIDATE snapshot, for one run's footprint.
 
@@ -827,6 +850,7 @@ def snapshot_compare(
     from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
     from qci.adapters.qiskit_ibm.calibration import snapshot_comparison_support
     from qci.cli.render_snapshot_compare import render_snapshot_comparison
+    from qci.cli.render_summary import render_snapshot_comparison_summary
     from qci.services.snapshot_compare_service import SnapshotCompareService
 
     runs = _repository(read_only=True)
@@ -853,7 +877,15 @@ def snapshot_compare(
     finally:
         snapshots_repo.close()
         runs.close()
-    typer.echo(result.model_dump_json(indent=2) if as_json else render_snapshot_comparison(result))
+    typer.echo(
+        result.model_dump_json(indent=2)
+        if as_json
+        else _comparison_text(
+            render_snapshot_comparison_summary(result),
+            lambda: render_snapshot_comparison(result),
+            verbose,
+        )
+    )
 
 
 @snapshot_app.command("compare-run")
@@ -874,6 +906,7 @@ def snapshot_compare_run(
     as_json: Annotated[
         bool, typer.Option("--json", help="Print the full comparison as JSON.")
     ] = False,
+    verbose: VerboseOption = False,
 ) -> None:
     """Report what differs from the calibration stored in RUN_ID's fake backend to SNAPSHOT_ID,
     for the run's footprint.
@@ -884,6 +917,7 @@ def snapshot_compare_run(
     from qci.adapters.qiskit_ibm.adapter_ids import PROVIDER_ID
     from qci.adapters.qiskit_ibm.calibration import run_snapshot_comparison_support
     from qci.cli.render_run_snapshot_compare import render_run_snapshot_comparison
+    from qci.cli.render_summary import render_run_snapshot_comparison_summary
     from qci.services.run_snapshot_compare_service import RunSnapshotCompareService
 
     runs = _repository(read_only=True)
@@ -905,7 +939,13 @@ def snapshot_compare_run(
         snapshots_repo.close()
         runs.close()
     typer.echo(
-        result.model_dump_json(indent=2) if as_json else render_run_snapshot_comparison(result)
+        result.model_dump_json(indent=2)
+        if as_json
+        else _comparison_text(
+            render_run_snapshot_comparison_summary(result),
+            lambda: render_run_snapshot_comparison(result),
+            verbose,
+        )
     )
 
 

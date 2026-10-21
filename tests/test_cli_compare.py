@@ -13,6 +13,11 @@ from qci.domain.comparison import Comparison
 
 ROOT = Path(__file__).resolve().parents[1]
 BELL = ROOT / "examples" / "bell.py"
+M1_4B_WORDS = re.compile(
+    r"better|worse|regress|improv|degrad|\bpass|fail|significan|verdict|caus|stale|outdated|"
+    r"accurate|realistic|adequate",
+    re.IGNORECASE,
+)
 
 
 @pytest.fixture
@@ -25,6 +30,16 @@ def run(runner: CliRunner, *args: str, workload: Path = BELL) -> str:
     result = runner.invoke(app, ["run", str(workload), "--backend", "fake_sherbrooke", *args])
     assert result.exit_code == 0, result.output
     return result.stdout.strip().splitlines()[0]
+
+
+def summary_and_full_text(runner: CliRunner, args: list[str]) -> tuple[str, str]:
+    """The default summary, and the full text that --verbose prints after it and a blank
+    line (ADR 0009, section 6)."""
+    summary = runner.invoke(app, args)
+    verbose = runner.invoke(app, [*args, "--verbose"])
+    assert summary.exit_code == verbose.exit_code == 0, verbose.output
+    assert verbose.stdout.startswith(summary.stdout + "\n")
+    return summary.stdout, verbose.stdout.removeprefix(summary.stdout + "\n")
 
 
 def compare_json(runner: CliRunner, baseline: str, candidate: str) -> dict[str, Any]:
@@ -51,17 +66,16 @@ def test_same_seed_runs_are_unchanged_and_json_is_byte_identical(runner: CliRunn
     assert c["distribution"]["sampling_floor"] is None
     assert "same simulator seed (7)" in c["distribution"]["sampling_floor_unavailable_reason"]
 
-    text = runner.invoke(app, ["compare", a, b])
-    assert text.exit_code == 0
-    assert "status:    unchanged" in text.stdout and "no causal attribution" in text.stdout
-    (tvd_line,) = [line for line in text.stdout.splitlines() if line.startswith("  tvd = ")]
+    summary, text = summary_and_full_text(runner, ["compare", a, b])
+    assert "status:    unchanged" in text and "no causal attribution" in text
+    (tvd_line,) = [line for line in text.splitlines() if line.startswith("  tvd = ")]
     assert "| sampling floor unavailable: both samples were drawn with the same simulator seed" in (
         tvd_line
     )
     for banned in ("better", "worse", "regression", "improve", "PASS", "FAIL"):
-        assert banned not in text.stdout.replace(
-            "regression, improvement, better/worse or pass/fail", ""
-        )
+        assert banned not in text.replace("regression, improvement, better/worse or pass/fail", "")
+    assert "status:    unchanged" in summary
+    assert M1_4B_WORDS.search(summary) is None
 
 
 def test_different_seed_changes_execution_and_counts_only(runner: CliRunner) -> None:
@@ -97,17 +111,22 @@ def test_sampling_floor_json_is_byte_identical_and_shown_beside_tvd(runner: CliR
     for name in ("null_p50", "null_p95", "null_p99", "p_value"):
         assert floor[name]["kind"] == "statistical"
 
-    text = runner.invoke(app, ["compare", a, b])
-    assert text.exit_code == 0
-    (tvd_line,) = [line for line in text.stdout.splitlines() if line.startswith("  tvd = ")]
+    summary, text = summary_and_full_text(runner, ["compare", a, b])
+    (tvd_line,) = [line for line in text.splitlines() if line.startswith("  tvd = ")]
     assert "| sampling floor under H0 (B=2000): p50 " in tvd_line
     assert ", p95 " in tvd_line and ", p99 " in tvd_line
     assert re.search(r"\| Monte Carlo p = \d\.\d+ ± \d\.\d+  \[statistical; v2\]$", tvd_line)
     (hellinger_line,) = [
-        line for line in text.stdout.splitlines() if line.startswith("  hellinger_distance = ")
+        line for line in text.splitlines() if line.startswith("  hellinger_distance = ")
     ]
     assert "sampling floor" not in hellinger_line
-    assert "Hellinger distance still has no sampling floor" in text.stdout
+    assert "Hellinger distance still has no sampling floor" in text
+    assert re.search(
+        r"^  sampling floor of tvd: p95 \S+, Monte Carlo p = \S+ \[statistical\]$",
+        summary,
+        re.MULTILINE,
+    )
+    assert M1_4B_WORDS.search(summary) is None
 
 
 def test_changed_mapping_reports_footprint_and_never_cross_resource_deltas(
@@ -181,14 +200,15 @@ def test_observable_json_is_byte_identical_and_rendered(runner: CliRunner) -> No
     assert c.observables[0].baseline is not None and c.observables[0].baseline.n == 1000
     assert c.comparison_id != compare_json(runner, a, b)["comparison_id"]
 
-    text = runner.invoke(app, args)
-    assert text.exit_code == 0, text.output
-    assert "Observables: 2 requested" in text.stdout
-    assert "bell = P({00, 11})" in text.stdout
-    assert "Wilson [" in text.stdout and "Newcombe [" in text.stdout
-    section = text.stdout.split("Observables:")[1].split("Limitations:")[0].lower()
+    summary, text = summary_and_full_text(runner, args)
+    assert "Observables: 2 requested" in text
+    assert "bell = P({00, 11})" in text
+    assert "Wilson [" in text and "Newcombe [" in text
+    section = text.split("Observables:")[1].split("Limitations:")[0].lower()
     for word in ("significant", "regression", "improvement", "better", "worse", "pass", "fail"):
         assert word not in section
+    assert "  bell = P({00, 11}): " in summary and "Newcombe 95% [" in summary
+    assert M1_4B_WORDS.search(summary) is None
 
 
 @pytest.mark.parametrize(

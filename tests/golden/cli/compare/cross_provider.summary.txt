@@ -1,0 +1,17 @@
+Comparison sha256:82a881800ef7eaf78c4e910e75fa60284fdd47bc68d1ffd10ca93214fc261694
+  baseline:  BASE  stub_backend
+  candidate: CAND  stub_backend
+  status:    partially_comparable
+Sections (deltas are candidate minus baseline):
+  source: unchanged
+  environment: unchanged
+  logical circuit: unchanged
+  compilation: unchanged
+  execution: unchanged
+  backend: changed (provider)
+  physical footprint: unchanged
+  hardware (footprint-scoped): not_comparable: cross-provider hardware comparison is not supported
+  result distribution: not_comparable
+Result distribution:
+  note: providers differ (qiskit_ibm vs other); bit-order convention unverified
+Full detail: rerun with --verbose. Machine-readable: --json.

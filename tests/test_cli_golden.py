@@ -5,6 +5,11 @@ Written before any R1b change under ``src/``. Each case stores its inputs in a t
 ``tests/golden/cli/`` byte for byte: ``<case>.json`` for ``--json`` and ``<case>.txt`` for the
 text output as it was before the summary existed.
 
+Since the summary (ADR 0009, section 6), the default text output is the summary
+(``<case>.summary.txt``), and ``--verbose`` prints the summary, a blank line, then exactly
+``<case>.txt``. ``--json`` and ``--json --verbose`` print identical bytes. The ``.json`` and
+``.txt`` files are unchanged since they were first written.
+
 - ``compare/``: ``qci compare`` over the runs of the 13 service-level scenarios
   (``tests/test_compare_golden.py``).
 - ``snapshot_compare/``: ``qci snapshot compare`` over the CLI cases of
@@ -19,6 +24,7 @@ To regenerate deliberately (never in a commit that changes ``src/``):
 """
 
 import os
+import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -57,6 +63,30 @@ def invoke(*args: str) -> str:
     result = CliRunner().invoke(app, list(args))
     assert result.exit_code == 0, result.output
     return result.stdout
+
+
+NEUTRAL = re.compile(
+    r"better|worse|regress|improv|degrad|\bpass|fail|significan|verdict|caus|stale|outdated|"
+    r"accurate|realistic|adequate",
+    re.IGNORECASE,
+)
+"""The M1.4b word list (tests/test_run_snapshot_compare.py)."""
+MAX_SUMMARY_LINES = 30
+
+
+def check_outputs(directory: Path, case: str, args: list[str]) -> None:
+    """The JSON golden, the summary golden, and the full text golden after the summary."""
+    as_json = invoke(*args, "--json")
+    check_golden(directory / f"{case}.json", as_json)
+    assert invoke(*args, "--json", "--verbose") == as_json
+    summary = invoke(*args)
+    check_golden(directory / f"{case}.summary.txt", summary)
+    assert NEUTRAL.search(summary) is None, NEUTRAL.search(summary)
+    assert len(summary.splitlines()) <= MAX_SUMMARY_LINES
+    assert summary.endswith("Full detail: rerun with --verbose. Machine-readable: --json.\n")
+    verbose = invoke(*args, "--verbose")
+    assert verbose.startswith(summary + "\n")
+    check_golden(directory / f"{case}.txt", verbose.removeprefix(summary + "\n"))
 
 
 @pytest.fixture
@@ -114,10 +144,7 @@ def compare_store(request: pytest.FixtureRequest, home: Path) -> str:
 
 @pytest.mark.parametrize("compare_store", sorted(SCENARIOS), indirect=True)
 def test_compare_cli_matches_golden_files(compare_store: str) -> None:
-    name = compare_store
-    args = compare_args(name)
-    check_golden(GOLDEN / "compare" / f"{name}.json", invoke(*args, "--json"))
-    check_golden(GOLDEN / "compare" / f"{name}.txt", invoke(*args))
+    check_outputs(GOLDEN / "compare", compare_store, compare_args(compare_store))
 
 
 # --- qci snapshot compare ----------------------------------------------------------------------
@@ -156,8 +183,7 @@ def snapshot_store(home: Path) -> Path:
 @pytest.mark.parametrize("case", sorted(SNAPSHOT_CASES))
 def test_snapshot_compare_cli_matches_golden_files(snapshot_store: Path, case: str) -> None:
     args = ["snapshot", "compare", *SNAPSHOT_CASES[case]]
-    check_golden(GOLDEN / "snapshot_compare" / f"{case}.json", invoke(*args, "--json"))
-    check_golden(GOLDEN / "snapshot_compare" / f"{case}.txt", invoke(*args))
+    check_outputs(GOLDEN / "snapshot_compare", case, args)
 
 
 # --- qci snapshot compare-run ------------------------------------------------------------------
@@ -195,8 +221,7 @@ def run_snapshot_store(home: Path) -> Path:
 def test_compare_run_cli_matches_golden_files(run_snapshot_store: Path, case: str) -> None:
     snapshot_id = RUN_SNAPSHOT_CASES[case]().snapshot_id
     args = ["snapshot", "compare-run", FAKE_FEZ_RUN_ID, snapshot_id]
-    check_golden(GOLDEN / "compare_run" / f"{case}.json", invoke(*args, "--json"))
-    check_golden(GOLDEN / "compare_run" / f"{case}.txt", invoke(*args))
+    check_outputs(GOLDEN / "compare_run", case, args)
 
 
 def test_every_cli_golden_file_has_a_case() -> None:
@@ -207,4 +232,5 @@ def test_every_cli_golden_file_has_a_case() -> None:
     }
     for directory, cases in expected.items():
         files = sorted(p.name for p in (GOLDEN / directory).iterdir())
-        assert files == sorted(f"{c}.{ext}" for c in cases for ext in ("json", "txt"))
+        extensions = ("json", "txt", "summary.txt")
+        assert files == sorted(f"{c}.{ext}" for c in cases for ext in extensions)

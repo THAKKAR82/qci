@@ -1,0 +1,7 @@
+Snapshot comparison sha256:d559c1d4101da45261434402f0c477aec87a3477dca04429334ac0eeffb26493
+  baseline:  FEZ-A  qiskit_ibm/ibm_fez  calibrated 2026-10-10T00:19:17+00:00
+  candidate: FEZ-B  qiskit_ibm/ibm_fez  calibrated 2026-10-10T00:19:17+00:00
+  footprint run: FAKEFEZRUN on fake_fez  qubits=2 operations=5
+  status:    not_comparable
+Calibration (footprint-scoped): not_comparable: footprint taken from run FAKEFEZRUN on fake_fez; snapshots are of ibm_fez; a footprint from another backend is used only when allow_footprint_backend_mismatch is set
+Full detail: rerun with --verbose. Machine-readable: --json.

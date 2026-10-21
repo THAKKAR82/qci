@@ -459,8 +459,11 @@ def test_without_a_mismatch_no_presence_check_runs() -> None:
 # --- CLI: determinism, nothing persisted, neutral wording --------------------------------------
 
 RULE_8 = re.compile(
-    r"better|worse|regress|improv|degrad|\bpass|fail|significan|verdict|caus", re.IGNORECASE
+    r"better|worse|regress|improv|degrad|\bpass|fail|significan|verdict|caus|stale|outdated|"
+    r"accurate|realistic|adequate",
+    re.IGNORECASE,
 )
+"""Rule 8 words plus the M1.4b additions (tests/test_run_snapshot_compare.py)."""
 
 
 @pytest.fixture
@@ -503,7 +506,8 @@ def test_cli_json_is_deterministic_and_nothing_is_persisted(store: Path) -> None
     args = ("FEZ-A", "FEZ-B", "--footprint-run", "FAKEFEZRUN", "--allow-footprint-backend-mismatch")
     first = _invoke(*args, "--json")
     second = _invoke(*args, "--json")
-    text = _invoke(*args)
+    summary = _invoke(*args)
+    text = _invoke(*args, "--verbose")
     assert first == second
     assert (store / "qci.db").read_bytes() == before
     c = SnapshotComparison.model_validate_json(first)
@@ -512,6 +516,10 @@ def test_cli_json_is_deterministic_and_nothing_is_persisted(store: Path) -> None
     assert "units differ (baseline us, candidate ms)" in text
     assert "re-measured, same value: 1" in text
     assert RULE_8.search(first) is None and RULE_8.search(text) is None
+    assert text.startswith(summary + "\n")
+    assert "unchanged values: 1 re-measured with the same value" in summary
+    assert "qubit T2 units differ: 1 compared, 0 changed, 1 not compared (units differ)" in summary
+    assert RULE_8.search(summary) is None
 
 
 def test_cli_rendering_of_every_exit_uses_neutral_wording(store: Path) -> None:
@@ -519,7 +527,7 @@ def test_cli_rendering_of_every_exit_uses_neutral_wording(store: Path) -> None:
         ("FEZ-A", "FEZ-B", "--footprint-run", "FAKEFEZRUN"),
         ("FEZ-A", "FEZ-A", "--footprint-run", "FAKEFEZRUN", "--allow-footprint-backend-mismatch"),
     ):
-        for extra in ((), ("--json",)):
+        for extra in ((), ("--json",), ("--verbose",)):
             assert RULE_8.search(_invoke(*args, *extra)) is None
 
 
