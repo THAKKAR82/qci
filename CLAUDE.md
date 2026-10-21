@@ -17,19 +17,29 @@ MYPYPATH=src:experiments/repeated_sampling:experiments/calibration_history .venv
 .venv/bin/pytest -q
 .venv/bin/qci run examples/bell.py --backend fake_sherbrooke --seed 7
 .venv/bin/qci runs
-.venv/bin/qci show <RUN_ID> [--json]
-.venv/bin/qci compare <BASELINE_RUN_ID> <CANDIDATE_RUN_ID> [--json] [--observable NAME=BITS,...]
+.venv/bin/qci show <RUN> [--json]
+.venv/bin/qci compare <BASELINE_RUN> <CANDIDATE_RUN> [--json] [--verbose] [--observable NAME=BITS,...]
+.venv/bin/qci where
+.venv/bin/qci doctor
 .venv/bin/qci snapshot capture --backend ibm_fez [--account NAME]
 .venv/bin/qci snapshot backfill --backend ibm_fez --days N [--step-hours H] [--max-requests M] [--pause S] [--account NAME]
 .venv/bin/qci snapshots [--backend NAME] [--limit N]
-.venv/bin/qci snapshot show <SNAPSHOT_ID> [--json]
-.venv/bin/qci snapshot export <SNAPSHOT_ID> --fixture PATH [--account NAME]
-.venv/bin/qci snapshot compare <BASELINE_ID> <CANDIDATE_ID> --footprint-run <RUN_ID> [--allow-footprint-backend-mismatch] [--json]
-.venv/bin/qci snapshot compare-run <RUN_ID> <SNAPSHOT_ID> [--json]
+.venv/bin/qci snapshot show <SNAPSHOT> [--json]
+.venv/bin/qci snapshot export <SNAPSHOT> --fixture PATH [--account NAME]
+.venv/bin/qci snapshot compare <BASELINE_SNAPSHOT> <CANDIDATE_SNAPSHOT> --footprint-run <RUN> [--allow-footprint-backend-mismatch] [--json] [--verbose]
+.venv/bin/qci snapshot compare-run <RUN> <SNAPSHOT> [--json] [--verbose]
 ```
 
-The run store defaults to `./.qci/qci.db`; override with `QCI_HOME`. Snapshots live in the same
-file. `qci snapshot capture` and `qci snapshot backfill` are the only commands that use the
+`<RUN>` and `<SNAPSHOT>` are selectors (ADR 0009, section 5): a full ID, a unique ID prefix of
+8 or more characters, or `[BACKEND:]latest[~N]` (`BACKEND:` is required for snapshots, which
+are ordered by `calibrated_at`). The three comparison commands print a summary; `--verbose`
+adds the full text. `run`, `snapshot capture`, `snapshot backfill` and `snapshot export` need
+the `ibm` extra.
+
+The store is per user (`~/Library/Application Support/qci/qci.db` on macOS; see ADR 0009,
+section 3, for other platforms); `QCI_HOME` overrides it, and `qci where` prints the path in
+use. A `./.qci/qci.db` from before R1 is never moved: commands print a note with the
+`QCI_HOME` setting that keeps using it. Snapshots live in the same file. `qci snapshot capture` and `qci snapshot backfill` are the only commands that use the
 network. Backfilled history is documents by provider stamp time, not what a user would have
 seen at a given time. Backfilled data stays in the local store and is never committed,
 exported as a fixture or redistributed (ADR 0008, D29).
@@ -139,5 +149,5 @@ Never start the next step without explicit approval.
   something sets the `hidden` file flag on files inside `.venv`. Python 3.13 skips hidden
   `.pth` files, so the editable install disappears. Tests are unaffected because pytest sets
   `pythonpath = ["src"]`. For the CLI, run `PYTHONPATH=src .venv/bin/qci ...`, or clear the
-  flag with `chflags nohidden .venv/lib/python3.13/site-packages/_editable_impl_qci.pth`. The
+  flag with `chflags nohidden .venv/lib/python3.13/site-packages/_editable_impl_bloq_qci.pth`. The
   flag can come back.

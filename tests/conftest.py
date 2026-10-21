@@ -75,7 +75,9 @@ def _temporary_home(
 ) -> None:
     """A fresh empty HOME per test, so the per-user store default (ADR 0009, section 3) never
     resolves to the real one. Tests that use a store set QCI_HOME as before."""
-    monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("home")))
+    home = str(tmp_path_factory.mktemp("home"))
+    monkeypatch.setenv("HOME", home)
+    monkeypatch.setenv("USERPROFILE", home)  # Path.home() on Windows
     for name in ("XDG_DATA_HOME", "LOCALAPPDATA", "QCI_HOME"):
         monkeypatch.delenv(name, raising=False)
 

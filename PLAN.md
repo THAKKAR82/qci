@@ -882,6 +882,9 @@ the user's answers to six review questions. Its sections resolve:
    CLI-level goldens committed before any `src/` change.
 7. **Quickstart** for the README (text in the ADR). The README is self-contained for PyPI,
    with no relative links; absolute links wait until the repository's visibility is settled.
+   It is written for users (user decision, 2026-10-20): developer material moves to
+   `CONTRIBUTING.md` and `docs/`, the landing-page section to `site/README.md`, and the
+   IBM-data statement to `tests/fixtures/snapshots/README.md` and `CONTRIBUTING.md`.
 8. **Release process:** versioning, `CHANGELOG.md`, build once, TestPyPI before PyPI, and the
    clean-machine test.
 9. **Out of scope:** new comparison features, hosted services, any redistribution of IBM data.
@@ -931,8 +934,9 @@ Distribution and license:
       0009 section 1 (on `main` since PR #5, 2026-10-20; ADR 0009 Findings). R1b leaves both
       unchanged.
 - [ ] `AUTHORS` says the QCI Authors are the commit authors in the git history and names no
-      one. The README's "Development" section says the IBM data under `tests/fixtures/` is
-      not licensed by this project and is provided by IBM under IBM's own terms.
+      one. `tests/fixtures/snapshots/README.md` and `CONTRIBUTING.md` say the IBM data under
+      `tests/fixtures/` is not licensed by this project and is provided by IBM under IBM's
+      own terms (moved from the README by user decision, 2026-10-20).
 - [ ] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
       asks for `git commit -s`. `CLAUDE.md`'s step workflow requires a `Signed-off-by:` line
       on every commit, including commits made through Claude Code.
@@ -954,7 +958,9 @@ Extras:
       subprocess over a store prepared in the test session: `qci runs`, `qci show`,
       `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot compare`,
       `qci snapshot compare-run`, `qci where` and `qci doctor` print the same stdout and
-      exit with the same code as with the SDKs; `qci run`, `qci snapshot capture`,
+      exit with the same code as with the SDKs (for `qci doctor`, every line except the
+      `ibm` extra and saved-account lines, which report the extra missing by design); `qci
+      run`, `qci snapshot capture`,
       `qci snapshot backfill` and `qci snapshot export` exit 2 with the message in
       section 2, before opening the store or loading a workload, and the store bytes are
       unchanged.
@@ -1027,9 +1033,13 @@ Summary-first output:
 
 Docs:
 
-- [ ] README is self-contained as in ADR 0009 section 7: the quickstart verbatim, the essential
-      explanations inline, a "Development" section with the editable install, and no relative
-      link (checked by a test).
+- [ ] README is self-contained as in ADR 0009 section 7, written for users in the order of
+      section 7: the quickstart verbatim, the essential explanations inline, a "License and
+      contributing" section pointing to `CONTRIBUTING.md` (which has the editable install),
+      and no relative link (checked by a test). A test runs the quickstart's offline commands,
+      extracted from `README.md`, in a temporary store. Developer material is in
+      `CONTRIBUTING.md` or `docs/`, and the landing-page section in `site/README.md`. The
+      README passes the neutral-wording check in full.
 - [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
       per-user store, `QCI_HOME`, the extras, `qci where`, `qci doctor`, selectors, the
       summary and `--verbose`, and the exit-code rows for the extra check, `qci doctor`,
@@ -1172,7 +1182,7 @@ None of these are settled. Each one should be resolved by an ADR when it becomes
 | D2 | Workload contract: `build()`, a decorator, or observe mode wrapping user code? | M0 uses `build()`. The rest is open. |
 | D3 | What does "reproducible" mean? | A reconstructable record. Identical results are expected only for seeded simulators. |
 | D4 | Should raw payloads stay inline or move to blobs? | Inline in M0, measured at about 560 KB per `fake_sherbrooke` run. Blobs in M0.5, where identical snapshots should also dedupe. |
-| D5 | Project-local or user-global store? | Project-local `.qci/` with a `QCI_HOME` override. Decided in [ADR 0009](docs/adr/0009-packaging-and-first-run.md) section 3 (accepted 2026-10-20): a per-user store, `QCI_HOME` still overriding, existing `./.qci` stores never moved. Resolved when R1b ships it. |
+| D5 | Project-local or user-global store? | **Resolved 2026-10-20 (R1b, branch `feat/r1b-packaging`):** a per-user store (`~/Library/Application Support/qci` on macOS, `%LOCALAPPDATA%\qci` on Windows, `$XDG_DATA_HOME/qci` or `~/.local/share/qci` elsewhere), `QCI_HOME` still overriding, `qci where` printing the path, and existing `./.qci` stores never moved (a stderr note gives the `QCI_HOME` setting). Decided in [ADR 0009](docs/adr/0009-packaging-and-first-run.md) section 3. Before R1: project-local `.qci/` with a `QCI_HOME` override. |
 | D6 | Migration tooling? | Hand-rolled when the first migration exists. Alembic waits for hosted storage. |
 | D7 | Multiple circuits, sweeps and repeated executions per run? | One circuit per run in M0. The modeling is open. |
 | D8 | Why does `SamplerV2` warn on fake backends? | **Resolved.** It is a `DeprecationWarning` from qiskit-ibm-runtime 0.50. M0 uses `qiskit.primitives.BackendSamplerV2`. The client-side `executor_sampler.Sampler` targets IBM cloud execution and should be re-evaluated when live hardware is added. |

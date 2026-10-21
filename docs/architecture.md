@@ -14,13 +14,14 @@ cli/            Typer commands: argument parsing and rendering only
 services/       Use-case orchestration (RunService, CompareService, SnapshotService,
                 SnapshotCompareService, RunSnapshotCompareService, BackfillService)
   │  depends on ports, never on adapters directly
-compare/        Pure comparison logic over stored runs: provider-neutral
-  │
-core/           ports.py (Protocols), hashing.py, ids.py: pure Python
+compare/        Pure comparison logic over stored runs: provider-neutral; summary.py
+  │             computes the calibration magnitudes of the text summary (R1)
+core/           ports.py (Protocols), hashing.py, ids.py, selectors.py: pure Python
 domain/         Pydantic models: pure data, no I/O, no provider SDKs
   ▲
 adapters/       Provider implementations of the ports (qiskit_ibm/ first)
-storage/        Run and snapshot repository implementations (sqlite first)
+storage/        Run and snapshot repository implementations (sqlite first), and
+                location.py: where the store lives (R1)
 provenance/     Git and environment collectors: plain Python
 ```
 
@@ -31,8 +32,10 @@ and `provenance`. Adapters, storage and provenance implement or supply `core` in
 depend only on `core` and `domain`. The CLI wires concrete implementations together: it
 imports `services` and `storage`, and imports adapters lazily inside the command that needs
 them. The exception is `adapters/qiskit_ibm/live.py`, which the CLI imports at module level
-for the default account name. That module imports `qiskit_ibm_runtime` only when it builds
-the client, and `tests/test_architecture.py` checks that importing it loads no provider SDK.
+for the default account name, and `adapters/qiskit_ibm/extra.py`, which checks for the `ibm`
+extra with `importlib.util.find_spec` (R1). Neither imports a provider SDK at module level:
+`live.py` imports `qiskit_ibm_runtime` only when it builds the client or lists saved account
+names, and `tests/test_architecture.py` checks that importing either loads no provider SDK.
 
 `tests/test_architecture.py` enforces that `qci.domain` and `qci.core` never import a provider
 SDK.
@@ -100,7 +103,9 @@ The exit codes are a contract.
 | `qci run` | 0 | The run succeeded and was persisted. |
 | `qci run` | 1 | The run failed and **was persisted** with `status=failed` and the failing stage. |
 | `qci run` | 2 | The workload could not be loaded. **Nothing was persisted.** |
-| `qci show`, `qci compare` | 1 | A run ID was not found. |
+| `qci run`, `qci snapshot capture`, `qci snapshot backfill`, `qci snapshot export` | 2 | The `ibm` extra is missing (`this command needs the ibm extra: pip install 'bloq-qci[ibm]'`). Checked first: no store is opened or created and no workload is loaded. |
+| `qci show`, `qci compare` | 1 | A run ID or selector matches nothing, or a selector is ambiguous (candidates listed). |
+| `qci show`, `qci compare`, `qci snapshot show`, `qci snapshot export`, `qci snapshot compare`, `qci snapshot compare-run` | 2 | A selector is malformed: text that is not a stored ID and is shorter than 8 characters, `~` without an integer of 1 or more, a snapshot `latest` without `BACKEND:`, or anything else that fits no form. |
 | `qci compare` | 2 | An `--observable` argument is invalid. |
 | `qci snapshot capture` | 0 | A snapshot was stored, or identical content was recorded as one more capture. |
 | `qci snapshot capture` | 1 | Capture failed. **Nothing was persisted.** The message is sanitized. |
@@ -108,17 +113,74 @@ The exit codes are a contract.
 | `qci snapshot backfill` | 0 | Every requested lookup was stored, or nothing was pending. Grid times left by `--max-requests` are printed as remaining. |
 | `qci snapshot backfill` | 1 | A request failed, including the first too-many-requests response, or a returned document has no date or is dated after its requested time. Nothing is retried; lookups stored before the error are kept. |
 | `qci snapshot backfill` | 2 | The backend is a fake or a simulator, has no verified lookup depth, or `--days` exceeds it; or an option is out of range. **Nothing was requested.** |
-| `qci snapshot compare` | 1 | A snapshot ID or the footprint run ID was not found. Nothing is stored. |
-| `qci snapshot compare-run` | 1 | The run ID or the snapshot ID was not found. Nothing is stored. |
-| `qci snapshot show`, `qci snapshot export` | 1 | A snapshot ID was not found, the saved account could not be read for the export scan, or the export was unsafe or holds historical lookup data. Export writes nothing. |
-| `qci runs`, `qci show`, `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot export`, `qci snapshot compare`, `qci snapshot compare-run` | 1 | The store is damaged (`DamagedStoreError`) or has another schema version. Nothing is written. |
+| `qci snapshot compare` | 1 | A snapshot or the footprint run matches nothing, or a selector is ambiguous. Nothing is stored. |
+| `qci snapshot compare-run` | 1 | The run or the snapshot matches nothing, or a selector is ambiguous. Nothing is stored. |
+| `qci snapshot show`, `qci snapshot export` | 1 | A snapshot matches nothing or a selector is ambiguous, the saved account could not be read for the export scan, or the export was unsafe or holds historical lookup data. Export writes nothing. |
+| `qci where` | 0 | Always. It prints the path and opens nothing. |
+| `qci doctor` | 0 | No check reports `problem`; notes are allowed. Nothing is written. |
+| `qci doctor` | 1 | At least one check reports `problem`. Nothing is written. |
+| `qci runs`, `qci show`, `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot export`, `qci snapshot compare`, `qci snapshot compare-run` | 1 | The store is damaged (`DamagedStoreError`) or has another schema version. Nothing is written. (`qci doctor` reports these as a `problem` line instead.) |
 | any | 1 | Any other `QCIError` that reaches `main()`. |
 | any | 2 | A usage error reported by Typer. |
 
+A selector that is not the full ID is echoed on stderr as `<role>: <selector> -> <ID>`, and
+the `./.qci` note (below) goes to stderr too, so stdout and exit codes never depend on either.
 `qci run` prints the run ID to stdout before the error, which goes to stderr. `qci snapshot
 capture` prints the snapshot ID to stdout and its details to stderr. `qci snapshot backfill`
 prints one line per stored lookup to stdout (requested time, snapshot ID, returned stamp, new
 or existing) and its counts and errors to stderr.
+
+## R1: store location, extras, selectors and the summary
+
+Designed in [ADR 0009](adr/0009-packaging-and-first-run.md). Packaging, store location and
+presentation only: comparison rules, record schemas and JSON output are unchanged.
+
+- **Distribution and extras.** The distribution is `bloq-qci`; the import package and the
+  command stay `qci`. The core install (`pydantic`, `typer`, `sqlalchemy`, `numpy`,
+  `openqasm3[parser]`) lists, shows and compares stored runs and snapshots, and runs
+  `qci where` and `qci doctor`. The `ibm` extra (`qiskit`, `qiskit-ibm-runtime` below 0.51,
+  `qiskit-aer`) is needed by `qci run`, `qci snapshot capture`, `qci snapshot backfill` and
+  `qci snapshot export`, which check for it first (`adapters/qiskit_ibm/extra.py`) and exit 2
+  without it. `tests/test_ibm_extra.py` runs every command in a subprocess with the three SDKs
+  blocked.
+- **Store location** (`storage/location.py`). `$QCI_HOME/qci.db` when `QCI_HOME` is set and
+  non-empty; otherwise a per-user directory: `~/Library/Application Support/qci` on macOS,
+  `%LOCALAPPDATA%\qci` (or `~\AppData\Local\qci`) on Windows, and `$XDG_DATA_HOME/qci` (only
+  when absolute) or `~/.local/share/qci` elsewhere. Standard library only. Write commands
+  create the directory, with mode `0o700` on POSIX; read-only commands never create it.
+- **`qci where`** prints the absolute `qci.db` path alone on stdout, and on stderr its source
+  (`QCI_HOME` or the per-user default) and whether the file exists. It opens nothing.
+- **The `./.qci` note.** When `QCI_HOME` is unset and `./.qci/qci.db` is a file in the
+  current directory (never a parent), every command prints a note on stderr, once, from the
+  Typer callback, with the exact `export QCI_HOME=...` line. The path is double-quoted, or
+  `shlex.quote`d when it contains a character a shell expands inside double quotes. Only
+  `Path.is_file` touches that file; QCI never moves, copies, links or merges a store.
+- **`qci doctor`** (`cli/doctor.py`) reports one `ok`, `note` or `problem` line per check:
+  Python version, `bloq-qci` version against `qci.__version__`, core dependencies, the `ibm`
+  extra, the saved account (by name only), and the health of the store `qci where` names, for
+  runs and snapshots separately, plus a legacy `./.qci` store as a note. Stores are summarized
+  read-only (`run_store_summary`, `snapshot_store_summary`, SQLite `mode=ro`). The account
+  check calls `AccountManager.list()` only when the account file exists, because `list()`
+  creates an empty file when there is none; it uses only the returned names, and on an error
+  prints only the exception type. All inputs are injected (`DoctorInputs`).
+- **Selectors** (`core/selectors.py`). `ID | PREFIX | [BACKEND:]latest[~N]`, resolved by a pure
+  function over the `(id, backend, sort_key)` lists that `list_runs` and `list_snapshots`
+  return: no SQL, no provider import (`tests/test_architecture.py`). An argument equal to a
+  stored ID selects it, whatever its length. Runs are ordered by `run_id` descending (creation
+  order; every status); snapshots by `calibrated_at` descending, with `BACKEND:` required and
+  undated snapshots never selected. Two runs in one millisecond, or two snapshots with one
+  `calibrated_at`, at the selected position are ambiguous: exit 1 with the candidates (at most
+  10, then a count). The CLI resolves selectors on the read-only repositories before calling
+  any service.
+- **Summary-first text.** `qci compare`, `qci snapshot compare` and `qci snapshot compare-run`
+  print `cli/render_summary.py`'s summary by default; `--verbose` prints the summary, a blank
+  line, then the full text of the existing renderers unchanged; `--json` is unaffected by
+  `--verbose`. The calibration magnitudes come from `compare/summary.py`: per resource type,
+  parameter name and unit, counts compared and changed, median and largest `|delta|`, median
+  and largest relative delta (`|delta| / |baseline|`), each a `CALCULATED` `Metric`
+  (`qci.summary.magnitude`, version 1), computed on the text path only and never persisted. A
+  baseline of 0, an unavailable value, a text value and a unit difference are counted, never
+  entered as 0. `tests/golden/cli/` pins the JSON, the summary and the full text of each case.
 
 ## Qiskit/IBM adapter notes (M0)
 
@@ -144,7 +206,8 @@ or existing) and its counts and errors to stderr.
 ## M1 compare flow
 
 ```
-qci compare BASELINE CANDIDATE [--json]
+qci compare BASELINE CANDIDATE [--json] [--verbose] [--observable NAME=BITS,...]
+  CLI: resolve both selectors on the read-only repository (R1)
   CompareService (read-only)
     repository.get(baseline), repository.get(candidate)          # unmodified schema-v1 records
     compare/sections.py   explicit semantic comparisons per section
@@ -203,7 +266,8 @@ Any error in steps 2 to 6 persists nothing, does not create the database, prints
 message without the account name, and exits 1. `qiskit_ibm_runtime` is imported lazily in
 `adapters/qiskit_ibm/live.py`. The service factory is injectable, and tests never construct
 the real client: a session guard in `tests/conftest.py` blocks `QiskitRuntimeService`,
-`AccountManager.get` and network connections.
+`AccountManager.get`, `AccountManager.list` and network connections, and every test runs with
+a fresh empty `HOME`.
 
 `qci snapshot export ID --fixture PATH [--account ACCOUNT]` is offline. It redacts again,
 replaces local IDs with placeholders, writes sorted plain JSON, and aborts without writing if
@@ -246,7 +310,9 @@ to 5 times, with backoff); QCI adds no retries. The verified depths are an expli
 Offline and read-only. See ADR 0005, section 7.
 
 ```
-qci snapshot compare BASE CAND --footprint-run RUN [--allow-footprint-backend-mismatch] [--json]
+qci snapshot compare BASE CAND --footprint-run RUN [--allow-footprint-backend-mismatch]
+                     [--json] [--verbose]
+  0. resolve the three selectors (R1)                    → exit 1 no match or ambiguous, 2 malformed
   1. load both snapshots and the run                     → exit 1 if an ID is unknown
   2. different provider or backend                       → not_comparable, no parameters
   3. footprint_for_run(RUN) not available                → not_comparable (dynamic) or unavailable
@@ -267,7 +333,8 @@ Offline and read-only. See ADR 0007. The baseline is a stored run on a fake back
 stored `BackendSnapshot` is the baseline calibration. The candidate is a stored live snapshot.
 
 ```
-qci snapshot compare-run RUN_ID SNAPSHOT_ID [--json]
+qci snapshot compare-run RUN SNAPSHOT [--json] [--verbose]
+  0. resolve both selectors (R1)                         → exit 1 no match or ambiguous, 2 malformed
   1. load the run and the snapshot                       → exit 1 if an ID is unknown
   2. ordered exits, none with parameter comparisons:
      run has no backend or backend snapshot              → unavailable
@@ -293,7 +360,8 @@ used.
 
 ## Storage (M0)
 
-- SQLite through SQLAlchemy 2 Core, at `./.qci/qci.db` or `$QCI_HOME/qci.db`.
+- SQLite through SQLAlchemy 2 Core, at `$QCI_HOME/qci.db` or the per-user default (R1,
+  above; before R1 the default was `./.qci/qci.db`).
 - The `runs` table has indexed columns for listing (`run_id`, `created_at`, `status`,
   `workload`, `backend_name`, `git_commit`, `schema_version`) plus `record_json`, the complete
   serialized Run.
@@ -312,9 +380,9 @@ used.
   with version 1 and the version 2 set (four) with version 2; any other set is
   `DamagedStoreError`.
 - Commands that only read (`qci runs`, `qci show`, `qci compare`, `qci snapshots`,
-  `qci snapshot show`, `qci snapshot export`, `qci snapshot compare` and
-  `qci snapshot compare-run`) open their
-  repositories with `read_only=True`. SQLite then opens the file with `mode=ro`, so these
+  `qci snapshot show`, `qci snapshot export`, `qci snapshot compare`,
+  `qci snapshot compare-run` and `qci doctor`) open their stores with `read_only=True`, and
+  `qci where` opens nothing. SQLite then opens the file with `mode=ro`, so these
   commands never create the file, a table or a `schema_meta` row. A missing file, or a file
   with none of a store's tables, reads as an empty store, so the result is "No runs recorded
   yet.", "No snapshots recorded yet." or an unknown-ID error. A damaged store is an error,

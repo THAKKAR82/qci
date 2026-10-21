@@ -14,7 +14,7 @@ separates `MYPYPATH` entries with `;`, not `:`, so quote the value: an unquoted 
 shell command.
 
 ```bash
-python -m venv .venv && .venv/Scripts/python.exe -m pip install -e '.[dev]'
+python -m venv .venv && .venv/Scripts/python.exe -m pip install -e '.[ibm,dev]'
 
 .venv/Scripts/ruff.exe check .
 .venv/Scripts/ruff.exe format --check .
@@ -39,6 +39,13 @@ running mypy. When `CLAUDE.md` adds an experiment directory to `MYPYPATH`, add i
   scrubs the environment of the subprocess it starts. On Windows, `asyncio` imports
   `_overlapped` (Winsock), which fails with `WinError 10106` without `SYSTEMROOT`. Do not
   reduce that environment to `PYTHONPATH` alone.
+
+## Store location on Windows
+
+Without `QCI_HOME`, the store is `%LOCALAPPDATA%\qci\qci.db`, or `~\AppData\Local\qci\qci.db`
+when `LOCALAPPDATA` is unset (ADR 0009, section 3). It is local, not roaming. `qci where`
+prints the path in use. Tests never use it: `tests/conftest.py` gives every test a fresh empty
+`HOME` and `USERPROFILE` and removes `LOCALAPPDATA`, `XDG_DATA_HOME` and `QCI_HOME`.
 
 ## Running the CLI
 

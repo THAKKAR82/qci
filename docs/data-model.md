@@ -36,6 +36,7 @@ Run
 │     environment: EnvironmentProvenance
 │                                    python_version, python_implementation, platform,
 │                                    packages{name: version | None}, config_hash
+│                                    (key "qci": the bloq-qci distribution, R1)
 ├── logical_circuit: CircuitSummary  (always present: load failures are not recorded)
 ├── compilation: CompilationRecord | None
 │     compiler{name, version}, config: CompileConfig, config_hash,
@@ -267,6 +268,34 @@ differences are live minus fake.
   present.
 - There are no device-wide gate-set, parameter-set or qubit-count fields: only the footprint
   is compared.
+
+## R1: where records live, and how they are selected
+
+R1 ([ADR 0009](adr/0009-packaging-and-first-run.md)) changes no record schema, store schema
+or JSON output.
+
+- **Package version.** `qci_version` is `qci.__version__`. `provenance.environment.packages`
+  keeps QCI's version under the key `qci`; since 0.1.0 it is the version of the installed
+  distribution `bloq-qci` (the import package is still `qci`). Snapshot `environment` does the
+  same. Older runs record `0.0.1` under the same key, so `qci compare` reports the package
+  version difference as an environment change, as for any version change.
+- **Store location.** Runs and snapshots live in one `qci.db`: `$QCI_HOME/qci.db` when
+  `QCI_HOME` is set and non-empty, otherwise a per-user directory
+  (`~/Library/Application Support/qci` on macOS, `%LOCALAPPDATA%\qci` on Windows,
+  `$XDG_DATA_HOME/qci` or `~/.local/share/qci` elsewhere). `qci where` prints the path. A
+  store at `./.qci/qci.db` from before R1 is never moved: commands print a note with the
+  `QCI_HOME` setting that keeps using it. Runs can be compared only within one store.
+- **Selectors are not identities.** `qci show`, `qci compare` and the snapshot commands accept
+  an ID, a unique ID prefix of 8 or more characters, or `[BACKEND:]latest[~N]`. Runs are
+  ordered by `run_id` (ULID: millisecond time, then random bits), so two runs created in the
+  same millisecond have no known order and a `latest` selector that lands on either is
+  reported as ambiguous. Snapshots are ordered by `calibrated_at`, the provider's stamp, not
+  by when QCI stored them. A selector is resolved at the moment a command runs, against the
+  current store, and is never stored: the same selector can name a different record later.
+- **The summary is a view.** The default text of the three comparison commands is a summary,
+  and its calibration magnitudes are `Metric`s with `EvidenceKind.CALCULATED`, method
+  `qci.summary.magnitude`, version 1. They are computed from the comparison on the text path,
+  never stored and never part of `--json`.
 
 ## Deferred concepts (not modeled in M0)
 

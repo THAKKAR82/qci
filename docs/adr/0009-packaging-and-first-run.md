@@ -8,7 +8,9 @@
   (section 2); and stale docs are updated in R1b. Acceptance criteria are in section 10.
 - **Date:** 2026-10-20 (proposed), 2026-10-20 (accepted), 2026-10-20 (`LICENSE` and `NOTICE`
   merged in PR #5 with both license agreements, recorded in Findings; R1c split into a local
-  test and the TestPyPI upload, section 8)
+  test and the TestPyPI upload, section 8), 2026-10-20 (R1b: the IBM-data statement moved out
+  of the README and the README written for users, by user decision, sections 1, 7 and 10;
+  clarifications from implementation in sections 1, 4, 5 and 10, recorded in Findings)
 - **Milestone:** R1, release 1 (`PLAN.md`). This ADR is R1a. R1b implements it, R1c is the
   clean-machine install test and the TestPyPI release, and R1d is the PyPI release.
 - **Resolves:** D5 in `PLAN.md` (project-local or user-global store), once R1b ships it.
@@ -101,8 +103,9 @@ Copyright 2026 The QCI Authors
 
 The NOTICE needs no `site/` exclusion: both agreements are recorded (below). The statement
 that the IBM data under `tests/fixtures/` is not licensed by this project, and is provided by
-IBM under IBM's own terms, is not in the NOTICE; R1b puts it in the README's "Development"
-section.
+IBM under IBM's own terms, is not in the NOTICE. R1b puts it next to the data, in
+`tests/fixtures/snapshots/README.md`, and in `CONTRIBUTING.md`, not in the user-facing
+`README.md` (user decision, 2026-10-20).
 
 `AUTHORS` (R1b) is a short file saying that the QCI Authors are the commit authors in the
 git history, which `git shortlog -sne` lists. It names no one itself, so it never goes out of
@@ -137,8 +140,10 @@ metadata has no `[project.urls]` until its visibility is settled.
 
 **sdist contents.** Exactly `pyproject.toml`, `README.md`, `CHANGELOG.md`, `LICENSE`,
 `NOTICE`, `AUTHORS`, `PKG-INFO`, `src/qci/**/*.py` and `src/qci/py.typed`, set with hatchling's
-`[tool.hatch.build.targets.sdist] only-include`. An allow-list, not an exclude list: a new
-top-level file or directory stays out unless it is added on purpose.
+`[tool.hatch.build.targets.sdist] only-include`, plus `.gitignore` (clarified 2026-10-20 in
+R1b: hatchling always adds the VCS ignore file to an sdist, whatever `only-include` says, and
+it holds no data; Findings). An allow-list, not an exclude list: a new top-level file or
+directory stays out unless it is added on purpose.
 
 **Excluded from both:** `tests/` (including `tests/fixtures/snapshots/ibm_fez.json` and
 `tests/golden/`), `experiments/`, `docs/` (including the M1.5d manifest), `site/`,
@@ -262,7 +267,10 @@ command for that reason, and it gives the exact command to keep the old store.
 | Store | for the store `qci where` names, separately for runs and snapshots: `empty` (no file, or none of that store's tables) or `healthy` (its schema version, and the number of runs or snapshots) | `./.qci/qci.db` exists and `QCI_HOME` is unset: its path and its health | `damaged` (`DamagedStoreError`, with what is missing) or `other schema version` (the version found and the one supported) |
 
 **Accounts.** The check calls `AccountManager.list()` from `adapters/qiskit_ibm/live.py`,
-inside the existing quiet-logging context, and uses only the returned keys. It never reads
+inside the existing quiet-logging context, and uses only the returned keys. It calls it only
+when the account file exists: `list()` creates an empty account file when there is none
+(clarified 2026-10-20 in R1b; Findings), and `qci doctor` writes nothing. A missing file is
+the `note` "no account file". It never reads
 an `Account`'s fields and never prints a token, instance, CRN, URL, channel or any other
 account detail beyond its name. It reads no environment variable for credentials. If the
 file cannot be parsed, it prints only the exception type, not its message, which could quote
@@ -287,7 +295,9 @@ accepts a selector:
 SELECTOR := ID | PREFIX | [BACKEND ":"] "latest" ["~" N]
 ```
 
-- **`ID`**: a full 26-character ID. Exact match, as today.
+- **`ID`**: a full 26-character ID. Exact match, as today. An argument equal to a stored ID
+  selects it whatever its length (clarified 2026-10-20 in R1b: real IDs are 26-character
+  ULIDs, but test stores use shorter IDs such as `BASE`; a selector form is matched first).
 - **`PREFIX`**: 8 to 25 characters of an ID, matched case-sensitively against the start of
   every stored ID. Exactly one match selects it.
 - **`latest`, `latest~N`** (N an integer, 1 or more; `latest` is `latest~0`): the entry at
@@ -395,9 +405,18 @@ the text path, and it is neither persisted nor part of `--json`.
 
 ### 7. Quickstart for the README
 
-R1b replaces the README's "Quick start" with this, and moves the developer install to a
-"Development" section. The offline part needs no IBM account and no network after the
-install.
+R1b replaces the README's "Quick start" with this. The offline part needs no IBM account and
+no network after the install.
+
+**A README for users (user decision, 2026-10-20).** The README is written for users of the
+package, in this order: what QCI is; install (core and the `ibm` extra); this quickstart;
+core ideas in plain language (runs, comparisons, the sampling floor, observables, footprints,
+snapshots, re-measured versus carried over); a command reference; what QCI deliberately does
+not do; data and privacy; license and contributing. Developer material (the editable install,
+milestones, the step workflow, internal troubleshooting) moves to `CONTRIBUTING.md` and
+`docs/`, and the landing-page section to `site/README.md`. A test extracts the quickstart's
+offline commands from `README.md` and runs them in a temporary store, so the README cannot
+drift from the code.
 
 **Self-contained for PyPI (accepted 2026-10-20).** The README is the package's long
 description, so it must read completely on PyPI, where links into the repository do not
@@ -561,8 +580,9 @@ Distribution and license:
 - [x] `LICENSE` is the unmodified Apache License 2.0 text and `NOTICE` is the two lines in
       section 1 (on `main` since PR #5, 2026-10-20; Findings). R1b leaves both unchanged.
 - [ ] `AUTHORS` says the QCI Authors are the commit authors in the git history and names no
-      one. The README's "Development" section says the IBM data under `tests/fixtures/` is
-      not licensed by this project and is provided by IBM under IBM's own terms.
+      one. `tests/fixtures/snapshots/README.md` and `CONTRIBUTING.md` say the IBM data under
+      `tests/fixtures/` is not licensed by this project and is provided by IBM under IBM's
+      own terms (moved from the README by user decision, 2026-10-20).
 - [ ] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
       asks for `git commit -s`. `CLAUDE.md`'s step workflow requires a `Signed-off-by:` line
       on every commit, including commits made through Claude Code.
@@ -584,7 +604,9 @@ Extras:
       subprocess over a store prepared in the test session: `qci runs`, `qci show`,
       `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot compare`,
       `qci snapshot compare-run`, `qci where` and `qci doctor` print the same stdout and
-      exit with the same code as with the SDKs; `qci run`, `qci snapshot capture`,
+      exit with the same code as with the SDKs (for `qci doctor`, every line except the
+      `ibm` extra and saved-account lines, which report the extra missing by design; clarified
+      2026-10-20 in R1b); `qci run`, `qci snapshot capture`,
       `qci snapshot backfill` and `qci snapshot export` exit 2 with the message in
       section 2, before opening the store or loading a workload, and the store bytes are
       unchanged.
@@ -657,9 +679,13 @@ Summary-first output:
 
 Docs:
 
-- [ ] README is self-contained as in section 7: the quickstart verbatim, the essential
-      explanations inline, a "Development" section with the editable install, and no relative
-      link (checked by a test).
+- [ ] README is self-contained as in section 7, written for users in the order of section 7:
+      the quickstart verbatim, the essential explanations inline, a "License and
+      contributing" section pointing to `CONTRIBUTING.md` (which has the editable install),
+      and no relative link (checked by a test). A test runs the quickstart's offline commands,
+      extracted from `README.md`, in a temporary store. Developer material is in
+      `CONTRIBUTING.md` or `docs/`, and the landing-page section in `site/README.md`. The
+      README passes the neutral-wording check in full.
 - [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
       per-user store, `QCI_HOME`, the extras, `qci where`, `qci doctor`, selectors, the
       summary and `--verbose`, and the exit-code rows for the extra check, `qci doctor`,
@@ -728,6 +754,33 @@ Checked offline on `main` at `384fd06`:
 
 Consequences: the NOTICE needs no `site/` exclusion, the licensing gate on the TestPyPI
 upload and on R1d is met, and R1d stays gated on D29.
+
+### R1b implementation (2026-10-20)
+
+Found while implementing R1b, offline, with `hatchling` 1.32.4, `build` 1.6.1 and
+`qiskit-ibm-runtime` 0.50.0. Each led to a dated clarification above.
+
+- **The sdist always holds `.gitignore`.** hatchling's sdist builder force-includes the VCS
+  ignore file (`SdistBuilder.get_default_build_data`, from `vcs_exclusion_files`), and
+  `only-include` and `ignore-vcs` do not remove it. It holds no data. The allow-list and the
+  archive test include it; excluding it would need a build hook, itself shipped in the sdist.
+- **`AccountManager.list()` writes.** `read_config` calls `_ensure_file_exists`, which creates
+  `~/.qiskit/qiskit-ibm.json` (and its directory) when absent. `qci doctor` checks that the
+  file exists first. The test session guard now also blocks `AccountManager.list`, and every
+  test runs with a fresh `HOME` (and `USERPROFILE`, which `Path.home()` reads on Windows).
+- **An unknown channel raises with the channel in the message.** `Account.from_saved_format`
+  raises `InvalidAccountError` quoting the saved channel. `qci doctor` prints only the
+  exception type, so a sentinel channel never appears; a test covers it.
+- **Check 4 does not match the committed fixture.** Both payload patterns need no whitespace
+  where the indented fixture has a newline: its `last_update_date` is a tagged object
+  (`"last_update_date": {` then, on the next line, `"$datetime": ...`), so neither pattern
+  matches anywhere in `ibm_fez.json`. Check 5 (the fixture's own `last_update_date` value)
+  reports the fixture's text in any file, as the scanner self-test shows, and check 4 still
+  reports compact payloads. The patterns are kept as written; widening them (for example
+  `\{\s*"\$datetime"`) is an open question for review.
+- **Short unknown IDs.** CLI tests that passed short unknown IDs (`NOPE`, `RUN`, `SNAP`) and
+  expected exit 1 now pass 26-character unknown IDs, as the selector grammar makes short text
+  that is not a stored ID a usage error (user decision, 2026-10-20).
 
 ## Consequences
 
