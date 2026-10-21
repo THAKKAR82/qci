@@ -10,6 +10,7 @@ import typer
 from pydantic import ValidationError
 
 from qci.adapters.qiskit_ibm import live as ibm_live
+from qci.adapters.qiskit_ibm.extra import EXTRA_MESSAGE, missing_sdk_modules
 from qci.core.errors import (
     BackfillRejectedError,
     CaptureRejectedError,
@@ -65,6 +66,13 @@ def _repository(*, read_only: bool = False) -> SqliteRunRepository:
 def _snapshot_repository(*, read_only: bool = False) -> SqliteSnapshotRepository:
     """``read_only`` for commands that only read: they never create or write the store."""
     return _open(lambda: SqliteSnapshotRepository(store_dir() / DB_FILENAME, read_only=read_only))
+
+
+def _require_ibm_extra() -> None:
+    """Exit 2 without the provider SDKs, before any store is opened or workload loaded."""
+    if missing_sdk_modules():
+        typer.echo(f"error: {EXTRA_MESSAGE}", err=True)
+        raise typer.Exit(code=2)
 
 
 snapshot_app = typer.Typer(
@@ -151,6 +159,7 @@ def run(
     Seed precedence, per stage: the specific flag, then --seed, then unseeded. An unseeded
     stage lets Qiskit choose its own randomness, so its output may differ between runs.
     """
+    _require_ibm_extra()
     # Imported here so that `qci runs` / `qci show` do not pay Qiskit's import cost.
     from qci.adapters.qiskit_ibm import QiskitIbmAdapter
 
@@ -408,6 +417,7 @@ def snapshot_capture(
     Uses the network. Runs once: no retries, polling or scheduling. Content identical to an
     existing snapshot adds only a capture record. On any error nothing is stored.
     """
+    _require_ibm_extra()
     # Check the store before the network read: a damaged or other-version store exits 1
     # with no client built. Read-only, so an absent store is not created here.
     _snapshot_repository(read_only=True).close()
@@ -494,6 +504,7 @@ def snapshot_backfill(
     ] = 10.0,
     account: AccountOption = ibm_live.DEFAULT_ACCOUNT,
 ) -> None:
+    _require_ibm_extra()
     from qci.adapters.qiskit_ibm.historical import IbmHistoricalCalibrationSource
     from qci.services.backfill_service import BackfillService, LookupResult
 
@@ -669,6 +680,7 @@ def snapshot_export(
     Redacts again, replaces local IDs with placeholders, and aborts without writing if the
     output contains the saved account's token, instance or URL verbatim.
     """
+    _require_ibm_extra()
     from qci.adapters.qiskit_ibm.redact import redact_payload
 
     try:
