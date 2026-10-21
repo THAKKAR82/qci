@@ -252,3 +252,19 @@ def test_no_note_for_a_directory_named_qci_db(tmp_path: Path) -> None:
     (tmp_path / ".qci" / "qci.db").mkdir(parents=True)
     assert legacy_store(tmp_path, {}) is None
     assert legacy_store(tmp_path, {"QCI_HOME": ""}) is None
+
+
+@pytest.mark.parametrize(
+    ("directory", "quoted"),
+    [
+        ("/Users/a b/work/.qci", '"/Users/a b/work/.qci"'),
+        ("/tmp/$(touch x)/.qci", "'/tmp/$(touch x)/.qci'"),
+        ("/tmp/`id`/.qci", "'/tmp/`id`/.qci'"),
+        ('/tmp/a"b/.qci', """'/tmp/a"b/.qci'"""),
+        ("/tmp/it's/.qci", '"/tmp/it\'s/.qci"'),
+        ("/tmp/a\\b!/.qci", "'/tmp/a\\b!/.qci'"),
+    ],
+)
+def test_the_export_line_never_expands_the_directory_name(directory: str, quoted: str) -> None:
+    note = legacy_note(Path(directory), StoreLocation(Path("/s"), "per-user default"))
+    assert note.endswith(f"  export QCI_HOME={quoted}")

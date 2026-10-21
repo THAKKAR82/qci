@@ -6,6 +6,7 @@ never moved, copied, linked or merged: callers only report it.
 """
 
 import os
+import shlex
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -67,12 +68,22 @@ def legacy_store(cwd: Path, environ: Mapping[str, str] | None = None) -> Path | 
     return directory if (directory / DB_FILENAME).is_file() else None
 
 
+def shell_quoted(path: Path) -> str:
+    """``path`` quoted for a POSIX shell: in double quotes when nothing in it expands there
+    (``$``, a backtick, ``"``, ``\\`` or ``!``), otherwise with ``shlex.quote``, so that a pasted
+    command never runs part of a directory name."""
+    text = str(path)
+    if not set(text) & set('$`"\\!'):
+        return f'"{text}"'
+    return shlex.quote(text)
+
+
 def legacy_note(legacy: Path, location: StoreLocation) -> str:
     return (
         f"note: ./{LEGACY_DIRECTORY}/{DB_FILENAME} exists, but QCI now uses {location.db} by "
         "default.\n"
         "To keep using that store, set QCI_HOME to its directory:\n"
-        f'  export QCI_HOME="{legacy}"'
+        f"  export QCI_HOME={shell_quoted(legacy)}"
     )
 
 
