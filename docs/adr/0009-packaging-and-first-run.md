@@ -6,7 +6,9 @@
   (section 1); the repository is private until D29 is resolved (sections 8 and 9); the README
   is self-contained for PyPI (section 7); the `qiskit-ibm-runtime` cap stands for 0.1.0
   (section 2); and stale docs are updated in R1b. Acceptance criteria are in section 10.
-- **Date:** 2026-10-20 (proposed), 2026-10-20 (accepted)
+- **Date:** 2026-10-20 (proposed), 2026-10-20 (accepted), 2026-10-20 (`LICENSE` and `NOTICE`
+  merged in PR #5 with both license agreements, recorded in Findings; R1c split into a local
+  test and the TestPyPI upload, section 8)
 - **Milestone:** R1, release 1 (`PLAN.md`). This ADR is R1a. R1b implements it, R1c is the
   clean-machine install test and the TestPyPI release, and R1d is the PyPI release.
 - **Resolves:** D5 in `PLAN.md` (project-local or user-global store), once R1b ships it.
@@ -88,40 +90,37 @@ is unchanged. Older runs record `0.0.1` under the same key, and `qci compare` re
 version difference as an environment change, as for any version change.
 
 **License.** Apache-2.0, declared with PEP 639 metadata: `license = "Apache-2.0"` and
-`license-files = ["LICENSE", "NOTICE"]`, which needs `hatchling>=1.27`. The repository gains
-the Apache-2.0 text as `LICENSE` and a `NOTICE`:
+`license-files = ["LICENSE", "NOTICE"]`, which needs `hatchling>=1.27`. `LICENSE` and
+`NOTICE` are on `main` since PR #5 (2026-10-20). `LICENSE` is the unmodified Apache License
+2.0 text, and `NOTICE` is exactly:
 
 ```
-QCI (bloq-qci)
+QCI
 Copyright 2026 The QCI Authors
-
-The QCI Authors are the people recorded as commit authors in this project's git history
-(see AUTHORS).
-
-Data from IBM Quantum under tests/fixtures/ is not licensed by this project. It is
-provided by IBM under IBM's own terms, and it is not included in any built package.
-
-The website in site/ is not covered by the LICENSE file until each of its authors has
-agreed to license it under Apache-2.0.
 ```
 
-`AUTHORS` is a short file that says the same: the authors are the commit authors in the
+The NOTICE needs no `site/` exclusion: both agreements are recorded (below). The statement
+that the IBM data under `tests/fixtures/` is not licensed by this project, and is provided by
+IBM under IBM's own terms, is not in the NOTICE; R1b puts it in the README's "Development"
+section.
+
+`AUTHORS` (R1b) is a short file saying that the QCI Authors are the commit authors in the
 git history, which `git shortlog -sne` lists. It names no one itself, so it never goes out of
 date.
 
 Licensing needs the agreement of every contributor whose work the license covers: the
 `site/` authors (Mit Thakkar and `toorha`) for `site/`, and `dhruvhptl` for the parts of
-`README.md`, `AGENTS.md` and `tests/test_architecture.py` they wrote. **Recording (accepted
-2026-10-20):** `toorha` and `dhruvhptl` each comment on the pull request that adds `LICENSE`:
-"I agree to license my contributions to this repository under the Apache License 2.0." Until
-both comments exist, the NOTICE keeps its `site/` exclusion, and R1d stays gated on both.
+`README.md`, `AGENTS.md` and `tests/test_architecture.py` they wrote. **Recorded
+2026-10-20:** `toorha` and `dhruvhptl` each commented on PR #5, which adds `LICENSE`, with
+the sentence "I agree to license my contributions to this repository under the Apache
+License 2.0." (Findings). The licensing gate on the TestPyPI upload and on R1d is met.
 `site/` is outside every built package regardless.
 
 **Future contributions** use the Developer Certificate of Origin 1.1: every commit carries a
 `Signed-off-by: Name <email>` line (`git commit -s`). `CONTRIBUTING.md` states this, with the
 DCO text, and `CLAUDE.md`'s step workflow requires it, including for commits made through
-Claude Code. Both land with `LICENSE` in R1b, and R1b's own commits carry the line from its
-first commit on.
+Claude Code. Both land in R1b, and R1b's own commits carry the line from its first commit
+on. (PR #5's commit already carries one.)
 
 **Python versions.** `requires-python = ">=3.12"`, unchanged, with no upper bound. The tested
 versions are 3.12 and 3.13: classifiers name exactly these, R1c installs on both, and
@@ -180,7 +179,8 @@ The architecture allows a core install (Findings), so:
 backfill, account and fake-backend code relies on behavior read from the 0.50.0 source
 (ADR 0005, ADR 0008), which a minor release can change. Accepted for 0.1.0. Raising the bound
 is a reviewed step that checks each new version against that behavior: historical requests,
-account handling, logging and redaction (backlog in `PLAN.md`). `numpy` and `openqasm3` stay in core: the comparisons need them.
+account handling, logging and redaction (backlog in `PLAN.md`). `numpy` and `openqasm3`
+stay in core: the comparisons need them.
 
 **Without the `ibm` extra**, these work: `qci runs`, `qci show`, `qci compare`,
 `qci snapshots`, `qci snapshot show`, `qci snapshot compare`, `qci snapshot compare-run`,
@@ -484,15 +484,24 @@ qci snapshot compare-run latest ibm_fez:latest
   links ADR 0009.
 - **Build once.** From a clean checkout of the release commit (`git status` clean), run
   `python -m build`, run the archive test (section 1) over those exact files, and record the
-  SHA-256 of both. The same two files go to TestPyPI and then to PyPI; R1d checks the hashes.
+  SHA-256 of both. The same two files are tested locally, then go to TestPyPI and then to
+  PyPI; each stage checks the hashes.
 - **Credentials.** The user uploads, with `twine` or PyPI trusted publishing. API tokens live
   in the user's keyring or PyPI settings, never in the repository, a command line or a log.
   No agent uploads, tags or pushes.
-- **Clean-machine test (R1c).** In a directory outside the repository, with `PYTHONPATH`
+- **R1c is two parts with different gates.**
+  - *Part 1, the local clean-machine test (steps 1 to 3 below),* installs the locally built
+    wheel and sdist. Nothing is published, so it has no gate.
+  - *Part 2, the TestPyPI upload (step 4),* publishes the package. It was gated on the two
+    license agreements, and that gate is met (section 1, Findings). D29 does not gate it: the
+    archive test (section 1) checks that neither file holds IBM data, and the metadata has
+    no project URLs.
+- **Clean-machine test (R1c part 1).** In a directory outside the repository, with `PYTHONPATH`
   unset and `HOME` set to a new empty temporary directory (so the per-user default resolves
   inside it and no real store or saved account is visible):
   1. on Python 3.12 and on 3.13, create a fresh virtual environment and install the built
-     wheel file with the `ibm` extra;
+     wheel file with the `ibm` extra; then, in another fresh environment per version, install
+     the built sdist the same way (`'bloq-qci[ibm] @ file:///<absolute path of the sdist>'`);
   2. run the quickstart's offline steps exactly as written, with `QCI_HOME` unset, and
      record every command's output and exit code; `qci where` must name a path under the
      temporary `HOME`, and `qci doctor` must exit 0 with the account check as a note;
@@ -500,17 +509,17 @@ qci snapshot compare-run latest ibm_fez:latest
      0 and reports the extra missing, `qci runs` and `qci compare latest~1 latest` read the
      store from step 2, and `qci run bell.py --backend fake_fez` exits 2 with the extra
      message and the store bytes unchanged;
-  4. upload both files to TestPyPI and repeat steps 1 and 2 installing from TestPyPI, with
+  4. (part 2) upload both files to TestPyPI and repeat steps 1 and 2 installing from TestPyPI, with
      `--index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/`
      and the exact version pinned (`bloq-qci[ibm]==0.1.0`), so no other project's
      `bloq-qci` can be picked.
   R1c records the machine, the OS and Python versions, the wheel hash, the outputs, and
   whether the hidden `.pth` problem appeared, in this ADR's Findings.
-- **PyPI (R1d).** Gate: D29 is resolved for a public release (section 9), and both license
-  agreement comments (section 1) are recorded. The repository stays private until D29 is
-  resolved. Then the user tags `v0.1.0`, uploads the two files whose hashes R1c recorded,
-  and repeats the quickstart's offline steps from PyPI in a fresh environment. A packaged
-  file that changes after R1c (for example README links once visibility is settled) means a
+- **PyPI (R1d).** Gated on D29 being resolved for a public release (section 9). The
+  licensing gate is met (section 1). The repository stays private until D29 is resolved.
+  Then the user tags `v0.1.0`, uploads the two files whose hashes R1c recorded, and repeats
+  the quickstart's offline steps from PyPI in a fresh environment. A packaged file that
+  changes after R1c (for example README links once visibility is settled) means a
   new build, and R1c is repeated on it before R1d.
 
 ### 9. Out of scope for R1
@@ -549,9 +558,11 @@ Distribution and license:
       `requires-python = ">=3.12"`; classifiers for Python 3.12 and 3.13 only; no
       `[project.urls]`; core dependencies, and the `ibm` and `dev` extras, exactly as in
       section 2, with `qiskit-ibm-runtime>=0.50,<0.51`.
-- [ ] `LICENSE` is the unmodified Apache License 2.0 text. `NOTICE` is the text in section 1,
-      with "Copyright 2026 The QCI Authors". `AUTHORS` says the authors are the commit
-      authors in the git history and names no one.
+- [x] `LICENSE` is the unmodified Apache License 2.0 text and `NOTICE` is the two lines in
+      section 1 (on `main` since PR #5, 2026-10-20; Findings). R1b leaves both unchanged.
+- [ ] `AUTHORS` says the QCI Authors are the commit authors in the git history and names no
+      one. The README's "Development" section says the IBM data under `tests/fixtures/` is
+      not licensed by this project and is provided by IBM under IBM's own terms.
 - [ ] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
       asks for `git commit -s`. `CLAUDE.md`'s step workflow requires a `Signed-off-by:` line
       on every commit, including commits made through Claude Code.
@@ -656,20 +667,28 @@ Docs:
       R1. `PLAN.md` marks D5 resolved.
 - [ ] All gates are clean, and every neutral-wording hit is justified.
 
-#### R1c acceptance criteria (approved 2026-10-20; run by the user)
+#### R1c acceptance criteria (approved 2026-10-20, split 2026-10-20; run by the user)
 
-- [ ] Before any upload: the name `bloq-qci` is unclaimed on PyPI and TestPyPI, and a search of
+Part 1, local clean-machine test (no gate):
+
+- [ ] Before part 2: the name `bloq-qci` is unclaimed on PyPI and TestPyPI, and a search of
       PyPI for distributions shipping a top-level `qci` package is recorded.
 - [ ] `CHANGELOG.md` has its dated `0.1.0` entry and every packaged file is final before the
       build. The two files are built once with `python -m build` from a clean checkout of the
       release commit on `main`; the archive test is run over those exact files, and both
       SHA-256 hashes are recorded.
 - [ ] The clean-machine test of section 8, steps 1 to 3, on Python 3.12 and on 3.13, outside
-      the repository, with `PYTHONPATH` unset and `HOME` a new empty directory: every command
-      and exit code is recorded; `qci where` names a path under that `HOME`; `qci doctor`
-      exits 0 with the account check as a note; the core-only environment reads the store,
-      and `qci run` there exits 2 with the extra message and the store bytes unchanged.
+      the repository, with `PYTHONPATH` unset and `HOME` a new empty directory, from the
+      locally built wheel and, separately, the locally built sdist: every command and exit
+      code is recorded; `qci where` names a path under that `HOME`; `qci doctor` exits 0
+      with the account check as a note; the core-only environment reads the store, and
+      `qci run` there exits 2 with the extra message and the store bytes unchanged.
 - [ ] Whether the hidden `.pth` problem appeared is recorded.
+
+Part 2, TestPyPI (gated on the two license agreements: met 2026-10-20; not gated on D29):
+
+- [x] Both license agreements are recorded (PR #5, 2026-10-20; Findings).
+- [ ] Part 1 is complete, on the same two files (hashes checked).
 - [ ] The user uploads both files to TestPyPI. Steps 1 and 2 are repeated installing
       `bloq-qci[ibm]==0.1.0` from TestPyPI with the index options of section 8, and the
       installed wheel's hash equals the recorded one.
@@ -679,18 +698,36 @@ Docs:
 #### R1d acceptance criteria (approved 2026-10-20; run by the user)
 
 - [ ] D29 is resolved for a public release, with the date and the outcome in `PLAN.md`.
-- [ ] The comments by `toorha` and `dhruvhptl` on the pull request that adds `LICENSE`, each
+- [x] The comments by `toorha` and `dhruvhptl` on the pull request that adds `LICENSE`, each
       stating "I agree to license my contributions to this repository under the Apache
-      License 2.0.", are recorded (pull request and comment links, date) in this ADR's
-      Findings. The NOTICE's `site/` exclusion is then removed in a reviewed step: before
-      R1c's build if both comments exist by then, otherwise later, with a new build and a
-      repeated R1c.
+      License 2.0.", are recorded in this ADR's Findings (PR #5, 2026-10-20). The NOTICE
+      has no `site/` exclusion, so no NOTICE change is needed.
 - [ ] No packaged file changed since R1c's build; otherwise R1c is repeated on the new build.
 - [ ] The user tags `v0.1.0` on the release commit and uploads to PyPI the two files R1c
       recorded; the hashes PyPI reports equal R1c's.
 - [ ] The quickstart's offline steps, run from PyPI in a fresh environment with an empty
       `HOME`, give the same exit codes as in R1c, recorded in this ADR's Findings.
 - [ ] `PLAN.md` marks R1 done.
+
+## Findings
+
+### Licensing (2026-10-20)
+
+PR #5 ("chore: license the project under the Apache License 2.0", merged into `main` as
+`384fd06`, with a `Signed-off-by:` line) adds `LICENSE` and `NOTICE`. `toorha` and
+`dhruvhptl` each commented on PR #5 on 2026-10-20 with the exact sentence "I agree to license
+my contributions to this repository under the Apache License 2.0.", as reported by the user.
+Checked offline on `main` at `384fd06`:
+
+- `LICENSE` has 202 lines and SHA-256
+  `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`, byte-identical to the
+  unmodified Apache License 2.0 text installed in `.venv` by `stevedore` 5.9.1
+  (`stevedore-5.9.1.dist-info/licenses/LICENSE`).
+- `NOTICE` is exactly two lines, `QCI` and `Copyright 2026 The QCI Authors`, each ending in a
+  newline.
+
+Consequences: the NOTICE needs no `site/` exclusion, the licensing gate on the TestPyPI
+upload and on R1d is met, and R1d stays gated on D29.
 
 ## Consequences
 

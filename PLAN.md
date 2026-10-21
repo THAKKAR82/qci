@@ -852,8 +852,9 @@ the user's answers to six review questions. Its sections resolve:
 1. **Distribution:** PyPI name `bloq-qci`, import name `qci`, command `qci`, version `0.1.0`
    single-sourced from `qci.__version__`. Apache-2.0 with `LICENSE`, `NOTICE` ("Copyright
    2026 The QCI Authors", the commit authors in the git history; see `AUTHORS`) and PEP 639
-   metadata. `toorha` and `dhruvhptl` record their agreement as comments on the pull request
-   that adds `LICENSE`; `site/` stays outside the license grant until then. Future
+   metadata. `LICENSE` and `NOTICE` are on `main` (PR #5, 2026-10-20), and `toorha` and
+   `dhruvhptl` recorded their agreement as comments on PR #5 on 2026-10-20, so the NOTICE
+   needs no `site/` exclusion and the licensing gate is met. Future
    contributions use the Developer Certificate of Origin (`Signed-off-by:`), documented in
    `CONTRIBUTING.md` and `CLAUDE.md`. No project URLs while the repository is private. Python 3.12 or later, tested on 3.12 and 3.13.
    Wheel and sdist contents are explicit allow-lists that exclude `tests/` (including the
@@ -896,19 +897,23 @@ Sub-steps, each reviewed separately:
   (`CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/architecture.md`, `docs/data-model.md`) are
   updated in the same step, and `CHANGELOG.md` is created.
 - **R1c: clean-machine install test and TestPyPI release,** run by the user (ADR 0009
-  section 8): the built wheel in fresh environments on Python 3.12 and 3.13 with an isolated
-  `HOME`, the quickstart's offline steps, a core-only install, then the same from TestPyPI.
-  Includes the PyPI name checks. Recorded in ADR 0009 Findings.
+  section 8), in two parts. Part 1, not gated: the locally built wheel and sdist in fresh
+  environments on Python 3.12 and 3.13 with an isolated `HOME`, the quickstart's offline
+  steps, and a core-only install. Part 2: the TestPyPI upload and the same steps from
+  TestPyPI, gated on the two license agreements (met 2026-10-20, PR #5). D29 does not gate
+  TestPyPI: the archive test checks that the packages hold no IBM data. Includes the PyPI
+  name checks. Recorded in ADR 0009 Findings.
 - **R1d: PyPI release,** by the user. Gated on D29 being resolved for a public release (the
-  repository stays private until then) and on both recorded license agreements. Uploads the exact files R1c tested
-  (hashes checked) and repeats the offline quickstart from PyPI.
+  repository stays private until then). The licensing gate is met (PR #5, 2026-10-20).
+  Uploads the exact files R1c tested (hashes checked) and repeats the offline quickstart from
+  PyPI.
 
 ### R1b acceptance criteria (approved 2026-10-20; ADR 0009 section 10)
 
 Commit order and provenance:
 
 - [ ] The first R1b commit changes no file under `src/` and adds the CLI-level golden files
-      of section 6 (`--json` and text, for `qci compare` over the runs of the 13
+      of ADR 0009 section 6 (`--json` and text, for `qci compare` over the runs of the 13
       service-level cases, and for `qci snapshot compare` and `qci snapshot compare-run` over
       their existing test cases on the committed fixture), in `tests/golden/cli/`, compared
       byte for byte. They are green on unmodified `src/`.
@@ -922,9 +927,12 @@ Distribution and license:
       `requires-python = ">=3.12"`; classifiers for Python 3.12 and 3.13 only; no
       `[project.urls]`; core dependencies, and the `ibm` and `dev` extras, exactly as in
       section 2, with `qiskit-ibm-runtime>=0.50,<0.51`.
-- [ ] `LICENSE` is the unmodified Apache License 2.0 text. `NOTICE` is the text in section 1,
-      with "Copyright 2026 The QCI Authors". `AUTHORS` says the authors are the commit
-      authors in the git history and names no one.
+- [x] `LICENSE` is the unmodified Apache License 2.0 text and `NOTICE` is the two lines in ADR
+      0009 section 1 (on `main` since PR #5, 2026-10-20; ADR 0009 Findings). R1b leaves both
+      unchanged.
+- [ ] `AUTHORS` says the QCI Authors are the commit authors in the git history and names no
+      one. The README's "Development" section says the IBM data under `tests/fixtures/` is
+      not licensed by this project and is provided by IBM under IBM's own terms.
 - [ ] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
       asks for `git commit -s`. `CLAUDE.md`'s step workflow requires a `Signed-off-by:` line
       on every commit, including commits made through Claude Code.
@@ -934,7 +942,7 @@ Distribution and license:
       with the package installed.
 - [ ] `tests/test_distribution_contents.py` builds the sdist and the wheel from that sdist
       with `python -m build --no-isolation` into a temporary directory, and reports every
-      member that meets any of the five conditions of section 1; no member does. The wheel
+      member that meets any of the five conditions of ADR 0009 section 1; no member does. The wheel
       and the sdist hold exactly the allow-listed members. A scanner self-test reports a
       synthetic archive holding `ibm_fez.json` under `tests/fixtures/`, and one holding the
       fixture's text inside a `.py` file.
@@ -963,16 +971,16 @@ Store location:
       store. The first write creates the directory, with mode `0o700` on POSIX.
 - [ ] `qci where` prints exactly the absolute `qci.db` path on stdout, its source and whether
       the file exists on stderr, opens no store, and exits 0.
-- [ ] The `./.qci` note of section 3 is printed to stderr exactly when `QCI_HOME` is unset and
-      `./.qci/qci.db` is a file in the current directory, by every command that opens a store
-      and by `qci where` and `qci doctor`; never for a parent directory. stdout and exit codes
-      are identical with and without it. The legacy file's bytes and modification time are
+- [ ] The `./.qci` note of ADR 0009 section 3 is printed to stderr exactly when `QCI_HOME` is
+      unset and `./.qci/qci.db` is a file in the current directory, by every command that opens
+      a store and by `qci where` and `qci doctor`; never for a parent directory. stdout and exit
+      codes are identical with and without it. The legacy file's bytes and modification time are
       unchanged after every command.
 
 `qci doctor`:
 
-- [ ] Each check of section 4 has a test for each of its `ok`, `note` and `problem` outcomes,
-      with the account lister and the environment injected.
+- [ ] Each check of ADR 0009 section 4 has a test for each of its `ok`, `note` and `problem`
+      outcomes, with the account lister and the environment injected.
 - [ ] A stub saved account whose token, instance, URL and channel are sentinel strings: none of
       them appears in stdout or stderr; the account name does. An unparseable account file
       prints only the exception type.
@@ -986,21 +994,21 @@ Selectors:
 
 - [ ] `qci/core/selectors.py` is a pure function over `(id, backend, sort_key)` lists with no
       provider import and no SQL; the architecture test covers it.
-- [ ] Every argument listed in section 5 accepts each form: full ID, unique prefix of 8 to 25
-      characters, `latest`, `latest~N`, and `BACKEND:latest[~N]`. For runs, the order is
+- [ ] Every argument listed in ADR 0009 section 5 accepts each form: full ID, unique prefix of 8
+      to 25 characters, `latest`, `latest~N`, and `BACKEND:latest[~N]`. For runs, the order is
       `run_id` descending and includes every status. For snapshots, it is `calibrated_at`
       descending, a snapshot without `calibrated_at` is never selected, and `BACKEND:` is
       required.
-- [ ] Each ambiguity of section 5 (a prefix with two or more matches, a run sharing its
+- [ ] Each ambiguity of ADR 0009 section 5 (a prefix with two or more matches, a run sharing its
       millisecond with a neighbor, a snapshot sharing its `calibrated_at` with a neighbor)
       exits 1, selects nothing and lists the candidates, at most 10 and then a count.
-- [ ] No match exits 1. Each malformed form of section 5 exits 2.
+- [ ] No match exits 1. Each malformed form of ADR 0009 section 5 exits 2.
 - [ ] A selector echoes `<role>: <selector> -> <ID>` on stderr. For each command, stdout with a
       selector is byte-identical to stdout with the full ID it resolved to.
 
 Summary-first output:
 
-- [ ] Default text output of the three commands is the summary of section 6. `--verbose`
+- [ ] Default text output of the three commands is the summary of ADR 0009 section 6. `--verbose`
       output is that summary followed by exactly the text golden of the first commit.
 - [ ] `git diff` from the first R1b commit to the last over `tests/golden/` is empty for every
       JSON file, the 13 service-level ones and the CLI-level ones.
@@ -1019,7 +1027,7 @@ Summary-first output:
 
 Docs:
 
-- [ ] README is self-contained as in section 7: the quickstart verbatim, the essential
+- [ ] README is self-contained as in ADR 0009 section 7: the quickstart verbatim, the essential
       explanations inline, a "Development" section with the editable install, and no relative
       link (checked by a test).
 - [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
@@ -1029,40 +1037,46 @@ Docs:
       R1. `PLAN.md` marks D5 resolved.
 - [ ] All gates are clean, and every neutral-wording hit is justified.
 
-### R1c acceptance criteria (approved 2026-10-20; ADR 0009 section 10; run by the user)
+### R1c acceptance criteria (approved 2026-10-20, split 2026-10-20; ADR 0009 section 10; run by the user)
 
-- [ ] Before any upload: the name `bloq-qci` is unclaimed on PyPI and TestPyPI, and a search of
+Part 1, local clean-machine test (no gate):
+
+- [ ] Before part 2: the name `bloq-qci` is unclaimed on PyPI and TestPyPI, and a search of
       PyPI for distributions shipping a top-level `qci` package is recorded.
 - [ ] `CHANGELOG.md` has its dated `0.1.0` entry and every packaged file is final before the
       build. The two files are built once with `python -m build` from a clean checkout of the
       release commit on `main`; the archive test is run over those exact files, and both
       SHA-256 hashes are recorded.
-- [ ] The clean-machine test of section 8, steps 1 to 3, on Python 3.12 and on 3.13, outside
-      the repository, with `PYTHONPATH` unset and `HOME` a new empty directory: every command
-      and exit code is recorded; `qci where` names a path under that `HOME`; `qci doctor`
-      exits 0 with the account check as a note; the core-only environment reads the store,
-      and `qci run` there exits 2 with the extra message and the store bytes unchanged.
+- [ ] The clean-machine test of ADR 0009 section 8, steps 1 to 3, on Python 3.12 and on 3.13,
+      outside the repository, with `PYTHONPATH` unset and `HOME` a new empty directory, from the
+      locally built wheel and, separately, the locally built sdist: every command and exit code
+      is recorded; `qci where` names a path under that `HOME`; `qci doctor` exits 0 with the
+      account check as a note; the core-only environment reads the store, and `qci run` there
+      exits 2 with the extra message and the store bytes unchanged.
 - [ ] Whether the hidden `.pth` problem appeared is recorded.
+
+Part 2, TestPyPI (gated on the two license agreements: met 2026-10-20; not gated on D29):
+
+- [x] Both license agreements are recorded (PR #5, 2026-10-20; ADR 0009 Findings).
+- [ ] Part 1 is complete, on the same two files (hashes checked).
 - [ ] The user uploads both files to TestPyPI. Steps 1 and 2 are repeated installing
-      `bloq-qci[ibm]==0.1.0` from TestPyPI with the index options of section 8, and the
+      `bloq-qci[ibm]==0.1.0` from TestPyPI with the index options of ADR 0009 section 8, and the
       installed wheel's hash equals the recorded one.
-- [ ] Machine, OS, Python versions, hashes and outputs are recorded in this ADR's Findings. No
+- [ ] Machine, OS, Python versions, hashes and outputs are recorded in ADR 0009 Findings. No
       IBM call is made; the quickstart's optional live part is not part of R1c.
 
 ### R1d acceptance criteria (approved 2026-10-20; ADR 0009 section 10; run by the user)
 
 - [ ] D29 is resolved for a public release, with the date and the outcome in `PLAN.md`.
-- [ ] The comments by `toorha` and `dhruvhptl` on the pull request that adds `LICENSE`, each
+- [x] The comments by `toorha` and `dhruvhptl` on the pull request that adds `LICENSE`, each
       stating "I agree to license my contributions to this repository under the Apache
-      License 2.0.", are recorded (pull request and comment links, date) in this ADR's
-      Findings. The NOTICE's `site/` exclusion is then removed in a reviewed step: before
-      R1c's build if both comments exist by then, otherwise later, with a new build and a
-      repeated R1c.
+      License 2.0.", are recorded in ADR 0009 Findings (PR #5, 2026-10-20). The NOTICE
+      has no `site/` exclusion, so no NOTICE change is needed.
 - [ ] No packaged file changed since R1c's build; otherwise R1c is repeated on the new build.
 - [ ] The user tags `v0.1.0` on the release commit and uploads to PyPI the two files R1c
       recorded; the hashes PyPI reports equal R1c's.
 - [ ] The quickstart's offline steps, run from PyPI in a fresh environment with an empty
-      `HOME`, give the same exit codes as in R1c, recorded in this ADR's Findings.
+      `HOME`, give the same exit codes as in R1c, recorded in ADR 0009 Findings.
 - [ ] `PLAN.md` marks R1 done.
 
 ## M1.6: Footprint staleness and pre-flight
