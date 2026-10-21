@@ -1,7 +1,11 @@
 # PLAN
 
-**Current milestone: R1 (release 1: packaging and first-run usability). Current step: R1b
-(implementation).** R1a is done: [ADR 0009](docs/adr/0009-packaging-and-first-run.md)
+**Current milestone: R1 (release 1: packaging and first-run usability). Current step: R1c
+(clean-machine install test and TestPyPI release, run by the user).** R1b is done
+(2026-10-20, branch `feat/r1b-packaging`: distribution `bloq-qci` 0.1.0, the `ibm` extra, the
+per-user store, `qci where`, `qci doctor`, selectors and summary-first comparison output;
+ADR 0009 section 10, with the dated clarifications and findings recorded there). R1a is
+done: [ADR 0009](docs/adr/0009-packaging-and-first-run.md)
 accepted 2026-10-20 with the user's answers (branch `docs/r1a-packaging-design`).
 M1.5 (historical backfill) is done. The M1.5d data manifest and
 reproducibility check are done (branch `chore/m1.5d-data-manifest`,
@@ -893,7 +897,8 @@ Sub-steps, each reviewed separately:
 
 - **R1a: design, ADR 0009 only, no code (DONE: ADR 0009 accepted 2026-10-20).** Branch
   `docs/r1a-packaging-design`.
-- **R1b: implementation,** with offline tests. Branch to be named in the R1b prompt. Commit
+- **R1b: implementation (DONE 2026-10-20, branch `feat/r1b-packaging`),** with offline
+  tests. Commit
   order: CLI-level golden files first, on unmodified `src/` (ADR 0009 section 6); then
   packaging and license; then store location, `qci where` and `qci doctor`; then selectors;
   then the summary. Docs that describe `./.qci` or the editable install as the user path
@@ -915,16 +920,16 @@ Sub-steps, each reviewed separately:
 
 Commit order and provenance:
 
-- [ ] The first R1b commit changes no file under `src/` and adds the CLI-level golden files
+- [x] The first R1b commit changes no file under `src/` and adds the CLI-level golden files
       of ADR 0009 section 6 (`--json` and text, for `qci compare` over the runs of the 13
       service-level cases, and for `qci snapshot compare` and `qci snapshot compare-run` over
       their existing test cases on the committed fixture), in `tests/golden/cli/`, compared
       byte for byte. They are green on unmodified `src/`.
-- [ ] Every R1b commit carries a `Signed-off-by:` line (DCO 1.1).
+- [x] Every R1b commit carries a `Signed-off-by:` line (DCO 1.1).
 
 Distribution and license:
 
-- [ ] `pyproject.toml`: name `bloq-qci`; `dynamic = ["version"]` read from
+- [x] `pyproject.toml`: name `bloq-qci`; `dynamic = ["version"]` read from
       `src/qci/__init__.py`, where `__version__ = "0.1.0"`; `license = "Apache-2.0"` and
       `license-files = ["LICENSE", "NOTICE"]`; build requirement `hatchling>=1.27`;
       `requires-python = ">=3.12"`; classifiers for Python 3.12 and 3.13 only; no
@@ -933,28 +938,28 @@ Distribution and license:
 - [x] `LICENSE` is the unmodified Apache License 2.0 text and `NOTICE` is the two lines in ADR
       0009 section 1 (on `main` since PR #5, 2026-10-20; ADR 0009 Findings). R1b leaves both
       unchanged.
-- [ ] `AUTHORS` says the QCI Authors are the commit authors in the git history and names no
+- [x] `AUTHORS` says the QCI Authors are the commit authors in the git history and names no
       one. `tests/fixtures/snapshots/README.md` and `CONTRIBUTING.md` say the IBM data under
       `tests/fixtures/` is not licensed by this project and is provided by IBM under IBM's
       own terms (moved from the README by user decision, 2026-10-20).
-- [ ] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
+- [x] `CONTRIBUTING.md` adopts the Developer Certificate of Origin 1.1, includes its text, and
       asks for `git commit -s`. `CLAUDE.md`'s step workflow requires a `Signed-off-by:` line
       on every commit, including commits made through Claude Code.
-- [ ] `src/qci/py.typed` exists and is in the wheel.
-- [ ] `provenance/environment.py` reads the version of the distribution `bloq-qci` and
+- [x] `src/qci/py.typed` exists and is in the wheel.
+- [x] `provenance/environment.py` reads the version of the distribution `bloq-qci` and
       records it under the package key `qci`; a test shows the key and a non-null version
       with the package installed.
-- [ ] `tests/test_distribution_contents.py` builds the sdist and the wheel from that sdist
+- [x] `tests/test_distribution_contents.py` builds the sdist and the wheel from that sdist
       with `python -m build --no-isolation` into a temporary directory, and reports every
       member that meets any of the five conditions of ADR 0009 section 1; no member does. The wheel
       and the sdist hold exactly the allow-listed members. A scanner self-test reports a
       synthetic archive holding `ibm_fez.json` under `tests/fixtures/`, and one holding the
       fixture's text inside a `.py` file.
-- [ ] The build test writes nothing in the working tree (`git status` is clean afterwards).
+- [x] The build test writes nothing in the working tree (`git status` is clean afterwards).
 
 Extras:
 
-- [ ] With an import hook that blocks `qiskit`, `qiskit_ibm_runtime` and `qiskit_aer`, in a
+- [x] With an import hook that blocks `qiskit`, `qiskit_ibm_runtime` and `qiskit_aer`, in a
       subprocess over a store prepared in the test session: `qci runs`, `qci show`,
       `qci compare`, `qci snapshots`, `qci snapshot show`, `qci snapshot compare`,
       `qci snapshot compare-run`, `qci where` and `qci doctor` print the same stdout and
@@ -964,20 +969,20 @@ Extras:
       `qci snapshot backfill` and `qci snapshot export` exit 2 with the message in
       section 2, before opening the store or loading a workload, and the store bytes are
       unchanged.
-- [ ] The extra check lives in `adapters/qiskit_ibm/` and uses `importlib.util.find_spec`
+- [x] The extra check lives in `adapters/qiskit_ibm/` and uses `importlib.util.find_spec`
       without importing the SDKs. The architecture test still holds.
 
 Store location:
 
-- [ ] The per-user directory is tested for `darwin`, `win32` with and without
+- [x] The per-user directory is tested for `darwin`, `win32` with and without
       `LOCALAPPDATA`, and another platform with `XDG_DATA_HOME` absolute, relative and unset,
       by patching the platform and environment. `QCI_HOME` overrides it; an empty `QCI_HOME`
       counts as unset.
-- [ ] Read-only commands on a missing per-user directory create nothing and read an empty
+- [x] Read-only commands on a missing per-user directory create nothing and read an empty
       store. The first write creates the directory, with mode `0o700` on POSIX.
-- [ ] `qci where` prints exactly the absolute `qci.db` path on stdout, its source and whether
+- [x] `qci where` prints exactly the absolute `qci.db` path on stdout, its source and whether
       the file exists on stderr, opens no store, and exits 0.
-- [ ] The `./.qci` note of ADR 0009 section 3 is printed to stderr exactly when `QCI_HOME` is
+- [x] The `./.qci` note of ADR 0009 section 3 is printed to stderr exactly when `QCI_HOME` is
       unset and `./.qci/qci.db` is a file in the current directory, by every command that opens
       a store and by `qci where` and `qci doctor`; never for a parent directory. stdout and exit
       codes are identical with and without it. The legacy file's bytes and modification time are
@@ -985,67 +990,67 @@ Store location:
 
 `qci doctor`:
 
-- [ ] Each check of ADR 0009 section 4 has a test for each of its `ok`, `note` and `problem`
+- [x] Each check of ADR 0009 section 4 has a test for each of its `ok`, `note` and `problem`
       outcomes, with the account lister and the environment injected.
-- [ ] A stub saved account whose token, instance, URL and channel are sentinel strings: none of
+- [x] A stub saved account whose token, instance, URL and channel are sentinel strings: none of
       them appears in stdout or stderr; the account name does. An unparseable account file
       prints only the exception type.
-- [ ] Store outcomes `empty`, `healthy` (with schema versions and counts), `damaged` and
+- [x] Store outcomes `empty`, `healthy` (with schema versions and counts), `damaged` and
       `other schema version` are each tested, for runs and snapshots separately; the store
       bytes are unchanged after every case.
-- [ ] Exit 0 with notes only, exit 1 with any `problem`. No IBM client is constructed and no
+- [x] Exit 0 with notes only, exit 1 with any `problem`. No IBM client is constructed and no
       connection is opened (the session guard).
 
 Selectors:
 
-- [ ] `qci/core/selectors.py` is a pure function over `(id, backend, sort_key)` lists with no
+- [x] `qci/core/selectors.py` is a pure function over `(id, backend, sort_key)` lists with no
       provider import and no SQL; the architecture test covers it.
-- [ ] Every argument listed in ADR 0009 section 5 accepts each form: full ID, unique prefix of 8
+- [x] Every argument listed in ADR 0009 section 5 accepts each form: full ID, unique prefix of 8
       to 25 characters, `latest`, `latest~N`, and `BACKEND:latest[~N]`. For runs, the order is
       `run_id` descending and includes every status. For snapshots, it is `calibrated_at`
       descending, a snapshot without `calibrated_at` is never selected, and `BACKEND:` is
       required.
-- [ ] Each ambiguity of ADR 0009 section 5 (a prefix with two or more matches, a run sharing its
+- [x] Each ambiguity of ADR 0009 section 5 (a prefix with two or more matches, a run sharing its
       millisecond with a neighbor, a snapshot sharing its `calibrated_at` with a neighbor)
       exits 1, selects nothing and lists the candidates, at most 10 and then a count.
-- [ ] No match exits 1. Each malformed form of ADR 0009 section 5 exits 2.
-- [ ] A selector echoes `<role>: <selector> -> <ID>` on stderr. For each command, stdout with a
+- [x] No match exits 1. Each malformed form of ADR 0009 section 5 exits 2.
+- [x] A selector echoes `<role>: <selector> -> <ID>` on stderr. For each command, stdout with a
       selector is byte-identical to stdout with the full ID it resolved to.
 
 Summary-first output:
 
-- [ ] Default text output of the three commands is the summary of ADR 0009 section 6. `--verbose`
+- [x] Default text output of the three commands is the summary of ADR 0009 section 6. `--verbose`
       output is that summary followed by exactly the text golden of the first commit.
-- [ ] `git diff` from the first R1b commit to the last over `tests/golden/` is empty for every
+- [x] `git diff` from the first R1b commit to the last over `tests/golden/` is empty for every
       JSON file, the 13 service-level ones and the CLI-level ones.
-- [ ] `--json` and `--json --verbose` print identical bytes for every golden case.
-- [ ] Magnitudes: for each parameter name and unit, counts compared and changed, median and
+- [x] `--json` and `--json --verbose` print identical bytes for every golden case.
+- [x] Magnitudes: for each parameter name and unit, counts compared and changed, median and
       largest absolute delta with unit, median and largest relative delta, each largest one
       naming its resource. Tests cover a baseline of exactly 0 (left out of relative figures,
       counted as "baseline 0", no infinite value) and `unavailable` and `not_comparable`
       parameters (counted, never entered as 0).
-- [ ] Each figure is a `Metric` with `EvidenceKind.CALCULATED`, method
+- [x] Each figure is a `Metric` with `EvidenceKind.CALCULATED`, method
       `qci.summary.magnitude`, version 1, built in `qci/compare/summary.py` from the existing
       models. `ComparisonPolicy.version` (`qci.compare.v3`) and `ENGINE_VERSION` are
       unchanged.
-- [ ] The existing neutral-wording tests of the three commands cover the default summary,
+- [x] The existing neutral-wording tests of the three commands cover the default summary,
       with the M1.4b word list.
 
 Docs:
 
-- [ ] README is self-contained as in ADR 0009 section 7, written for users in the order of
+- [x] README is self-contained as in ADR 0009 section 7, written for users in the order of
       section 7: the quickstart verbatim, the essential explanations inline, a "License and
       contributing" section pointing to `CONTRIBUTING.md` (which has the editable install),
       and no relative link (checked by a test). A test runs the quickstart's offline commands,
       extracted from `README.md`, in a temporary store. Developer material is in
       `CONTRIBUTING.md` or `docs/`, and the landing-page section in `site/README.md`. The
       README passes the neutral-wording check in full.
-- [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
+- [x] `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md` and `docs/data-model.md` describe the
       per-user store, `QCI_HOME`, the extras, `qci where`, `qci doctor`, selectors, the
       summary and `--verbose`, and the exit-code rows for the extra check, `qci doctor`,
       selectors and `qci where`. `CHANGELOG.md` exists with an `Unreleased` section describing
       R1. `PLAN.md` marks D5 resolved.
-- [ ] All gates are clean, and every neutral-wording hit is justified.
+- [x] All gates are clean, and every neutral-wording hit is justified.
 
 ### R1c acceptance criteria (approved 2026-10-20, split 2026-10-20; ADR 0009 section 10; run by the user)
 
