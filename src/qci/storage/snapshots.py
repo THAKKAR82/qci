@@ -41,7 +41,7 @@ from qci.domain.snapshot import (
     SnapshotCapture,
     SnapshotListItem,
 )
-from qci.storage.sqlite import open_read_only, schema_meta_table
+from qci.storage.sqlite import open_read_only, schema_meta_table, stored_schema_version
 
 SNAPSHOT_DB_SCHEMA_VERSION = 2
 _SCHEMA_KEY = "snapshot_db_schema"
@@ -120,6 +120,22 @@ def _measurement_row(snapshot_id: str, seq: int, m: Measurement) -> dict[str, ob
 
 _V1_TABLES = {"calibration_snapshots", "snapshot_captures", "calibration_measurements"}
 _VERSIONS = {1: _V1_TABLES, 2: _V1_TABLES | {"snapshot_lookups"}}
+
+
+def snapshot_store_summary(db_path: Path) -> tuple[int, int] | None:
+    """``(schema version, number of snapshots)``, read-only, or None for an empty store.
+
+    Raises ``DamagedStoreError`` or ``SchemaVersionError`` as a read-only open does.
+    """
+    engine = open_read_only(db_path, "snapshot", _VERSIONS, _SCHEMA_KEY)
+    if engine is None:
+        return None
+    try:
+        with engine.connect() as conn:
+            count = conn.execute(select(func.count()).select_from(snapshots_table)).scalar_one()
+        return stored_schema_version(engine, _SCHEMA_KEY), int(count)
+    finally:
+        engine.dispose()
 
 
 class SqliteSnapshotRepository:

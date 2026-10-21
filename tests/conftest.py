@@ -54,12 +54,30 @@ def _no_live_client_account_or_network() -> Iterator[None]:
     import qiskit_ibm_runtime
     from qiskit_ibm_runtime.accounts import AccountManager
 
+    # AccountManager.list reads the real account file (and creates an empty one when there
+    # is none). A test that needs it restores ``real_account_list`` over a temporary file.
+    REAL_ACCOUNT_LIST.append(AccountManager.list)
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(qiskit_ibm_runtime, "QiskitRuntimeService", _forbidden)
         mp.setattr(AccountManager, "get", _forbidden)
+        mp.setattr(AccountManager, "list", _forbidden)
         mp.setattr(socket.socket, "connect", _guarded_connect)
         mp.setattr(socket, "create_connection", _forbidden)
         yield
+
+
+REAL_ACCOUNT_LIST: list[Any] = []
+
+
+@pytest.fixture(autouse=True)
+def _temporary_home(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fresh empty HOME per test, so the per-user store default (ADR 0009, section 3) never
+    resolves to the real one. Tests that use a store set QCI_HOME as before."""
+    monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("home")))
+    for name in ("XDG_DATA_HOME", "LOCALAPPDATA", "QCI_HOME"):
+        monkeypatch.delenv(name, raising=False)
 
 
 RAW_PROPERTIES: dict[str, Any] = {

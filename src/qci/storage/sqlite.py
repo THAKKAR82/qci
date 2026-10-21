@@ -17,6 +17,7 @@ from sqlalchemy import (
     Table,
     Text,
     create_engine,
+    func,
     insert,
     inspect,
     select,
@@ -129,6 +130,31 @@ def open_read_only(
         engine.dispose()
         raise
     return engine
+
+
+def stored_schema_version(engine: Engine, schema_key: str) -> int:
+    """The version recorded under ``schema_key`` in an opened store's ``schema_meta``."""
+    with engine.connect() as conn:
+        value = conn.execute(
+            select(schema_meta_table.c.value).where(schema_meta_table.c.key == schema_key)
+        ).scalar_one()
+    return int(value)
+
+
+def run_store_summary(db_path: Path) -> tuple[int, int] | None:
+    """``(schema version, number of runs)``, read-only, or None for an empty store.
+
+    Raises ``DamagedStoreError`` or ``SchemaVersionError`` as a read-only open does.
+    """
+    engine = open_read_only(db_path, "run", _RUN_VERSIONS, "db_schema")
+    if engine is None:
+        return None
+    try:
+        with engine.connect() as conn:
+            count = conn.execute(select(func.count()).select_from(runs_table)).scalar_one()
+        return stored_schema_version(engine, "db_schema"), int(count)
+    finally:
+        engine.dispose()
 
 
 class SqliteRunRepository:

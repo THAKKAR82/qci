@@ -1,6 +1,5 @@
 """QCI command-line interface: run, runs, show, compare, and calibration snapshots."""
 
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +31,13 @@ from qci.domain.run import Run, RunStatus
 from qci.domain.snapshot import CalibrationSnapshot, SnapshotCapture
 from qci.services.run_service import RunRequest, RunService, sanitize_error_message
 from qci.services.snapshot_service import SnapshotService
+from qci.storage.location import (
+    DB_FILENAME,
+    create_store_directory,
+    legacy_note,
+    legacy_store,
+    store_location,
+)
 from qci.storage.snapshots import SqliteSnapshotRepository
 from qci.storage.sqlite import SqliteRunRepository
 
@@ -41,13 +47,20 @@ app = typer.Typer(
     add_completion=False,
 )
 
-DB_FILENAME = "qci.db"
+
+@app.callback()
+def _legacy_store_note() -> None:
+    # Every command opens a store or reports on it (where, doctor), so the note about a
+    # ./.qci store from before R1 is printed once per invocation, on stderr (ADR 0009,
+    # section 3). It only checks that the file exists.
+    legacy = legacy_store(Path.cwd())
+    if legacy is not None:
+        typer.echo(legacy_note(legacy, store_location()), err=True)
 
 
 def store_dir() -> Path:
-    """``$QCI_HOME`` if set, otherwise ``./.qci``."""
-    home = os.environ.get("QCI_HOME")
-    return Path(home) if home else Path.cwd() / ".qci"
+    """``$QCI_HOME`` if set and non-empty, otherwise the per-user store directory."""
+    return store_location().directory
 
 
 def _open[T](open_store: Callable[[], T]) -> T:
@@ -59,13 +72,22 @@ def _open[T](open_store: Callable[[], T]) -> T:
         raise typer.Exit(code=1) from exc
 
 
+def _store_db(*, read_only: bool) -> Path:
+    directory = store_dir()
+    if not read_only:
+        create_store_directory(directory)
+    return directory / DB_FILENAME
+
+
 def _repository(*, read_only: bool = False) -> SqliteRunRepository:
-    return _open(lambda: SqliteRunRepository(store_dir() / DB_FILENAME, read_only=read_only))
+    return _open(lambda: SqliteRunRepository(_store_db(read_only=read_only), read_only=read_only))
 
 
 def _snapshot_repository(*, read_only: bool = False) -> SqliteSnapshotRepository:
     """``read_only`` for commands that only read: they never create or write the store."""
-    return _open(lambda: SqliteSnapshotRepository(store_dir() / DB_FILENAME, read_only=read_only))
+    return _open(
+        lambda: SqliteSnapshotRepository(_store_db(read_only=read_only), read_only=read_only)
+    )
 
 
 def _require_ibm_extra() -> None:
@@ -808,6 +830,40 @@ def snapshot_compare_run(
     typer.echo(
         result.model_dump_json(indent=2) if as_json else render_run_snapshot_comparison(result)
     )
+
+
+@app.command()
+def where() -> None:
+    """Print the path of the qci.db file that commands use. Opens nothing.
+
+    stdout is the path alone, so that shasum -a 256 "$(qci where)" works. stderr says where
+    the path came from and whether the file exists.
+    """
+    location = store_location()
+    typer.echo(str(location.db))
+    typer.echo(f"source: {location.source}", err=True)
+    typer.echo(
+        "file: exists"
+        if location.db.is_file()
+        else "file: does not exist yet (the first command that writes creates it)",
+        err=True,
+    )
+
+
+@app.command()
+def doctor() -> None:
+    """Check the installation, the saved IBM account and the store, one line per check.
+
+    Local and read-only: no network, no IBM client, nothing written. Exit 0 when no check
+    reports a problem (notes allowed), 1 otherwise.
+    """
+    from qci.cli import doctor as checks
+
+    results = checks.run_checks(checks.default_inputs())
+    for check in results:
+        typer.echo(check.line())
+    if any(check.outcome == "problem" for check in results):
+        raise typer.Exit(code=1)
 
 
 def main() -> None:

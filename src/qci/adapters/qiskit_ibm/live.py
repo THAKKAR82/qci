@@ -11,6 +11,7 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Protocol
 
 from pydantic import JsonValue
@@ -185,3 +186,18 @@ def load_account_secrets(account: str) -> list[str]:
         saved = AccountManager.get(name=account)
     values = (saved.token, saved.instance, saved.url) if saved is not None else ()
     return [v for v in values if isinstance(v, str) and v]
+
+
+def saved_account_names() -> list[str] | None:
+    """Names of the saved accounts, sorted, or None when there is no account file.
+
+    For ``qci doctor`` (ADR 0009, section 4). Only the names (the keys) are used: no
+    ``Account`` field is read. ``AccountManager.list`` creates an empty account file when
+    there is none, so it is called only when the file exists, and nothing is written.
+    """
+    from qiskit_ibm_runtime.accounts import management
+
+    if not Path(management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE).is_file():
+        return None
+    with quiet_client_logs():
+        return sorted(management.AccountManager.list())

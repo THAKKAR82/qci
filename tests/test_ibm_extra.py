@@ -101,6 +101,7 @@ CORE_COMMANDS: list[list[str]] = [
     ["snapshot", "compare", "FEZ-A", "FEZ-A", "--footprint-run", "BASE"],
     ["snapshot", "compare-run", FAKE_FEZ_RUN_ID, "FEZ-A"],
     ["snapshot", "compare-run", FAKE_FEZ_RUN_ID, "FEZ-A", "--json"],
+    ["where"],
 ]
 
 
@@ -119,6 +120,29 @@ def test_core_commands_behave_the_same_without_the_extra(
     assert (without.returncode, without.stdout) == (with_sdks.returncode, with_sdks.stdout)
     assert EXTRA_MESSAGE not in without.stderr
     assert prepared.db.read_bytes() == before
+
+
+def test_doctor_differs_only_in_the_extra_and_account_lines(prepared: Prepared) -> None:
+    """By design, the two checks that depend on the extra differ; every other line and the
+    exit code are the same (ADR 0009, section 4)."""
+    before = prepared.db.read_bytes()
+    with_sdks = qci("doctor", home=prepared.home, store=prepared.store, blocked=False)
+    without = qci("doctor", home=prepared.home, store=prepared.store, blocked=True)
+    assert with_sdks.returncode == without.returncode == 0, with_sdks.stdout + without.stdout
+    differs = ("ibm extra:", "saved IBM account:")
+    a, b = with_sdks.stdout.splitlines(), without.stdout.splitlines()
+    assert len(a) == len(b)
+    for line_with, line_without in zip(a, b, strict=True):
+        if line_with.split(maxsplit=1)[1].startswith(differs):
+            continue
+        assert line_with == line_without
+    assert "ok       ibm extra: qiskit " in with_sdks.stdout
+    assert "note     ibm extra: not installed" in without.stdout
+    assert "note     saved IBM account: no account file" in with_sdks.stdout
+    assert "note     saved IBM account: not checked" in without.stdout
+    assert "ok       store: runs healthy, schema version 1, 3 runs" in without.stdout
+    assert prepared.db.read_bytes() == before
+    assert list(prepared.home.iterdir()) == []
 
 
 EXTRA_COMMANDS: list[list[str]] = [
