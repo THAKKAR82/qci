@@ -102,11 +102,17 @@ def test_the_offline_quickstart_is_what_the_test_runs() -> None:
         "qci run bell.py --backend fake_fez --seed 7",
         "qci run bell.py --backend fake_fez --seed 7 --seed-simulator 8",
         "qci runs",
-        "qci compare latest~1 latest",
-        "qci compare latest~1 latest --observable bell=00,11",
-        "qci compare latest~1 latest --verbose",
+        "qci compare 'latest~1' latest",
+        "qci compare 'latest~1' latest --observable bell=00,11",
+        "qci compare 'latest~1' latest --verbose",
     ]
     assert "cat > bell.py <<'EOF'" in offline_script()
+
+
+def test_selectors_with_a_tilde_are_quoted() -> None:
+    """In zsh with EXTENDED_GLOB an unquoted ~ is a pattern operator."""
+    unquoted = re.findall(r"(?<!')\b[\w:]*latest~\d+\b(?!')", _text())
+    assert unquoted == []
 
 
 def _commands_in_reference() -> list[list[str]]:

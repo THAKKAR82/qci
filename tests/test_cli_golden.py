@@ -52,11 +52,21 @@ PINNED_PACKAGES = {
 }
 
 
-def check_golden(path: Path, text: str) -> None:
+COMPARE_RUN_HINT = (
+    "The compare_run goldens depend on the installed Qiskit transpiler: the seeded fake_fez "
+    "run's physical footprint comes from transpiling examples/ghz_star.py, so a Qiskit upgrade "
+    "can change it. If Qiskit changed, regenerate with "
+    "QCI_REGENERATE_GOLDEN=1 .venv/bin/pytest tests/test_cli_golden.py -k compare_run, then "
+    "review git diff tests/golden/cli/compare_run before committing: only the footprint and "
+    "the values it selects may change. Any other difference is a change in QCI."
+)
+
+
+def check_golden(path: Path, text: str, hint: str = "") -> None:
     if os.environ.get("QCI_REGENERATE_GOLDEN") == "1":
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-    assert path.read_text(encoding="utf-8") == text
+    assert path.read_text(encoding="utf-8") == text, f"{path} differs. {hint}".strip()
 
 
 def invoke(*args: str) -> str:
@@ -74,19 +84,19 @@ NEUTRAL = re.compile(
 MAX_SUMMARY_LINES = 30
 
 
-def check_outputs(directory: Path, case: str, args: list[str]) -> None:
+def check_outputs(directory: Path, case: str, args: list[str], hint: str = "") -> None:
     """The JSON golden, the summary golden, and the full text golden after the summary."""
     as_json = invoke(*args, "--json")
-    check_golden(directory / f"{case}.json", as_json)
+    check_golden(directory / f"{case}.json", as_json, hint)
     assert invoke(*args, "--json", "--verbose") == as_json
     summary = invoke(*args)
-    check_golden(directory / f"{case}.summary.txt", summary)
+    check_golden(directory / f"{case}.summary.txt", summary, hint)
     assert NEUTRAL.search(summary) is None, NEUTRAL.search(summary)
     assert len(summary.splitlines()) <= MAX_SUMMARY_LINES
     assert summary.endswith("Full detail: rerun with --verbose. Machine-readable: --json.\n")
     verbose = invoke(*args, "--verbose")
     assert verbose.startswith(summary + "\n")
-    check_golden(directory / f"{case}.txt", verbose.removeprefix(summary + "\n"))
+    check_golden(directory / f"{case}.txt", verbose.removeprefix(summary + "\n"), hint)
 
 
 @pytest.fixture
@@ -221,7 +231,19 @@ def run_snapshot_store(home: Path) -> Path:
 def test_compare_run_cli_matches_golden_files(run_snapshot_store: Path, case: str) -> None:
     snapshot_id = RUN_SNAPSHOT_CASES[case]().snapshot_id
     args = ["snapshot", "compare-run", FAKE_FEZ_RUN_ID, snapshot_id]
-    check_outputs(GOLDEN / "compare_run", case, args)
+    check_outputs(GOLDEN / "compare_run", case, args, COMPARE_RUN_HINT)
+
+
+def test_a_differing_compare_run_golden_explains_its_dependency(tmp_path: Path) -> None:
+    path = tmp_path / "golden.txt"
+    path.write_text("old\n", encoding="utf-8")
+    with pytest.raises(AssertionError) as info:
+        check_golden(path, "new\n", COMPARE_RUN_HINT)
+    message = str(info.value)
+    assert "depend on the installed Qiskit transpiler" in message
+    assert (
+        "QCI_REGENERATE_GOLDEN=1" in message and "git diff tests/golden/cli/compare_run" in message
+    )
 
 
 def test_every_cli_golden_file_has_a_case() -> None:

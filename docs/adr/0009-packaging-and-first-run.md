@@ -160,8 +160,11 @@ with an assertion error, when any of these holds for either archive:
    `experiments/`, `docs/`, `site/`, `examples/` or `scripts/`;
 2. a member is not on the allow-list above;
 3. a member is byte-identical (SHA-256) to any file under `tests/fixtures/`;
-4. a member's bytes match `"last_update_date"\s*:\s*"\d{4}-\d{2}-\d{2}`,
-   `\{"\$datetime"\s*:\s*"\d{4}-`, or contain `SQLite format 3\x00`;
+4. a member's bytes match
+   `"last_update_date"\s*:\s*(?:\{\s*"\$datetime"\s*:\s*)?"\d{4}-\d{2}-\d{2}` or
+   `\{\s*"\$datetime"\s*:\s*"\d{4}-`, or contain `SQLite format 3\x00` (widened 2026-10-20 in
+   R1b to tolerate whitespace and a tagged date, so they match the indented committed fixture;
+   a test asserts they do; Findings);
 5. a member contains the committed fixture's own `last_update_date` value.
 
 Checks 1 and 2 keep data files out by path; checks 3 to 5 catch a payload pasted into a
@@ -417,7 +420,9 @@ milestones, the step workflow, internal troubleshooting) moves to `CONTRIBUTING.
 `docs/`, and the landing-page section to `site/README.md`. A test extracts the quickstart's
 offline commands from `README.md` and runs them in a temporary store, so the README cannot
 drift from the code. (The Python block below gained a blank line after its import on
-2026-10-20 in R1b, as `ruff format` requires for code blocks in Markdown.)
+2026-10-20 in R1b, as `ruff format` requires for code blocks in Markdown, and the selectors
+containing `~` are quoted, `'latest~1'`, since in zsh with `EXTENDED_GLOB` an unquoted `~`
+is a pattern operator; user decision, 2026-10-20.)
 
 **Self-contained for PyPI (accepted 2026-10-20).** The README is the package's long
 description, so it must read completely on PyPI, where links into the repository do not
@@ -466,9 +471,9 @@ then compare the two runs (baseline first):
 qci run bell.py --backend fake_fez --seed 7
 qci run bell.py --backend fake_fez --seed 7 --seed-simulator 8
 qci runs
-qci compare latest~1 latest
-qci compare latest~1 latest --observable bell=00,11
-qci compare latest~1 latest --verbose
+qci compare 'latest~1' latest
+qci compare 'latest~1' latest --observable bell=00,11
+qci compare 'latest~1' latest --verbose
 ```
 
 `fake_fez` runs on your machine with a frozen copy of IBM's calibration as its noise model.
@@ -527,7 +532,7 @@ qci snapshot compare-run latest ibm_fez:latest
      record every command's output and exit code; `qci where` must name a path under the
      temporary `HOME`, and `qci doctor` must exit 0 with the account check as a note;
   3. in a second fresh environment, install the wheel without the extra: `qci doctor` exits
-     0 and reports the extra missing, `qci runs` and `qci compare latest~1 latest` read the
+     0 and reports the extra missing, `qci runs` and `qci compare 'latest~1' latest` read the
      store from step 2, and `qci run bell.py --backend fake_fez` exits 2 with the extra
      message and the store bytes unchanged;
   4. (part 2) upload both files to TestPyPI and repeat steps 1 and 2 installing from TestPyPI, with
@@ -773,13 +778,14 @@ Found while implementing R1b, offline, with `hatchling` 1.32.4, `build` 1.6.1 an
 - **An unknown channel raises with the channel in the message.** `Account.from_saved_format`
   raises `InvalidAccountError` quoting the saved channel. `qci doctor` prints only the
   exception type, so a sentinel channel never appears; a test covers it.
-- **Check 4 does not match the committed fixture.** Both payload patterns need no whitespace
-  where the indented fixture has a newline: its `last_update_date` is a tagged object
-  (`"last_update_date": {` then, on the next line, `"$datetime": ...`), so neither pattern
-  matches anywhere in `ibm_fez.json`. Check 5 (the fixture's own `last_update_date` value)
-  reports the fixture's text in any file, as the scanner self-test shows, and check 4 still
-  reports compact payloads. The patterns are kept as written; widening them (for example
-  `\{\s*"\$datetime"`) is an open question for review.
+- **Check 4 did not match the committed fixture as first written.** Both payload patterns
+  needed no whitespace where the indented fixture has a newline, and its `last_update_date` is
+  a tagged object (`"last_update_date": {` then, on the next line, `"$datetime": ...`), so
+  neither matched anywhere in `ibm_fez.json`. By user decision (2026-10-20) the patterns were
+  widened to tolerate whitespace and the tagged form (section 1), and
+  `test_payload_markers_match_the_committed_fixture` asserts that both match the fixture's
+  text and that the scanner reports it inside a packaged file. Check 5 (the fixture's own
+  `last_update_date` value) still also reports the fixture's text in any file.
 - **Short unknown IDs.** CLI tests that gave short unknown IDs (`NOPE`, `RUN`, `SNAP`) and
   expected exit 1 now give 26-character unknown IDs, as the selector grammar makes short text
   that is not a stored ID a usage error (user decision, 2026-10-20).

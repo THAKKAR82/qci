@@ -1120,6 +1120,12 @@ None of these is scheduled. M0.5 stays unscheduled. The rest have no planned ord
   under exact comparison nearly every re-measured continuous value counts as changed
   (M1.4c, 2026-10-16). Now scheduled in R1b (ADR 0009 section 6).
 - A Hellinger sampling floor.
+- compare-run goldens depend on the Qiskit transpiler; revisit (recorded fixture or pinned dev
+  environment) when Qiskit is upgraded. (R1b, 2026-10-20: `tests/golden/cli/compare_run/`
+  pins a seeded `fake_fez` run whose footprint comes from the installed transpiler; a
+  golden that differs says so and how to regenerate and review.)
+- Test suite runtime (about 2 min 20 s): consider parallel test execution or separating slow
+  tests. (R1b, 2026-10-20.)
 - Chi-square tests.
 - Multiple registers and FDR.
 - Run-recorded observables (schema v2; D18).

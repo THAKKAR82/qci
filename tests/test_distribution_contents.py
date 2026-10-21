@@ -11,7 +11,7 @@ A member is reported when:
    ``experiments/``, ``docs/``, ``site/``, ``examples/`` or ``scripts/``;
 2. it is not on the allow-list;
 3. it is byte-identical (SHA-256) to a file under ``tests/fixtures/``;
-4. its bytes match an IBM payload marker or contain a SQLite header;
+4. its bytes match an IBM payload marker (whitespace-tolerant) or contain a SQLite header;
 5. it contains the committed fixture's own ``last_update_date`` value.
 """
 
@@ -64,8 +64,9 @@ WHEEL_FILES = {
     )
 }
 PAYLOAD_MARKERS = (
-    re.compile(rb'"last_update_date"\s*:\s*"\d{4}-\d{2}-\d{2}'),
-    re.compile(rb'\{"\$datetime"\s*:\s*"\d{4}-'),
+    # Whitespace-tolerant, so indented payloads match too; the date may be tagged.
+    re.compile(rb'"last_update_date"\s*:\s*(?:\{\s*"\$datetime"\s*:\s*)?"\d{4}-\d{2}-\d{2}'),
+    re.compile(rb'\{\s*"\$datetime"\s*:\s*"\d{4}-'),
     re.compile(re.escape(b"SQLite format 3\x00")),
 )
 
@@ -270,10 +271,21 @@ def test_scanner_reports_fixture_text_inside_a_python_file() -> None:
     text = IBM_FEZ.read_text(encoding="utf-8")
     source = f"PAYLOAD = {text!r}\n".encode()
     reported = findings(read_wheel(_zip({"qci/leak.py": source, "qci/clean.py": b"X = 1\n"})))
-    # The fixture is pretty-printed, so its tagged dates do not match check 4's patterns,
-    # which expect no whitespace after "{"; check 5 reports it.
+    # In a repr the fixture's newlines are escaped (a backslash and an n), which check 4's
+    # whitespace-tolerant patterns do not cross; check 5 reports it.
     assert "wheel: qci/leak.py: contains the fixture's last_update_date" in reported
     assert not [line for line in reported if line.startswith("wheel: qci/clean.py")]
+
+
+def test_payload_markers_match_the_committed_fixture() -> None:
+    """Check 4 fires on the real, indented ibm_fez payload, not only on compact JSON."""
+    data = IBM_FEZ.read_bytes()
+    stamp, tagged, _ = PAYLOAD_MARKERS
+    assert stamp.search(data) is not None
+    assert len(tagged.findall(data)) > 100
+    archive = read_sdist(_tar({"src/qci/payload.py": data}))
+    reported = findings(archive)
+    assert [line for line in reported if line.startswith("sdist: src/qci/payload.py: matches")]
 
 
 def test_scanner_reports_a_store_and_a_tagged_date() -> None:

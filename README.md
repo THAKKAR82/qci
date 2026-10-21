@@ -71,9 +71,9 @@ then compare the two runs (baseline first):
 qci run bell.py --backend fake_fez --seed 7
 qci run bell.py --backend fake_fez --seed 7 --seed-simulator 8
 qci runs
-qci compare latest~1 latest
-qci compare latest~1 latest --observable bell=00,11
-qci compare latest~1 latest --verbose
+qci compare 'latest~1' latest
+qci compare 'latest~1' latest --observable bell=00,11
+qci compare 'latest~1' latest --verbose
 ```
 
 `fake_fez` runs on your machine with a frozen copy of IBM's calibration as its noise model.
@@ -241,11 +241,13 @@ Every argument that names a run or a snapshot accepts:
 |---|---|
 | `01M5E0T0VJBDHTTA4YJW9NXVC5` | The run or snapshot with this ID. |
 | `01M5E0T0` | The one ID that starts with this prefix of 8 to 25 characters. |
-| `latest`, `latest~1`, `latest~2` | Runs: the newest, the one before, and so on, as `qci runs` lists them. |
-| `fake_fez:latest~1` | The same, among runs on one backend. |
-| `ibm_fez:latest`, `ibm_fez:latest~1` | Snapshots: the newest calibration of one device, then the one before. The backend is required for snapshots. |
+| `latest`, `'latest~1'`, `'latest~2'` | Runs: the newest, the one before, and so on, as `qci runs` lists them. |
+| `'fake_fez:latest~1'` | The same, among runs on one backend. |
+| `ibm_fez:latest`, `'ibm_fez:latest~1'` | Snapshots: the newest calibration of one device, then the one before. The backend is required for snapshots. |
 
-Snapshots are ordered by the provider's calibration date, not by when you stored them. When
+Quote a selector that contains `~`, as above: in zsh with the `EXTENDED_GLOB` option, an
+unquoted `~` is a pattern operator. Snapshots are ordered by the provider's calibration date,
+not by when you stored them. When
 a selector is not the full ID, the command prints `role: selector -> ID` on stderr. A prefix
 that matches more than one ID, or a `latest` position shared by two runs created in the same
 millisecond (or two snapshots with the same calibration date), is reported with the
