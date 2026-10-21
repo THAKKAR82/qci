@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "snapshot_comparison_id": "sha256:d559c1d4101da45261434402f0c477aec87a3477dca04429334ac0eeffb26493",
+  "method_version": "qci.compare.snapshot.1",
+  "status": "not_comparable",
+  "baseline": {
+    "snapshot_id": "FEZ-A",
+    "provider": "qiskit_ibm",
+    "backend_name": "ibm_fez",
+    "content_hash": "sha256:85bb9910694c2f178c434f7ffc4bcf396677b9d582c08dca61135e321f755245",
+    "source": "live_calibration",
+    "captured_at": "2026-10-10T01:12:12.959668Z",
+    "calibrated_at": "2026-10-10T00:19:17Z"
+  },
+  "candidate": {
+    "snapshot_id": "FEZ-B",
+    "provider": "qiskit_ibm",
+    "backend_name": "ibm_fez",
+    "content_hash": "sha256:6eec43281fe689454d79f26f0792be57f69697e7ff805cfb03ad7f16b4308595",
+    "source": "live_calibration",
+    "captured_at": "2026-10-11T01:12:12.959668Z",
+    "calibrated_at": "2026-10-10T00:19:17Z"
+  },
+  "elapsed_between_captures": {
+    "name": "elapsed_between_captures",
+    "value": 86400.0,
+    "unit": "s",
+    "kind": "calculated",
+    "method": "candidate captured_at minus baseline captured_at",
+    "method_version": "1",
+    "uncertainty": null
+  },
+  "footprint_run_id": "FAKEFEZRUN",
+  "footprint_backend": "fake_fez",
+  "allow_footprint_backend_mismatch": false,
+  "footprint": {
+    "status": "available",
+    "reason": null,
+    "qubits": [
+      0,
+      1
+    ],
+    "measured_qubits": [
+      0,
+      1
+    ],
+    "operations": [
+      {
+        "name": "cz",
+        "qubits": [
+          0,
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          0
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          0
+        ],
+        "count": 1
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      }
+    ],
+    "initial_layout": null,
+    "final_layout": null,
+    "method": "openqasm3.toplevel",
+    "method_version": "1"
+  },
+  "hardware": {
+    "status": "not_comparable",
+    "reason": "footprint taken from run FAKEFEZRUN on fake_fez; snapshots are of ibm_fez; a footprint from another backend is used only when allow_footprint_backend_mismatch is set",
+    "global_snapshot_changed": true,
+    "baseline_snapshot_source": "live_calibration",
+    "candidate_snapshot_source": "live_calibration",
+    "relevant_hardware_changed": null,
+    "shared_resource_parameters": [],
+    "calibration_date_changes": [],
+    "unavailable": [],
+    "excluded": []
+  },
+  "unchanged_values": [],
+  "error_parameters": [],
+  "error_values_at_one": [],
+  "limitations": [
+    "This comparison reports what differs between two calibration snapshots of one backend, for the physical resources of one run's footprint. Deltas are candidate minus baseline.",
+    "The footprint run only selects which physical resources are read. The run is not compared with either snapshot.",
+    "Values are provider-reported and compared exactly, with no tolerance. A parameter whose unit differs between the snapshots is not compared, and no unit is converted.",
+    "Relevant hardware means calibration data for the physical resources of the footprint. It does not mean a parameter is known to affect workload performance.",
+    "An unchanged value that was not re-measured (the same measurement date in both snapshots) is one measurement reported twice. It is not evidence that the parameter held constant between the captures.",
+    "A changed measurement date is the provider's timestamp. For virtual gates (such as rz) and configured durations (such as gate_length), the provider can update the date without a physical measurement, so 're-measured' may not mean physically re-measured.",
+    "Error-type parameters with a value of exactly 1 are listed as the provider reported them. QCI does not interpret them.",
+    "Pairwise general parameters (D14) and measure gate entries (D22) are not compared.",
+    "Snapshot comparisons are never stored."
+  ]
+}

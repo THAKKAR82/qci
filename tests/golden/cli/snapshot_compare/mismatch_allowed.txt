@@ -1,0 +1,52 @@
+Snapshot comparison sha256:320005ee14c3b09b8401987527ad7f37f837e030db5c62b828d0570b16aaaae7
+  baseline : FEZ-A  qiskit_ibm/ibm_fez  calibrated 2026-10-10T00:19:17+00:00  captured 2026-10-10T01:12:12.959668+00:00  [live_calibration]
+  candidate: FEZ-B  qiskit_ibm/ibm_fez  calibrated 2026-10-10T00:19:17+00:00  captured 2026-10-11T01:12:12.959668+00:00  [live_calibration]
+  elapsed between captures: 86400 s  [calculated; v1]
+  footprint run: FAKEFEZRUN on fake_fez  qubits=[0, 1] operations=5
+  allow_footprint_backend_mismatch: True
+  status:    partially_comparable
+  method:    qci.compare.snapshot.1
+  (deltas are candidate minus baseline)
+Calibration (footprint-scoped): partially_comparable  (footprint taken from run FAKEFEZRUN on fake_fez; snapshots are of ibm_fez; qubit 0 T2: units differ (baseline us, candidate ms); not compared)
+  note: relevant hardware = calibration data for the physical resources of the footprint run; it does not mean a parameter is known to affect workload performance
+  global_snapshot_changed:   True
+  relevant_hardware_changed: None
+  parameters of footprint resources: 19: 0 changed, 18 unchanged, 0 unavailable, 1 not compared (units differ)
+    qubit 0 T2: baseline 47.70126897741532, candidate 47.70126897741532 (units differ; not compared)
+  measurement date changed: qubit 1 T1: calibration date 2026-10-09 00:12:18+00:00 -> 2026-10-11 00:00:00+00:00
+  excluded: general: pairwise/global parameters (e.g. jq_6272, zz_6272) use an ambiguous qubit-pair encoding and are not scoped to physical resources
+Unchanged values: 18
+  re-measured, same value: 1
+    qubit 1 T1 = 183.33975618046173  (measured 2026-10-09T00:12:18+00:00 -> 2026-10-11T00:00:00+00:00)
+  not re-measured: 17
+    qubit 0 T1 = 50.21397406575876  (measured 2026-10-09T00:12:18+00:00)
+    qubit 0 init_error = 0.0013090237080800576  (measured 2026-09-11T13:38:03+00:00)
+    qubit 0 prob_meas0_prep1 = 0.03173828125  (measured 2026-10-09T23:53:38+00:00)
+    qubit 0 prob_meas1_prep0 = 0.01806640625  (measured 2026-10-09T23:54:22+00:00)
+    qubit 0 readout_error = 0.02490234375  (measured 2026-10-09T23:55:10+00:00)
+    qubit 0 readout_length = 1660.0  (measured 2026-10-09T23:55:10+00:00)
+    qubit 1 T2 = 206.27037190903602  (measured 2026-10-09T00:12:22+00:00)
+    qubit 1 prob_meas0_prep1 = 0.0263671875  (measured 2026-10-09T23:53:39+00:00)
+    qubit 1 prob_meas1_prep0 = 0.02587890625  (measured 2026-10-09T23:54:22+00:00)
+    qubit 1 readout_error = 0.026123046875  (measured 2026-10-09T23:55:10+00:00)
+    qubit 1 readout_length = 1660.0  (measured 2026-10-09T23:55:10+00:00)
+    cz[0, 1] gate_error = 0.007505797542222803  (measured 2026-10-09T03:44:22+00:00)
+    cz[0, 1] gate_length = 68.0  (measured 2026-10-09T03:44:22+00:00)
+    sx[0] gate_error = 0.0016484727826683173  (measured 2026-10-09T00:55:16+00:00)
+    sx[0] gate_length = 24.0  (measured 2026-10-09T00:55:16+00:00)
+    sx[1] gate_error = 0.0003806704831889462  (measured 2026-10-09T00:55:14+00:00)
+    sx[1] gate_length = 24.0  (measured 2026-10-09T00:55:14+00:00)
+  measurement date unavailable: 0
+  note: a value that was not re-measured has the same measurement date in both snapshots; it is one measurement reported twice, not evidence that the value held constant between the captures
+Error-type parameters equal to 1 (gate_error, readout_error, init_error): 0
+  note: values are stated as the provider reported them; QCI does not interpret them
+Limitations:
+  - This comparison reports what differs between two calibration snapshots of one backend, for the physical resources of one run's footprint. Deltas are candidate minus baseline.
+  - The footprint run only selects which physical resources are read. The run is not compared with either snapshot.
+  - Values are provider-reported and compared exactly, with no tolerance. A parameter whose unit differs between the snapshots is not compared, and no unit is converted.
+  - Relevant hardware means calibration data for the physical resources of the footprint. It does not mean a parameter is known to affect workload performance.
+  - An unchanged value that was not re-measured (the same measurement date in both snapshots) is one measurement reported twice. It is not evidence that the parameter held constant between the captures.
+  - A changed measurement date is the provider's timestamp. For virtual gates (such as rz) and configured durations (such as gate_length), the provider can update the date without a physical measurement, so 're-measured' may not mean physically re-measured.
+  - Error-type parameters with a value of exactly 1 are listed as the provider reported them. QCI does not interpret them.
+  - Pairwise general parameters (D14) and measure gate entries (D22) are not compared.
+  - Snapshot comparisons are never stored.

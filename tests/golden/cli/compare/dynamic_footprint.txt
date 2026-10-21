@@ -1,0 +1,39 @@
+Comparison sha256:82a881800ef7eaf78c4e910e75fa60284fdd47bc68d1ffd10ca93214fc261694
+  baseline:  BASE
+  candidate: CAND
+  status:    partially_comparable
+  policy:    qci.compare.v3  engine: qci.compare.engine.4
+  (deltas are candidate minus baseline)
+Source: unchanged
+Environment: unchanged
+Logical circuit: unchanged
+Compilation: changed
+  transpiled: OpenQASM 3 text differs
+Execution: unchanged
+Backend: unchanged
+Physical footprint: not_comparable  (candidate footprint unsupported_dynamic: control flow (BranchingStatement) is not supported by this comparison policy)
+  baseline : qubits=[0, 1] measured=[0, 1] operations=6 initial_layout=[1, 0] final_layout=[1, 0]
+  candidate: unsupported_dynamic (control flow (BranchingStatement) is not supported by this comparison policy)
+Hardware (footprint-scoped): not_comparable  (candidate footprint unsupported_dynamic: control flow (BranchingStatement) is not supported by this comparison policy)
+  note: relevant hardware = calibration data for the physical resources this workload actually used; it does not mean a parameter is known to affect workload performance, nor that a calibration change caused any result change
+  global_snapshot_changed:   False
+  relevant_hardware_changed: None
+Result distribution: not_comparable
+  baseline counts:  {'c': {'00': 52, '11': 48}}
+  candidate counts: {'c': {'00': 52, '11': 48}}
+  note: dynamic circuits are not supported by this comparison policy
+Limitations:
+  - This comparison reports what differs between the baseline and candidate runs.
+  - It makes no regression, improvement, better/worse or pass/fail judgment.
+  - It makes no causal attribution: a difference listed in one section is not evidence that it caused a difference in another.
+  - TVD and Hellinger distance are empirical point estimates; seeded or repeated runs can differ by sampling noise alone.
+  - TVD has a sampling floor when the distributions are comparable: null TVD quantiles and a Monte Carlo p-value under H0 that both runs sampled one shared distribution, at the observed shot counts. Hellinger distance still has no sampling floor.
+  - Sampling floor caveat: It tests only whether the two observed samples are consistent with one shared distribution at these shot counts. It makes no causal claim.
+  - Sampling floor caveat: The pooled plug-in estimate cannot resample outcomes never observed, so the floor is slightly underestimated for sparse distributions.
+  - Sampling floor caveat: It assumes shots within each run are independent and identically distributed. Drift within a job on real hardware violates this.
+  - Sampling floor caveat: No multiple-comparison correction is applied.
+  - The TVD sampling floor is not computed when both runs were simulated with the same simulator seed: their samples are not independent, and the floor assumes independent samples.
+  - A changed result distribution means the observed empirical (sampled) distributions differ. It does not establish that the underlying probability distribution changed, nor that the difference is statistically significant.
+  - Relevant hardware means calibration data for the physical resources the workload actually used. It does not mean a parameter is known to affect workload performance, nor that a calibration change caused any result change.
+  - Hardware calibration is compared only for physical resources identical on both sides.
+  - Observable intervals (Wilson for each run, Newcombe for the difference) describe sampling uncertainty at the observed shot counts, assuming independent shots. They are not verdicts, and no multiple-comparison correction is applied across observables. The Newcombe interval is not computed when both runs were simulated with the same simulator seed, because the samples are then not independent.

@@ -1,0 +1,631 @@
+{
+  "schema_version": 1,
+  "snapshot_comparison_id": "sha256:320005ee14c3b09b8401987527ad7f37f837e030db5c62b828d0570b16aaaae7",
+  "method_version": "qci.compare.snapshot.1",
+  "status": "partially_comparable",
+  "baseline": {
+    "snapshot_id": "FEZ-A",
+    "provider": "qiskit_ibm",
+    "backend_name": "ibm_fez",
+    "content_hash": "sha256:85bb9910694c2f178c434f7ffc4bcf396677b9d582c08dca61135e321f755245",
+    "source": "live_calibration",
+    "captured_at": "2026-10-10T01:12:12.959668Z",
+    "calibrated_at": "2026-10-10T00:19:17Z"
+  },
+  "candidate": {
+    "snapshot_id": "FEZ-B",
+    "provider": "qiskit_ibm",
+    "backend_name": "ibm_fez",
+    "content_hash": "sha256:6eec43281fe689454d79f26f0792be57f69697e7ff805cfb03ad7f16b4308595",
+    "source": "live_calibration",
+    "captured_at": "2026-10-11T01:12:12.959668Z",
+    "calibrated_at": "2026-10-10T00:19:17Z"
+  },
+  "elapsed_between_captures": {
+    "name": "elapsed_between_captures",
+    "value": 86400.0,
+    "unit": "s",
+    "kind": "calculated",
+    "method": "candidate captured_at minus baseline captured_at",
+    "method_version": "1",
+    "uncertainty": null
+  },
+  "footprint_run_id": "FAKEFEZRUN",
+  "footprint_backend": "fake_fez",
+  "allow_footprint_backend_mismatch": true,
+  "footprint": {
+    "status": "available",
+    "reason": null,
+    "qubits": [
+      0,
+      1
+    ],
+    "measured_qubits": [
+      0,
+      1
+    ],
+    "operations": [
+      {
+        "name": "cz",
+        "qubits": [
+          0,
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          0
+        ],
+        "count": 1
+      },
+      {
+        "name": "measure",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          0
+        ],
+        "count": 1
+      },
+      {
+        "name": "sx",
+        "qubits": [
+          1
+        ],
+        "count": 1
+      }
+    ],
+    "initial_layout": null,
+    "final_layout": null,
+    "method": "openqasm3.toplevel",
+    "method_version": "1"
+  },
+  "hardware": {
+    "status": "partially_comparable",
+    "reason": "footprint taken from run FAKEFEZRUN on fake_fez; snapshots are of ibm_fez; qubit 0 T2: units differ (baseline us, candidate ms); not compared",
+    "global_snapshot_changed": true,
+    "baseline_snapshot_source": "live_calibration",
+    "candidate_snapshot_source": "live_calibration",
+    "relevant_hardware_changed": null,
+    "shared_resource_parameters": [
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          0
+        ],
+        "parameter": "T1",
+        "unit": "us",
+        "status": "unchanged",
+        "baseline": 50.21397406575876,
+        "candidate": 50.21397406575876,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T00:12:18Z",
+        "candidate_calibrated_at": "2026-10-09T00:12:18Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          0
+        ],
+        "parameter": "T2",
+        "unit": null,
+        "status": "not_comparable",
+        "baseline": 47.70126897741532,
+        "candidate": 47.70126897741532,
+        "delta": null,
+        "baseline_calibrated_at": "2026-10-09T00:12:23Z",
+        "candidate_calibrated_at": "2026-10-09T00:12:23Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          0
+        ],
+        "parameter": "init_error",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.0013090237080800576,
+        "candidate": 0.0013090237080800576,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-09-11T13:38:03Z",
+        "candidate_calibrated_at": "2026-09-11T13:38:03Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          0
+        ],
+        "parameter": "prob_meas0_prep1",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.03173828125,
+        "candidate": 0.03173828125,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:53:38Z",
+        "candidate_calibrated_at": "2026-10-09T23:53:38Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          0
+        ],
+        "parameter": "prob_meas1_prep0",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.01806640625,
+        "candidate": 0.01806640625,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:54:22Z",
+        "candidate_calibrated_at": "2026-10-09T23:54:22Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          0
+        ],
+        "parameter": "readout_error",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.02490234375,
+        "candidate": 0.02490234375,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:55:10Z",
+        "candidate_calibrated_at": "2026-10-09T23:55:10Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          0
+        ],
+        "parameter": "readout_length",
+        "unit": "ns",
+        "status": "unchanged",
+        "baseline": 1660.0,
+        "candidate": 1660.0,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:55:10Z",
+        "candidate_calibrated_at": "2026-10-09T23:55:10Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "T1",
+        "unit": "us",
+        "status": "unchanged",
+        "baseline": 183.33975618046173,
+        "candidate": 183.33975618046173,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T00:12:18Z",
+        "candidate_calibrated_at": "2026-10-11T00:00:00Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "T2",
+        "unit": "us",
+        "status": "unchanged",
+        "baseline": 206.27037190903602,
+        "candidate": 206.27037190903602,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T00:12:22Z",
+        "candidate_calibrated_at": "2026-10-09T00:12:22Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "prob_meas0_prep1",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.0263671875,
+        "candidate": 0.0263671875,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:53:39Z",
+        "candidate_calibrated_at": "2026-10-09T23:53:39Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "prob_meas1_prep0",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.02587890625,
+        "candidate": 0.02587890625,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:54:22Z",
+        "candidate_calibrated_at": "2026-10-09T23:54:22Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "readout_error",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.026123046875,
+        "candidate": 0.026123046875,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:55:10Z",
+        "candidate_calibrated_at": "2026-10-09T23:55:10Z"
+      },
+      {
+        "resource_kind": "qubit",
+        "operation": null,
+        "qubits": [
+          1
+        ],
+        "parameter": "readout_length",
+        "unit": "ns",
+        "status": "unchanged",
+        "baseline": 1660.0,
+        "candidate": 1660.0,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T23:55:10Z",
+        "candidate_calibrated_at": "2026-10-09T23:55:10Z"
+      },
+      {
+        "resource_kind": "operation",
+        "operation": "cz",
+        "qubits": [
+          0,
+          1
+        ],
+        "parameter": "gate_error",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.007505797542222803,
+        "candidate": 0.007505797542222803,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T03:44:22Z",
+        "candidate_calibrated_at": "2026-10-09T03:44:22Z"
+      },
+      {
+        "resource_kind": "operation",
+        "operation": "cz",
+        "qubits": [
+          0,
+          1
+        ],
+        "parameter": "gate_length",
+        "unit": "ns",
+        "status": "unchanged",
+        "baseline": 68.0,
+        "candidate": 68.0,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T03:44:22Z",
+        "candidate_calibrated_at": "2026-10-09T03:44:22Z"
+      },
+      {
+        "resource_kind": "operation",
+        "operation": "sx",
+        "qubits": [
+          0
+        ],
+        "parameter": "gate_error",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.0016484727826683173,
+        "candidate": 0.0016484727826683173,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T00:55:16Z",
+        "candidate_calibrated_at": "2026-10-09T00:55:16Z"
+      },
+      {
+        "resource_kind": "operation",
+        "operation": "sx",
+        "qubits": [
+          0
+        ],
+        "parameter": "gate_length",
+        "unit": "ns",
+        "status": "unchanged",
+        "baseline": 24.0,
+        "candidate": 24.0,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T00:55:16Z",
+        "candidate_calibrated_at": "2026-10-09T00:55:16Z"
+      },
+      {
+        "resource_kind": "operation",
+        "operation": "sx",
+        "qubits": [
+          1
+        ],
+        "parameter": "gate_error",
+        "unit": null,
+        "status": "unchanged",
+        "baseline": 0.0003806704831889462,
+        "candidate": 0.0003806704831889462,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T00:55:14Z",
+        "candidate_calibrated_at": "2026-10-09T00:55:14Z"
+      },
+      {
+        "resource_kind": "operation",
+        "operation": "sx",
+        "qubits": [
+          1
+        ],
+        "parameter": "gate_length",
+        "unit": "ns",
+        "status": "unchanged",
+        "baseline": 24.0,
+        "candidate": 24.0,
+        "delta": 0.0,
+        "baseline_calibrated_at": "2026-10-09T00:55:14Z",
+        "candidate_calibrated_at": "2026-10-09T00:55:14Z"
+      }
+    ],
+    "calibration_date_changes": [
+      "qubit 1 T1: calibration date 2026-10-09 00:12:18+00:00 -> 2026-10-11 00:00:00+00:00"
+    ],
+    "unavailable": [],
+    "excluded": [
+      "general: pairwise/global parameters (e.g. jq_6272, zz_6272) use an ambiguous qubit-pair encoding and are not scoped to physical resources"
+    ]
+  },
+  "unchanged_values": [
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        0
+      ],
+      "parameter": "T1",
+      "value": 50.21397406575876,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T00:12:18Z",
+      "candidate_measured_at": "2026-10-09T00:12:18Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        0
+      ],
+      "parameter": "init_error",
+      "value": 0.0013090237080800576,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-09-11T13:38:03Z",
+      "candidate_measured_at": "2026-09-11T13:38:03Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        0
+      ],
+      "parameter": "prob_meas0_prep1",
+      "value": 0.03173828125,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:53:38Z",
+      "candidate_measured_at": "2026-10-09T23:53:38Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        0
+      ],
+      "parameter": "prob_meas1_prep0",
+      "value": 0.01806640625,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:54:22Z",
+      "candidate_measured_at": "2026-10-09T23:54:22Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        0
+      ],
+      "parameter": "readout_error",
+      "value": 0.02490234375,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:55:10Z",
+      "candidate_measured_at": "2026-10-09T23:55:10Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        0
+      ],
+      "parameter": "readout_length",
+      "value": 1660.0,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:55:10Z",
+      "candidate_measured_at": "2026-10-09T23:55:10Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        1
+      ],
+      "parameter": "T1",
+      "value": 183.33975618046173,
+      "measurement": "re_measured_same_value",
+      "baseline_measured_at": "2026-10-09T00:12:18Z",
+      "candidate_measured_at": "2026-10-11T00:00:00Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        1
+      ],
+      "parameter": "T2",
+      "value": 206.27037190903602,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T00:12:22Z",
+      "candidate_measured_at": "2026-10-09T00:12:22Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        1
+      ],
+      "parameter": "prob_meas0_prep1",
+      "value": 0.0263671875,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:53:39Z",
+      "candidate_measured_at": "2026-10-09T23:53:39Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        1
+      ],
+      "parameter": "prob_meas1_prep0",
+      "value": 0.02587890625,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:54:22Z",
+      "candidate_measured_at": "2026-10-09T23:54:22Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        1
+      ],
+      "parameter": "readout_error",
+      "value": 0.026123046875,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:55:10Z",
+      "candidate_measured_at": "2026-10-09T23:55:10Z"
+    },
+    {
+      "resource_kind": "qubit",
+      "operation": null,
+      "qubits": [
+        1
+      ],
+      "parameter": "readout_length",
+      "value": 1660.0,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T23:55:10Z",
+      "candidate_measured_at": "2026-10-09T23:55:10Z"
+    },
+    {
+      "resource_kind": "operation",
+      "operation": "cz",
+      "qubits": [
+        0,
+        1
+      ],
+      "parameter": "gate_error",
+      "value": 0.007505797542222803,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T03:44:22Z",
+      "candidate_measured_at": "2026-10-09T03:44:22Z"
+    },
+    {
+      "resource_kind": "operation",
+      "operation": "cz",
+      "qubits": [
+        0,
+        1
+      ],
+      "parameter": "gate_length",
+      "value": 68.0,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T03:44:22Z",
+      "candidate_measured_at": "2026-10-09T03:44:22Z"
+    },
+    {
+      "resource_kind": "operation",
+      "operation": "sx",
+      "qubits": [
+        0
+      ],
+      "parameter": "gate_error",
+      "value": 0.0016484727826683173,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T00:55:16Z",
+      "candidate_measured_at": "2026-10-09T00:55:16Z"
+    },
+    {
+      "resource_kind": "operation",
+      "operation": "sx",
+      "qubits": [
+        0
+      ],
+      "parameter": "gate_length",
+      "value": 24.0,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T00:55:16Z",
+      "candidate_measured_at": "2026-10-09T00:55:16Z"
+    },
+    {
+      "resource_kind": "operation",
+      "operation": "sx",
+      "qubits": [
+        1
+      ],
+      "parameter": "gate_error",
+      "value": 0.0003806704831889462,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T00:55:14Z",
+      "candidate_measured_at": "2026-10-09T00:55:14Z"
+    },
+    {
+      "resource_kind": "operation",
+      "operation": "sx",
+      "qubits": [
+        1
+      ],
+      "parameter": "gate_length",
+      "value": 24.0,
+      "measurement": "not_re_measured",
+      "baseline_measured_at": "2026-10-09T00:55:14Z",
+      "candidate_measured_at": "2026-10-09T00:55:14Z"
+    }
+  ],
+  "error_parameters": [
+    "gate_error",
+    "readout_error",
+    "init_error"
+  ],
+  "error_values_at_one": [],
+  "limitations": [
+    "This comparison reports what differs between two calibration snapshots of one backend, for the physical resources of one run's footprint. Deltas are candidate minus baseline.",
+    "The footprint run only selects which physical resources are read. The run is not compared with either snapshot.",
+    "Values are provider-reported and compared exactly, with no tolerance. A parameter whose unit differs between the snapshots is not compared, and no unit is converted.",
+    "Relevant hardware means calibration data for the physical resources of the footprint. It does not mean a parameter is known to affect workload performance.",
+    "An unchanged value that was not re-measured (the same measurement date in both snapshots) is one measurement reported twice. It is not evidence that the parameter held constant between the captures.",
+    "A changed measurement date is the provider's timestamp. For virtual gates (such as rz) and configured durations (such as gate_length), the provider can update the date without a physical measurement, so 're-measured' may not mean physically re-measured.",
+    "Error-type parameters with a value of exactly 1 are listed as the provider reported them. QCI does not interpret them.",
+    "Pairwise general parameters (D14) and measure gate entries (D22) are not compared.",
+    "Snapshot comparisons are never stored."
+  ]
+}

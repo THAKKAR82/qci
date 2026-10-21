@@ -1,0 +1,178 @@
+Run-to-snapshot calibration comparison sha256:7995c85865a73fedf6f8de5b5db776a5ae61f2542714be54f846ab7dcfafc66c
+  baseline:  run 01R1B00000000FAKEFEZRVN000  qiskit_ibm/fake_fez version=1.2.8  [static_fake]
+             calibrated 2025-02-26T20:16:25+00:00  recorded device ibm_fez version=1.2.8  qiskit-ibm-runtime 0.50.0
+  candidate: snapshot LIVE-EDITED  qiskit_ibm/ibm_fez version=1.3.37  [live_calibration]
+             calibrated 2026-10-10T00:19:17+00:00  captured 2026-10-10T01:12:12.959668+00:00  content hash sha256:9ed4cfe2fb3cfaa59a2977eee0ce50b10649b05b0170e066c5d53c053374298f
+  device mapping: fake_fez -> ibm_fez (qiskit_ibm FAKE_DEVICE_SOURCES)
+  footprint: qubits=[136, 141, 142, 143, 144] operations=20
+  status:    changed
+  method:    qci.compare.run_snapshot.1
+  (baseline is the fake run, candidate the live snapshot; deltas and date differences are live minus fake)
+Calibration (footprint-scoped): changed  (fake_fez is the fake built from ibm_fez calibration (qiskit_ibm FAKE_DEVICE_SOURCES); qubit 136 T1: units differ (baseline us, candidate ms); not compared)
+  note: relevant hardware = calibration data for the physical resources of the run's footprint; it does not mean a parameter is known to affect workload performance
+  global_snapshot_changed:   True
+  relevant_hardware_changed: True
+  parameters of footprint resources: 65: 44 changed, 15 unchanged, 5 unavailable, 1 not compared (units differ)
+  changed: 44
+    qubit 136 T2 [us]: 93.60064375549622 -> 101.4437926038923 (delta +7.84315)
+    qubit 136 prob_meas0_prep1 [no unit]: 0.00927734375 -> 0.01611328125 (delta +0.00683594)
+    qubit 136 prob_meas1_prep0 [no unit]: 0.0 -> 0.00830078125 (delta +0.00830078)
+    qubit 136 readout_error [no unit]: 0.004638671875 -> 1.0 (delta +0.995361)
+    qubit 136 readout_length [ns]: 1560.0 -> 1660.0 (delta +100)
+    qubit 141 T1 [us]: 168.24304089850796 -> 93.72717546753469 (delta -74.5159)
+    qubit 141 T2 [us]: 91.44599425726835 -> 84.1595103956439 (delta -7.28648)
+    qubit 141 prob_meas0_prep1 [no unit]: 0.0068359375 -> 0.01416015625 (delta +0.00732422)
+    qubit 141 prob_meas1_prep0 [no unit]: 0.0029296875 -> 0.00146484375 (delta -0.00146484)
+    qubit 141 readout_error [no unit]: 0.0048828125 -> 0.0078125 (delta +0.00292969)
+    qubit 141 readout_length [ns]: 1560.0 -> 1660.0 (delta +100)
+    qubit 142 T1 [us]: 166.04447800327617 -> 202.1361813235256 (delta +36.0917)
+    qubit 142 T2 [us]: 144.82453844077762 -> 217.84034026754674 (delta +73.0158)
+    qubit 142 prob_meas0_prep1 [no unit]: 0.0107421875 -> 0.005859375 (delta -0.00488281)
+    qubit 142 prob_meas1_prep0 [no unit]: 0.00146484375 -> 0.00048828125 (delta -0.000976562)
+    qubit 142 readout_error [no unit]: 0.006103515625 -> 0.003173828125 (delta -0.00292969)
+    qubit 142 readout_length [ns]: 1560.0 -> 1660.0 (delta +100)
+    qubit 143 T1 [us]: 149.85789492826876 -> 125.55914846927799 (delta -24.2987)
+    qubit 143 T2 [us]: 122.50858475703407 -> 150.54006586135355 (delta +28.0315)
+    qubit 143 prob_meas0_prep1 [no unit]: 0.0078125 -> 0.0068359375 (delta -0.000976562)
+    qubit 143 prob_meas1_prep0 [no unit]: 0.0009765625 -> 0.0029296875 (delta +0.00195312)
+    qubit 143 readout_error [no unit]: 0.00439453125 -> 0.0048828125 (delta +0.000488281)
+    qubit 143 readout_length [ns]: 1560.0 -> 1660.0 (delta +100)
+    qubit 144 T1 [us]: 97.75577443860458 -> 159.83539482717094 (delta +62.0796)
+    qubit 144 T2 [us]: 111.67802389982297 -> 264.01228598616206 (delta +152.334)
+    qubit 144 prob_meas0_prep1 [no unit]: 0.013671875 -> 0.01171875 (delta -0.00195312)
+    qubit 144 prob_meas1_prep0 [no unit]: 0.0078125 -> 0.001953125 (delta -0.00585938)
+    qubit 144 readout_error [no unit]: 0.0107421875 -> 0.0068359375 (delta -0.00390625)
+    qubit 144 readout_length [ns]: 1560.0 -> 1660.0 (delta +100)
+    cz[142, 141] gate_error [no unit]: 0.0029237898413406183 -> 0.001899979718089223 (delta -0.00102381)
+    cz[142, 141] gate_length [ns]: 84.0 -> 68.0 (delta -16)
+    cz[142, 143] gate_error [no unit]: 0.003311355983104225 -> 0.0018813262579029932 (delta -0.00143003)
+    cz[142, 143] gate_length [ns]: 84.0 -> 68.0 (delta -16)
+    cz[143, 136] gate_error [no unit]: 0.002434309659294087 -> 0.003110550432723541 (delta +0.000676241)
+    cz[143, 136] gate_length [ns]: 84.0 -> 68.0 (delta -16)
+    cz[143, 142] gate_error [no unit]: 0.003311355983104225 -> 0.0018813262579029932 (delta -0.00143003)
+    cz[143, 142] gate_length [ns]: 84.0 -> 68.0 (delta -16)
+    cz[143, 144] gate_error [no unit]: 0.003198734196518116 -> 0.0021772807977804842 (delta -0.00102145)
+    cz[143, 144] gate_length [ns]: 84.0 -> 68.0 (delta -16)
+    sx[136] gate_error [no unit]: 0.0002136664625619799 -> 0.0002736394899814077 (delta +5.9973e-05)
+    sx[141] gate_error [no unit]: 0.00014303493954108718 -> 0.00019854156616620902 (delta +5.55066e-05)
+    sx[142] gate_error [no unit]: 0.0003109893038574789 -> 0.0002398677804809262 (delta -7.11215e-05)
+    sx[143] gate_error [no unit]: 0.00010021200559680127 -> 0.0002032634566782734 (delta +0.000103051)
+    sx[144] gate_error [no unit]: 0.00012859374452248932 -> 0.0003526948456800577 (delta +0.000224101)
+  unchanged: 15
+    rz[136] gate_error [no unit]: 0.0 -> 0.0 (delta +0)
+    rz[136] gate_length [ns]: 0.0 -> 0.0 (delta +0)
+    rz[141] gate_error [no unit]: 0.0 -> 0.0 (delta +0)
+    rz[141] gate_length [ns]: 0.0 -> 0.0 (delta +0)
+    rz[142] gate_error [no unit]: 0.0 -> 0.0 (delta +0)
+    rz[142] gate_length [ns]: 0.0 -> 0.0 (delta +0)
+    rz[143] gate_error [no unit]: 0.0 -> 0.0 (delta +0)
+    rz[143] gate_length [ns]: 0.0 -> 0.0 (delta +0)
+    rz[144] gate_error [no unit]: 0.0 -> 0.0 (delta +0)
+    rz[144] gate_length [ns]: 0.0 -> 0.0 (delta +0)
+    sx[136] gate_length [ns]: 24.0 -> 24.0 (delta +0)
+    sx[141] gate_length [ns]: 24.0 -> 24.0 (delta +0)
+    sx[142] gate_length [ns]: 24.0 -> 24.0 (delta +0)
+    sx[143] gate_length [ns]: 24.0 -> 24.0 (delta +0)
+    sx[144] gate_length [ns]: 24.0 -> 24.0 (delta +0)
+  unavailable values: 5
+    qubit 136 init_error [no unit]: unavailable -> 0.002339651541162514
+    qubit 141 init_error [no unit]: unavailable -> 0.007028624280130451
+    qubit 142 init_error [no unit]: unavailable -> 0.0022008511201875537
+    qubit 143 init_error [no unit]: unavailable -> 0.0016001087632181567
+    qubit 144 init_error [no unit]: unavailable -> 0.0018347008034753007
+  not compared (units differ): 1
+    qubit 136 T1: 95.62081555389064 [us] -> 97.85513846681525 [ms] (units differ; not compared)
+  excluded: general: pairwise/global parameters (e.g. jq_6272, zz_6272) use an ambiguous qubit-pair encoding and are not scoped to physical resources
+Parameters reported by one side only: 5
+    candidate qubit 136 init_error
+    candidate qubit 141 init_error
+    candidate qubit 142 init_error
+    candidate qubit 143 init_error
+    candidate qubit 144 init_error
+Unit differences: 1
+    qubit 136 T1: baseline [us], candidate [ms]
+Error-type parameters equal to 1 (gate_error, readout_error, init_error): 1
+    candidate qubit 136 readout_error [no unit] = 1  (measured 2026-10-09T23:55:56+00:00)
+  note: values are stated as the provider reported them; QCI does not interpret them
+Measurement dates (fake -> live):
+    calibrated_at: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    live minus fake over 65 parameters [s]: min 50933732.0, max 51188864.0
+    cz[142, 141] gate_error: 2025-02-24T11:11:44+00:00 -> 2026-10-09T03:44:23+00:00  difference [s]: 51121959.0
+    cz[142, 141] gate_length: 2025-02-24T11:11:44+00:00 -> 2026-10-09T03:44:23+00:00  difference [s]: 51121959.0
+    cz[142, 143] gate_error: 2025-02-24T11:11:54+00:00 -> 2026-10-09T03:44:24+00:00  difference [s]: 51121950.0
+    cz[142, 143] gate_length: 2025-02-24T11:11:54+00:00 -> 2026-10-09T03:44:24+00:00  difference [s]: 51121950.0
+    cz[143, 136] gate_error: 2025-02-24T11:12:15+00:00 -> 2026-10-09T03:44:26+00:00  difference [s]: 51121931.0
+    cz[143, 136] gate_length: 2025-02-24T11:12:15+00:00 -> 2026-10-09T03:44:26+00:00  difference [s]: 51121931.0
+    cz[143, 142] gate_error: 2025-02-24T11:11:54+00:00 -> 2026-10-09T03:44:24+00:00  difference [s]: 51121950.0
+    cz[143, 142] gate_length: 2025-02-24T11:11:54+00:00 -> 2026-10-09T03:44:24+00:00  difference [s]: 51121950.0
+    cz[143, 144] gate_error: 2025-02-24T11:12:05+00:00 -> 2026-10-09T03:44:25+00:00  difference [s]: 51121940.0
+    cz[143, 144] gate_length: 2025-02-24T11:12:05+00:00 -> 2026-10-09T03:44:25+00:00  difference [s]: 51121940.0
+    rz[136] gate_error: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[136] gate_length: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[141] gate_error: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[141] gate_length: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[142] gate_error: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[142] gate_length: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[143] gate_error: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[143] gate_length: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[144] gate_error: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    rz[144] gate_length: 2025-02-26T20:16:25+00:00 -> 2026-10-10T00:19:17+00:00  difference [s]: 50990572.0
+    sx[136] gate_error: 2025-02-24T09:40:39+00:00 -> 2026-10-09T00:55:18+00:00  difference [s]: 51117279.0
+    sx[136] gate_length: 2025-02-24T09:40:39+00:00 -> 2026-10-09T00:55:18+00:00  difference [s]: 51117279.0
+    sx[141] gate_error: 2025-02-24T09:40:37+00:00 -> 2026-10-09T00:55:16+00:00  difference [s]: 51117279.0
+    sx[141] gate_length: 2025-02-24T09:40:37+00:00 -> 2026-10-09T00:55:16+00:00  difference [s]: 51117279.0
+    sx[142] gate_error: 2025-02-24T09:40:34+00:00 -> 2026-10-09T00:55:18+00:00  difference [s]: 51117284.0
+    sx[142] gate_length: 2025-02-24T09:40:34+00:00 -> 2026-10-09T00:55:18+00:00  difference [s]: 51117284.0
+    sx[143] gate_error: 2025-02-24T09:40:31+00:00 -> 2026-10-09T00:55:16+00:00  difference [s]: 51117285.0
+    sx[143] gate_length: 2025-02-24T09:40:31+00:00 -> 2026-10-09T00:55:16+00:00  difference [s]: 51117285.0
+    sx[144] gate_error: 2025-02-24T09:40:37+00:00 -> 2026-10-09T00:55:18+00:00  difference [s]: 51117281.0
+    sx[144] gate_length: 2025-02-24T09:40:37+00:00 -> 2026-10-09T00:55:18+00:00  difference [s]: 51117281.0
+    qubit 136 T1: 2025-02-26T11:56:47+00:00 -> 2026-10-09T00:12:21+00:00  difference [s]: 50933734.0
+    qubit 136 T2: 2025-02-26T11:56:53+00:00 -> 2026-10-09T00:12:25+00:00  difference [s]: 50933732.0
+    qubit 136 init_error: unknown -> 2026-10-09T21:17:03+00:00  difference [s]: unavailable
+    qubit 136 prob_meas0_prep1: 2025-02-24T12:48:05+00:00 -> 2026-10-09T23:54:16+00:00  difference [s]: 51188771.0
+    qubit 136 prob_meas1_prep0: 2025-02-24T12:48:09+00:00 -> 2026-10-09T23:55:04+00:00  difference [s]: 51188815.0
+    qubit 136 readout_error: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:56+00:00  difference [s]: 51188861.0
+    qubit 136 readout_length: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:56+00:00  difference [s]: 51188861.0
+    qubit 141 T1: 2025-02-24T09:02:13+00:00 -> 2026-10-09T00:12:21+00:00  difference [s]: 51117008.0
+    qubit 141 T2: 2025-02-26T11:56:50+00:00 -> 2026-10-09T00:12:23+00:00  difference [s]: 50933733.0
+    qubit 141 init_error: unknown -> 2026-10-09T21:17:03+00:00  difference [s]: unavailable
+    qubit 141 prob_meas0_prep1: 2025-02-24T12:48:05+00:00 -> 2026-10-09T23:54:18+00:00  difference [s]: 51188773.0
+    qubit 141 prob_meas1_prep0: 2025-02-24T12:48:09+00:00 -> 2026-10-09T23:55:06+00:00  difference [s]: 51188817.0
+    qubit 141 readout_error: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:58+00:00  difference [s]: 51188863.0
+    qubit 141 readout_length: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:58+00:00  difference [s]: 51188863.0
+    qubit 142 T1: 2025-02-26T11:56:47+00:00 -> 2026-10-09T00:12:21+00:00  difference [s]: 50933734.0
+    qubit 142 T2: 2025-02-26T11:56:53+00:00 -> 2026-10-09T00:12:25+00:00  difference [s]: 50933732.0
+    qubit 142 init_error: unknown -> 2026-10-09T21:17:04+00:00  difference [s]: unavailable
+    qubit 142 prob_meas0_prep1: 2025-02-24T12:48:05+00:00 -> 2026-10-09T23:54:18+00:00  difference [s]: 51188773.0
+    qubit 142 prob_meas1_prep0: 2025-02-24T12:48:09+00:00 -> 2026-10-09T23:55:06+00:00  difference [s]: 51188817.0
+    qubit 142 readout_error: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:58+00:00  difference [s]: 51188863.0
+    qubit 142 readout_length: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:58+00:00  difference [s]: 51188863.0
+    qubit 143 T1: 2025-02-26T11:56:47+00:00 -> 2026-10-09T00:12:21+00:00  difference [s]: 50933734.0
+    qubit 143 T2: 2025-02-26T11:56:50+00:00 -> 2026-10-09T00:12:23+00:00  difference [s]: 50933733.0
+    qubit 143 init_error: unknown -> 2026-10-09T21:17:04+00:00  difference [s]: unavailable
+    qubit 143 prob_meas0_prep1: 2025-02-24T12:48:05+00:00 -> 2026-10-09T23:54:18+00:00  difference [s]: 51188773.0
+    qubit 143 prob_meas1_prep0: 2025-02-24T12:48:09+00:00 -> 2026-10-09T23:55:06+00:00  difference [s]: 51188817.0
+    qubit 143 readout_error: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:58+00:00  difference [s]: 51188863.0
+    qubit 143 readout_length: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:58+00:00  difference [s]: 51188863.0
+    qubit 144 T1: 2025-02-24T09:02:13+00:00 -> 2026-10-09T00:12:21+00:00  difference [s]: 51117008.0
+    qubit 144 T2: 2025-02-26T11:56:53+00:00 -> 2026-10-09T00:12:25+00:00  difference [s]: 50933732.0
+    qubit 144 init_error: unknown -> 2026-10-09T21:17:04+00:00  difference [s]: unavailable
+    qubit 144 prob_meas0_prep1: 2025-02-24T12:48:05+00:00 -> 2026-10-09T23:54:19+00:00  difference [s]: 51188774.0
+    qubit 144 prob_meas1_prep0: 2025-02-24T12:48:09+00:00 -> 2026-10-09T23:55:06+00:00  difference [s]: 51188817.0
+    qubit 144 readout_error: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:59+00:00  difference [s]: 51188864.0
+    qubit 144 readout_length: 2025-02-24T12:48:15+00:00 -> 2026-10-09T23:55:59+00:00  difference [s]: 51188864.0
+Limitations:
+  - This comparison reports what differs between the calibration frozen into a fake backend, as stored in one run, and one live snapshot of the device the fake was built from, for the physical resources of that run's footprint. Deltas and date differences are live minus fake.
+  - The fake-to-device correspondence comes from an explicit list in the provider adapter and is checked against the device name recorded in the fake's own calibration payload. QCI cannot check that the fake's payload equals what the device published at that time.
+  - Both sides are reports about one device at different times. Qubit and gate indices are assumed to name the same physical resources on both sides. A device revision between the two dates (both backend versions are shown) could break this, and QCI cannot detect it.
+  - Values are provider-reported and compared exactly, with no tolerance. A parameter whose unit differs between the two sides is not compared, and no unit is converted.
+  - A changed value means only that the two reports give different values. This comparison does not say whether the fake's noise model suits the workload, and it does not predict how the workload would behave on the device. Nothing is simulated against the live snapshot.
+  - This compares calibration data: the values the fake backend was built from and the live device's reported values. It does not compare the noise model a simulator constructs from that data; a simulator may use only some of these parameters, in its own way.
+  - Measurement dates are provider timestamps, shown as given. Their differences are calculated. For virtual gates (such as rz) and configured durations (such as gate_length), the date can be the document timestamp rather than the time of a physical measurement.
+  - The run's captured_at is when QCI read the fake backend, not a calibration date, and is not used.
+  - Relevant hardware means calibration data for the physical resources of the footprint. It does not mean a parameter is known to affect workload performance.
+  - The raw payloads of a fake and a live device always differ, so global_snapshot_changed is true in practice and carries no further information here.
+  - Error-type parameters with a value of exactly 1 are listed as the provider reported them. QCI does not interpret them.
+  - Pairwise general parameters (D14) and measure gate entries (D22) are not compared.
+  - These comparisons are never stored.
